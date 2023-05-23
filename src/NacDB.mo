@@ -21,16 +21,20 @@ module {
     public type AttributeValueRBTree = {#tree : RBT.Tree<Text, AttributeValueRBTreeValue>};
     public type AttributeValue = AttributeValuePrimitive or AttributeValueBlob or AttributeValueTuple or AttributeValueArray or AttributeValueRBTree;
 
-    // TODO: Max items per DB with auto removal of losers.
+    // TODO: Max items per DB with auto removal of loosers.
     type SubDB = {
         // pk: PK;
         // subDBKey: SubDBKey;
         data: BTree.BTree<SK, AttributeValue>;
         inMoving: Bool; // While moving to another canister, write operations are disabled.
+        hardCap: Nat32; // Remove looser items after reaching this count.
     };
+
+    type MoveCap = { #numDBs: Nat32; #usedMemory: Nat32 };
 
     type SuperDB = {
         subDBs: BTree.BTree<SubDBKey, SubDB>;
+        moveCap: MoveCap;
     };
 
     public func getSubDB(superDB: SuperDB, subDBKey: SubDBKey) : ?SubDB {
@@ -48,4 +52,6 @@ module {
     public func skExists(options: ExistsOptions) : Bool {
         BTree.has(options.subDB.data, Text.compare, options.sk);
     };
+
+    func moveSubDB
 };
