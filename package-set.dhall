@@ -5,7 +5,18 @@ let Package =
 let
   -- This is where you can add your own packages to the package-set
   additions =
-    [] : List Package
+    [
+      { name = "btree"
+      , repo = "https://github.com/canscale/StableHeapBTreeMap"
+      , version = "v0.3.1"
+      , dependencies = [ "base" ]
+      },
+      { name = "stable-rbtree"
+      , repo = "https://github.com/canscale/StableRBTree"
+      , version = "v0.6.1"
+      , dependencies = [ "base" ]
+      },
+    ] : List Package
 
 let
   {- This is where you can override existing packages in the package-set
