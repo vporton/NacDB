@@ -31,6 +31,12 @@ let
      ]
   -}
   overrides =
-    [] : List Package
+    [
+      { name = "base"
+      , repo = "https://github.com/dfinity/motoko-base"
+      , version = "moc-0.9.0"
+      , dependencies = [] : List Text
+      },
+    ] : List Package
 
 in  upstream # additions # overrides

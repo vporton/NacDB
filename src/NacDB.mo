@@ -1,13 +1,13 @@
 import Principal "mo:base/Principal";
 import BTree "mo:btree/BTree";
 import RBT "mo:stable-rbtree/StableRBTree";
-import Nat32 "mo:base/Nat32";
 import Text "mo:base/Text";
+import Nat "mo:base/Nat";
 
 module {
     public type PK = Principal;
 
-    public type SubDBKey = Nat32;
+    public type SubDBKey = Nat;
 
     public type SK = Text;
 
@@ -27,18 +27,19 @@ module {
         // subDBKey: SubDBKey;
         data: BTree.BTree<SK, AttributeValue>;
         inMoving: Bool; // While moving to another canister, write operations are disabled.
-        hardCap: Nat32; // Remove looser items after reaching this count.
+        hardCap: Nat; // Remove looser items after reaching this count.
     };
 
-    type MoveCap = { #numDBs: Nat32; #usedMemory: Nat32 };
+    type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
 
     type SuperDB = {
         subDBs: BTree.BTree<SubDBKey, SubDB>;
         moveCap: MoveCap;
+        moveCallback: ?(shared (oldPK: PK, oldSubDBKey: SubDBKey, newPK: PK, newSubDBKey: SubDBKey) -> ());
     };
 
     public func getSubDB(superDB: SuperDB, subDBKey: SubDBKey) : ?SubDB {
-        BTree.get<SubDBKey, SubDB>(superDB.subDBs, Nat32.compare, subDBKey);
+        BTree.get<SubDBKey, SubDB>(superDB.subDBs, Nat.compare, subDBKey);
     };
 
     public type GetOptions = {subDB: SubDB; sk: SK};
@@ -53,5 +54,5 @@ module {
         BTree.has(options.subDB.data, Text.compare, options.sk);
     };
 
-    func moveSubDB
+// func moveSubDB
 };
