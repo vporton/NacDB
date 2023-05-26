@@ -30,7 +30,6 @@ module {
         // pk: PK;
         // subDBKey: SubDBKey;
         data: RBT.Tree<SK, AttributeValue>;
-        var inMoving: Bool; // While moving to another canister, write operations are disabled. // FIXME: remove?
         hardCap: Nat; // Remove looser items after reaching this count.
     };
 
@@ -42,7 +41,6 @@ module {
         moveCap: MoveCap;
         /// Should be idempotent.
         moveCallback: ?(shared ({oldCanister: DBCanister; oldSubDBKey: SubDBKey; newCanister: DBCanister; newSubDBKey: SubDBKey}) -> async ());
-        var inMoving: Bool; // TODO: Do we need `inMoving` for both super- and sub-DB? // FIXME: remove?
         var moving: ?{ // TODO: Can we move it to `SubDB`?
             oldCanister: DBCanister;
             oldSuperDB: SuperDB;
@@ -68,12 +66,13 @@ module {
     };
 
     func insertSubDB(superDB: SuperDB, subDB: SubDB) {
-        if (not superDB.inMoving) {
-            superDB.inMoving := true;
-            let key = superDB.nextKey;
-            superDB.nextKey += 1;
-            ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
-            superDB.inMoving := false;
+        switch (superDB.moving) {
+            case (?_) {};
+            case (null) {
+                let key = superDB.nextKey;
+                superDB.nextKey += 1;
+                ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
+            };
         };
     };
 
