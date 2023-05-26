@@ -9,8 +9,6 @@ import Debug "mo:base/Debug";
 import Bool "mo:base/Bool";
 
 module {
-    public type PK = Principal;
-
     public type SubDBKey = Nat;
 
     public type SK = Text;
@@ -25,12 +23,9 @@ module {
     public type AttributeValueRBTree = {#tree : RBT.Tree<Text, AttributeValueRBTreeValue>};
     public type AttributeValue = AttributeValuePrimitive or AttributeValueBlob or AttributeValueTuple or AttributeValueArray or AttributeValueRBTree;
 
-    // TODO: Max items per DB with auto removal of loosers.
     type SubDB = {
-        // pk: PK;
-        // subDBKey: SubDBKey;
         data: RBT.Tree<SK, AttributeValue>;
-        hardCap: Nat; // Remove looser items after reaching this count.
+        hardCap: Nat; // Remove looser items after reaching this count. // TODO
     };
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
