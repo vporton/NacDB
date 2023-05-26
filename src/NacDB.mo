@@ -40,8 +40,8 @@ module {
         var nextKey: Nat;
         subDBs: BTree.BTree<SubDBKey, SubDB>;
         moveCap: MoveCap;
-        /// Should be idempotent. // TODO: Rename `oldPK`, `newPK`.
-        moveCallback: ?(shared ({oldPK: DBCanister; oldSubDBKey: SubDBKey; newPK: DBCanister; newSubDBKey: SubDBKey}) -> async ());
+        /// Should be idempotent.
+        moveCallback: ?(shared ({oldCanister: DBCanister; oldSubDBKey: SubDBKey; newCanister: DBCanister; newSubDBKey: SubDBKey}) -> async ());
         var inMoving: Bool; // TODO: Do we need `inMoving` for both super- and sub-DB? // FIXME: remove?
         var moving: ?{ // TODO: Can we move it to `SubDB`?
             oldCanister: DBCanister;
@@ -127,9 +127,9 @@ module {
                         switch (options.superDB.moveCallback) {
                             case (?cb) {
                                 await cb({
-                                    oldPK = moving.oldCanister;
+                                    oldCanister = moving.oldCanister;
                                     oldSubDBKey = moving.oldSubDBKey;
-                                    newPK = moving.newCanister;
+                                    newCanister = moving.newCanister;
                                     newSubDBKey: SubDBKey;
                                 })
                             };
@@ -143,18 +143,18 @@ module {
         }
     };
 
-    func doMoveSubDBToNewCanister(options: {index: IndexCanister; oldCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) : async* () {
+    func doStartMovingSubDBToNewCanister(options: {index: IndexCanister; oldCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) : async* () {
         let newCanister = await options.index.newCanister();
         startMoveSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.superDB; subDBKey = options.subDBKey});
     };
 
-    func moveSubDB(options: {index: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) : async* () {
+    func startMovingSubDB(options: {index: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) : async* () {
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
         if (lastCanister == options.currentCanister) {
-            await* doMoveSubDBToNewCanister({index = options.index; oldCanister = options.currentCanister; superDB = options.superDB; subDBKey = options.subDBKey});
+            await* doStartMovingSubDBToNewCanister({index = options.index; oldCanister = options.currentCanister; superDB = options.superDB; subDBKey = options.subDBKey});
         } else if (await lastCanister.isOverflowed()) {
-            await* doMoveSubDBToNewCanister({index = options.index; oldCanister = options.currentCanister; superDB = options.superDB; subDBKey = options.subDBKey});
+            await* doStartMovingSubDBToNewCanister({index = options.index; oldCanister = options.currentCanister; superDB = options.superDB; subDBKey = options.subDBKey});
         } else {
             startMoveSubDB({oldCanister = options.currentCanister; newCanister = lastCanister; superDB = options.superDB; subDBKey = options.subDBKey});
         };
@@ -174,7 +174,7 @@ module {
             };
         };
         if (overflow) {
-            await* moveSubDB({
+            await* startMovingSubDB({
                 index = options.indexCanister;
                 currentCanister = options.currentCanister;
                 superDB = options.superDB;
