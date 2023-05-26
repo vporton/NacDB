@@ -24,7 +24,7 @@ module {
     public type AttributeValue = AttributeValuePrimitive or AttributeValueBlob or AttributeValueTuple or AttributeValueArray or AttributeValueRBTree;
 
     type SubDB = {
-        data: RBT.Tree<SK, AttributeValue>;
+        var data: RBT.Tree<SK, AttributeValue>;
         hardCap: ?Nat; // Remove looser items after reaching this count. // TODO
     };
 
@@ -134,14 +134,10 @@ module {
         startMovingSpecifiedSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.oldSuperDB; subDBKey = options.oldSubDBKey});
     };
 
-    func trapMoving(oldSuperDB: SuperDB) {
-        if (oldSuperDB.isMoving) {
+    func startMovingSubDB(options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
+        if (options.oldSuperDB.isMoving) {
             Debug.trap("is moving");
         };
-    }
-
-    func startMovingSubDB(options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
-        trapMoving(options.oldSuperDB);
         options.oldSuperDB.isMoving := true;
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
@@ -186,12 +182,27 @@ module {
         }
     };
 
+    func trapMoving({superDB: SuperDB; subDBKey: SubDBKey}) {
+        // To weak condition:
+        // if (superDB.isMoving) {
+        //     Debug.trap("is moving");
+        // };
+        switch (superDB.moving) {
+            case (?moving) {
+                if (subDBKey == moving.oldSubDBKey) {
+                    Debug.trap("is moving");
+                };
+            };
+            case (null) {};
+        };
+    };
+
     // DB operations //
 
     public type GetOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
 
     public func get(options: GetOptions) : ?AttributeValue {
-        trapMoving(options.superDB);
+        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
@@ -208,4 +219,40 @@ module {
     public func has(options: ExistsOptions) : Bool {
         get(options) != null;
     };
+
+    public type HasSubDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+
+    public func hasSubDB(options: ExistsOptions) : Bool {
+        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
+
+        BTree.has(options.superDB.subDBs, Nat.compare, options.subDBKey);
+    };
+
+    public func superDBSize(superDB: SuperDB): Nat = BTree.size(superDB.subDBs);
+
+    public type SubDBSizeOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+
+    public func subDBSize(options: SubDBSizeOptions): ?Nat {
+        switch (getSubDB(options.superDB, options.subDBKey)) {
+            case (?subDB) { ?RBT.size(subDB.data) };
+            case (null) { null }
+        };
+    };
+
+    public type InsertOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK; value: AttributeValue};
+
+    // FIXME: What to do on missing sub-DB?
+    public func insert(options: InsertOptions) {
+        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
+
+        switch (getSubDB(options.superDB, options.subDBKey)) {
+            case (?subDB) {
+                subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
+            };
+            case (null) {
+                Debug.trap("missing sub-DB")
+            }
+        }
+    };
+
 };
