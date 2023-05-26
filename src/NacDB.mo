@@ -183,7 +183,7 @@ module {
     };
 
     func trapMoving({superDB: SuperDB; subDBKey: SubDBKey}) {
-        // To weak condition:
+        // Too weak condition:
         // if (superDB.isMoving) {
         //     Debug.trap("is moving");
         // };
@@ -300,6 +300,9 @@ module {
         });
     };
 
+    // TODO:
+    // public func createSubDB()
+
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
     
     public func delete(options: DeleteOptions) : async () {
@@ -320,4 +323,6 @@ module {
 
         ignore BTree.delete(options.superDB.subDBs, Nat.compare, options.subDBKey);
     };
+
+    // TODO: Scanning/enumerating
 };
