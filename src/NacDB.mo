@@ -185,7 +185,7 @@ module {
 
     // DB operations //
 
-    // FIXME: Arguments transfer the entire sub-DB! (here and in other places)
+    // FIXME: Arguments transfer the entire sub-DB!
     public type GetOptions = {subDB: SubDB; sk: SK};
 
     public func get(options: GetOptions) : ?AttributeValue {
