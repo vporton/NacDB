@@ -134,10 +134,14 @@ module {
         startMovingSpecifiedSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.oldSuperDB; subDBKey = options.oldSubDBKey});
     };
 
-    func startMovingSubDB(options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
-        if (options.oldSuperDB.isMoving) {
+    func trapMoving(oldSuperDB: SuperDB) {
+        if (oldSuperDB.isMoving) {
             Debug.trap("is moving");
         };
+    }
+
+    func startMovingSubDB(options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
+        trapMoving(options.oldSuperDB);
         options.oldSuperDB.isMoving := true;
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
@@ -164,7 +168,7 @@ module {
         let overflow = switch (options.oldSuperDB.moveCap) {
             case (#numDBs num) {
                 let ?subDB = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
-                    Debug.trap("no sub DB");
+                    Debug.trap("missing sub-DB");
                 };
                 RBT.size(subDB.data) > num;
             };
@@ -187,9 +191,8 @@ module {
     public type GetOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
 
     public func get(options: GetOptions) : ?AttributeValue {
-        if (options.superDB.isMoving) {
-            Debug.trap("moving a sub-DB");
-        };
+        trapMoving(options.superDB);
+
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
                 RBT.get(subDB.data, Text.compare, options.sk);
