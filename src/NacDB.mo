@@ -30,6 +30,7 @@ module {
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
 
+    // FIXME: Don't pass this big value as function arguments.
     type SuperDB = {
         var nextKey: Nat;
         subDBs: BTree.BTree<SubDBKey, SubDB>;
