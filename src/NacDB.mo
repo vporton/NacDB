@@ -58,7 +58,6 @@ module {
 
     type DBCanister = actor {
         isOverflowed() : async Bool;
-        // getSuperDB() : async SuperDB;
         insertSubDB(data: RBT.Tree<SK, AttributeValue>) : async SubDBKey;
     };
 
@@ -128,40 +127,44 @@ module {
     };
 
     // FIXME: Race creates two new canisters.
-    func doStartMovingSubDBToNewCanister(options: {index: IndexCanister; oldCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) : async* () {
+    func doStartMovingSubDBToNewCanister(
+        options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* ()
+    {
         let newCanister = await options.index.newCanister();
-        startMoveSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.superDB; subDBKey = options.subDBKey});
+        startMoveSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.oldSuperDB; subDBKey = options.oldSubDBKey});
     };
 
-    func startMovingSubDB(options: {index: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) : async* () {
+    func startMovingSubDB(options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
         if (options.superDB.isMoving) {
             Debug.trap("is moving");
         };
         options.superDB.isMoving := true;
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
-        if (lastCanister == options.currentCanister or (await lastCanister.isOverflowed())) {
+        if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed())) {
             await* doStartMovingSubDBToNewCanister({
                 index = options.index;
-                oldCanister = options.currentCanister;
-                superDB = options.superDB;
-                subDBKey = options.subDBKey;
+                oldCanister = options.oldCanister;
+                oldSuperDB = options.superDB;
+                oldSubDBKey = options.oldSubDBKey;
             });
         } else {
             startMoveSubDB({
-                oldCanister = options.currentCanister;
+                oldCanister = options.oldCanister;
                 newCanister = lastCanister;
-                superDB = options.superDB;
-                subDBKey = options.subDBKey;
+                superDB = options.oldSuperDB;
+                subDBKey = options.oldSubDBKey;
             });
         };
-        options.superDB.isMoving := false;
+        options.oldSuperDB.isMoving := false;
     };
 
-    func startMovingSubDBIfOverflow(options: {indexCanister: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}): async* () {
-        let overflow = switch (options.superDB.moveCap) {
+    func startMovingSubDBIfOverflow(
+        options: {indexCanister: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}): async* ()
+    {
+        let overflow = switch (options.oldSuperDB.moveCap) {
             case (#numDBs num) {
-                let ?subDB = BTree.get(options.superDB.subDBs, Nat.compare, options.subDBKey) else {
+                let ?subDB = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
                     Debug.trap("no sub DB");
                 };
                 RBT.size(subDB.data) > num;
@@ -173,9 +176,9 @@ module {
         if (overflow) {
             await* startMovingSubDB({
                 index = options.indexCanister;
-                currentCanister = options.currentCanister;
-                superDB = options.superDB;
-                subDBKey = options.subDBKey;
+                oldCanister = options.oldCanister;
+                oldSuperDB = options.oldSuperDB;
+                oldSubDBKey = options.oldSubDBKey;
             });
         }
     };
