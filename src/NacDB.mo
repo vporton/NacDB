@@ -60,19 +60,20 @@ module {
         insertSubDB(data: RBT.Tree<SK, AttributeValue>) : async SubDBKey;
     };
 
-    func insertSubDB(superDB: SuperDB, subDB: SubDB) {
+    func insertSubDB(superDB: SuperDB, subDB: SubDB): SubDBKey {
         switch (superDB.moving) {
-            case (?_) {};
+            case (?_) { Debug.trap("DB is scaling") };
             case (null) {
                 let key = superDB.nextKey;
                 superDB.nextKey += 1;
                 ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
+                key;
             };
         };
     };
 
     public func getSubDB(superDB: SuperDB, subDBKey: SubDBKey) : ?SubDB {
-        BTree.get<SubDBKey, SubDB>(superDB.subDBs, Nat.compare, subDBKey);
+        BTree.get(superDB.subDBs, Nat.compare, subDBKey);
     };
 
     public type GetOptions = {subDB: SubDB; sk: SK};
@@ -87,7 +88,6 @@ module {
         get(options) != null;
     };
 
-    // TODO: superfluous arguments
     func startMoveSubDB(options: {oldCanister: DBCanister; newCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
         switch (options.superDB.moving) {
             case (?_) { Debug.trap("already moving") };
@@ -137,6 +137,7 @@ module {
         }
     };
 
+    // FIXME: Race creates two new canisters.
     func doStartMovingSubDBToNewCanister(options: {index: IndexCanister; oldCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) : async* () {
         let newCanister = await options.index.newCanister();
         startMoveSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.superDB; subDBKey = options.subDBKey});
@@ -154,7 +155,6 @@ module {
         };
     };
 
-    // TODO: Simplify arguments.
     func moveSubDBIfOverflow(options: {indexCanister: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}): async* () {
         let overflow = switch (options.superDB.moveCap) {
             case (#numDBs num) {
