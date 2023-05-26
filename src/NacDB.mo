@@ -41,7 +41,7 @@ module {
             oldSuperDB: SuperDB;
             oldSubDBKey: SubDBKey;
             newCanister: DBCanister;
-            var stage: {#moving; #notifying : {newCanister: DBCanister; newSubDBKey: SubDBKey}}
+            var stage: {#moving; #notifying : {newSubDBKey: SubDBKey}}
         };
     };
 
@@ -117,7 +117,7 @@ module {
                             case (null) {};
                         };
                     };
-                    case (#notifying {newCanister: DBCanister; newSubDBKey: SubDBKey}) {
+                    case (#notifying {newSubDBKey: SubDBKey}) {
                         switch (options.superDB.moveCallback) {
                             case (?cb) {
                                 await cb({
