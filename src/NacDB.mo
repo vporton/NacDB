@@ -146,12 +146,20 @@ module {
     func startMovingSubDB(options: {index: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) : async* () {
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
-        if (lastCanister == options.currentCanister) {
-            await* doStartMovingSubDBToNewCanister({index = options.index; oldCanister = options.currentCanister; superDB = options.superDB; subDBKey = options.subDBKey});
-        } else if (await lastCanister.isOverflowed()) {
-            await* doStartMovingSubDBToNewCanister({index = options.index; oldCanister = options.currentCanister; superDB = options.superDB; subDBKey = options.subDBKey});
+        if (lastCanister == options.currentCanister or (await lastCanister.isOverflowed())) {
+            await* doStartMovingSubDBToNewCanister({
+                index = options.index;
+                oldCanister = options.currentCanister;
+                superDB = options.superDB;
+                subDBKey = options.subDBKey;
+            });
         } else {
-            startMoveSubDB({oldCanister = options.currentCanister; newCanister = lastCanister; superDB = options.superDB; subDBKey = options.subDBKey});
+            startMoveSubDB({
+                oldCanister = options.currentCanister;
+                newCanister = lastCanister;
+                superDB = options.superDB;
+                subDBKey = options.subDBKey;
+            });
         };
     };
 
