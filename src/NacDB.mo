@@ -30,7 +30,6 @@ module {
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
 
-    // FIXME: Don't pass this big value as function arguments.
     type SuperDB = {
         var nextKey: Nat;
         subDBs: BTree.BTree<SubDBKey, SubDB>;
@@ -38,7 +37,7 @@ module {
         /// Should be idempotent.
         moveCallback: ?(shared ({oldCanister: DBCanister; oldSubDBKey: SubDBKey; newCanister: DBCanister; newSubDBKey: SubDBKey}) -> async ());
         var isMoving: Bool;
-        var moving: ?{ // TODO: Can we move it to `SubDB`?
+        var moving: ?{
             oldCanister: DBCanister;
             oldSuperDB: SuperDB;
             oldSubDBKey: SubDBKey;
@@ -118,6 +117,7 @@ module {
                             };
                             case (null) {};
                         };
+                        options.superDB.isMoving := false;
                         options.superDB.moving := null;
                     };
                 };
@@ -126,7 +126,7 @@ module {
         }
     };
 
-    // FIXME: Race creates two new canisters.
+    // No race creating two new canisters, because we are guarded by `isMoving`.
     func doStartMovingSubDBToNewCanister(
         options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* ()
     {
@@ -156,7 +156,6 @@ module {
                 subDBKey = options.oldSubDBKey;
             });
         };
-        options.oldSuperDB.isMoving := false;
     };
 
     func startMovingSubDBIfOverflow(
