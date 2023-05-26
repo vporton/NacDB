@@ -163,11 +163,11 @@ module {
         };
     };
 
-    func moveSubDBIfOverflow(options: {indexCanister: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}): async* () {
+    func startMovingSubDBIfOverflow(options: {indexCanister: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}): async* () {
         let overflow = switch (options.superDB.moveCap) {
             case (#numDBs num) {
                 let ?subDB = BTree.get(options.superDB.subDBs, Nat.compare, options.subDBKey) else {
-                    Debug.trap("no sub DB"); // FIXME: correct?
+                    Debug.trap("no sub DB");
                 };
                 RBT.size(subDB.data) > num;
             };
