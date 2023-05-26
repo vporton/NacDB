@@ -25,7 +25,7 @@ module {
 
     type SubDB = {
         var data: RBT.Tree<SK, AttributeValue>;
-        hardCap: ?Nat; // Remove looser items after reaching this count. // TODO
+        hardCap: ?Nat; // Remove "looser" items (with least key values) after reaching this count.
     };
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
