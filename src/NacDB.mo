@@ -77,7 +77,7 @@ module {
         BTree.get(superDB.subDBs, Nat.compare, subDBKey);
     };
 
-    func startMoveSubDB(options: {oldCanister: DBCanister; newCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
+    func startMovingSpecifiedSubDB(options: {oldCanister: DBCanister; newCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
         switch (options.superDB.moving) {
             case (?_) { Debug.trap("already moving") };
             case (null) {
@@ -131,7 +131,7 @@ module {
         options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* ()
     {
         let newCanister = await options.index.newCanister();
-        startMoveSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.oldSuperDB; subDBKey = options.oldSubDBKey});
+        startMovingSpecifiedSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.oldSuperDB; subDBKey = options.oldSubDBKey});
     };
 
     func startMovingSubDB(options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
@@ -149,7 +149,7 @@ module {
                 oldSubDBKey = options.oldSubDBKey;
             });
         } else {
-            startMoveSubDB({
+            startMovingSpecifiedSubDB({
                 oldCanister = options.oldCanister;
                 newCanister = lastCanister;
                 superDB = options.oldSuperDB;
