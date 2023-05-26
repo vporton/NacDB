@@ -77,18 +77,6 @@ module {
         BTree.get(superDB.subDBs, Nat.compare, subDBKey);
     };
 
-    public type GetOptions = {subDB: SubDB; sk: SK};
-
-    public func get(options: GetOptions) : ?AttributeValue {
-        RBT.get(options.subDB.data, Text.compare, options.sk);
-    };
-
-    public type ExistsOptions = GetOptions;
-
-    public func has(options: ExistsOptions) : Bool {
-        get(options) != null;
-    };
-
     func startMoveSubDB(options: {oldCanister: DBCanister; newCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
         switch (options.superDB.moving) {
             case (?_) { Debug.trap("already moving") };
@@ -189,5 +177,20 @@ module {
                 subDBKey = options.subDBKey;
             });
         }
+    };
+
+    // DB operations //
+
+    // FIXME: Arguments contain the entire sub-DB!
+    public type GetOptions = {subDB: SubDB; sk: SK};
+
+    public func get(options: GetOptions) : ?AttributeValue {
+        RBT.get(options.subDB.data, Text.compare, options.sk);
+    };
+
+    public type ExistsOptions = GetOptions;
+
+    public func has(options: ExistsOptions) : Bool {
+        get(options) != null;
     };
 };
