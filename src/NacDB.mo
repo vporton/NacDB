@@ -197,6 +197,25 @@ module {
         };
     };
 
+    func removeLoosers(subDB: SubDB) {
+        switch (subDB.hardCap) {
+            case (?hardCap) {
+                while (RBT.size(subDB.data) > hardCap) {
+                    let iter = RBT.entries(subDB.data);
+                    switch (iter.next()) {
+                        case (?(k, v)) {
+                            subDB.data := RBT.delete(subDB.data, Text.compare, k);
+                        };
+                        case (null) {
+                            return;
+                        };
+                    }
+                };
+            };
+            case (null) {}
+        };
+    };
+
     // DB operations //
 
     public type GetOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
@@ -254,6 +273,7 @@ module {
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
                 subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
+                removeLoosers(subDB);
                 await* startMovingSubDBIfOverflow({
                     indexCanister = options.indexCanister;
                     oldCanister = options.currentCanister;
@@ -292,6 +312,7 @@ module {
             };
         };
         subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
+        removeLoosers(subDB);
         await* startMovingSubDBIfOverflow({
             indexCanister = options.indexCanister;
             oldCanister = options.currentCanister;
