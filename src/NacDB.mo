@@ -267,7 +267,7 @@ module {
         value: AttributeValue;
     };
 
-    public func insert(options: InsertOptions) : async () {
+    public func insert(options: InsertOptions) : async* () {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         switch (getSubDB(options.superDB, options.subDBKey)) {
@@ -297,7 +297,7 @@ module {
         hardCap: ?Nat;
     };
 
-    public func insertOrCreate(options: InsertOrCreateOptions) : async () {
+    public func insertOrCreate(options: InsertOrCreateOptions) : async* () {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         let subDB = switch (getSubDB(options.superDB, options.subDBKey)) {
@@ -326,7 +326,7 @@ module {
 
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
     
-    public func delete(options: DeleteOptions) : async () {
+    public func delete(options: DeleteOptions) {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         switch (getSubDB(options.superDB, options.subDBKey)) {
@@ -339,7 +339,7 @@ module {
 
     type DeleteSubDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
     
-    public func deleteSubDB(options: DeleteSubDBOptions) : async () {
+    public func deleteSubDB(options: DeleteSubDBOptions) {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         ignore BTree.delete(options.superDB.subDBs, Nat.compare, options.subDBKey);
