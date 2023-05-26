@@ -135,17 +135,17 @@ module {
     };
 
     func startMovingSubDB(options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
-        if (options.superDB.isMoving) {
+        if (options.oldSuperDB.isMoving) {
             Debug.trap("is moving");
         };
-        options.superDB.isMoving := true;
+        options.oldSuperDB.isMoving := true;
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
         if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed())) {
             await* doStartMovingSubDBToNewCanister({
                 index = options.index;
                 oldCanister = options.oldCanister;
-                oldSuperDB = options.superDB;
+                oldSuperDB = options.oldSuperDB;
                 oldSubDBKey = options.oldSubDBKey;
             });
         } else {
@@ -185,11 +185,20 @@ module {
 
     // DB operations //
 
-    // FIXME: Arguments transfer the entire sub-DB!
-    public type GetOptions = {subDB: SubDB; sk: SK};
+    public type GetOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
 
     public func get(options: GetOptions) : ?AttributeValue {
-        RBT.get(options.subDB.data, Text.compare, options.sk);
+        if (options.superDB.isMoving) {
+            Debug.trap("moving a sub-DB");
+        };
+        switch (getSubDB(options.superDB, options.subDBKey)) {
+            case (?subDB) {
+                RBT.get(subDB.data, Text.compare, options.sk);
+            };
+            case (null) {
+                Debug.trap("missing sub-DB")
+            }
+        }
     };
 
     public type ExistsOptions = GetOptions;
