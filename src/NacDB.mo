@@ -36,6 +36,7 @@ module {
         moveCap: MoveCap;
         /// Should be idempotent.
         moveCallback: ?(shared ({oldCanister: DBCanister; oldSubDBKey: SubDBKey; newCanister: DBCanister; newSubDBKey: SubDBKey}) -> async ());
+        var isMoving: Bool;
         var moving: ?{ // TODO: Can we move it to `SubDB`?
             oldCanister: DBCanister;
             oldSuperDB: SuperDB;
@@ -144,6 +145,10 @@ module {
     };
 
     func startMovingSubDB(options: {index: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) : async* () {
+        if (options.superDB.isMoving) {
+            Debug.trap("is moving");
+        };
+        options.superDB.isMoving := true;
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
         if (lastCanister == options.currentCanister or (await lastCanister.isOverflowed())) {
@@ -161,6 +166,7 @@ module {
                 subDBKey = options.subDBKey;
             });
         };
+        options.superDB.isMoving := false;
     };
 
     func startMovingSubDBIfOverflow(options: {indexCanister: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}): async* () {
