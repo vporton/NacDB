@@ -239,9 +239,15 @@ module {
         };
     };
 
-    public type InsertOptions = {indexCanister: IndexCanister; currentCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey; sk: SK; value: AttributeValue};
+    public type InsertOptions = {
+        indexCanister: IndexCanister;
+        currentCanister: DBCanister;
+        superDB: SuperDB;
+        subDBKey: SubDBKey;
+        sk: SK;
+        value: AttributeValue;
+    };
 
-    // FIXME: What to do on missing sub-DB?
     public func insert(options: InsertOptions) : async () {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
@@ -261,4 +267,57 @@ module {
         }
     };
 
+    public type InsertOrCreateOptions = {
+        indexCanister: IndexCanister;
+        currentCanister: DBCanister;
+        superDB: SuperDB;
+        subDBKey: SubDBKey;
+        sk: SK;
+        value: AttributeValue;
+        hardCap: ?Nat;
+    };
+
+    public func insertOrCreate(options: InsertOrCreateOptions) : async () {
+        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
+
+        let subDB = switch (getSubDB(options.superDB, options.subDBKey)) {
+            case (?subDB) {
+                subDB;
+            };
+            case (null) {
+                {
+                    var data = RBT.init();
+                    hardCap = options.hardCap;
+                } : SubDB;
+            };
+        };
+        subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
+        await* startMovingSubDBIfOverflow({
+            indexCanister = options.indexCanister;
+            oldCanister = options.currentCanister;
+            oldSuperDB = options.superDB;
+            oldSubDBKey = options.subDBKey
+        });
+    };
+
+    type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
+    
+    public func delete(options: DeleteOptions) : async () {
+        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
+
+        switch (getSubDB(options.superDB, options.subDBKey)) {
+            case (?subDB) {
+                subDB.data := RBT.delete<Text, AttributeValue>(subDB.data, Text.compare, options.sk);
+            };
+            case (null) {}; // TODO: trap?
+        };
+    };
+
+    type DeleteSubDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    
+    public func deleteSubDB(options: DeleteSubDBOptions) : async () {
+        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
+
+        ignore BTree.delete(options.superDB.subDBs, Nat.compare, options.subDBKey);
+    };
 };
