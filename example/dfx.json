@@ -1,5 +1,13 @@
 {
   "canisters": {
+    "index": {
+      "main": "src/index/main.mo",
+      "type": "motoko"
+    },
+    "partition": {
+      "main": "src/partition/main.mo",
+      "type": "motoko"
+    },
     "example_backend": {
       "main": "src/example_backend/main.mo",
       "type": "motoko"
