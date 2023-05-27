@@ -62,7 +62,7 @@ module {
         var nextCreatingSubDBOperationId: Nat;
     };
 
-    // TODO: Move this and the following function:
+    // TODO: Move this and the following function below in the code:
     func startCreatingSubDB(superDB: SuperDB) : Nat {
         // trapMoving({superDB; subDBKey: SubDBKey}) // FIXME
         if (RBT.size(superDB.creatingSubDB) >= 10) { // TODO: Make configurable.
