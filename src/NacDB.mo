@@ -46,6 +46,7 @@ module {
         moveCap: MoveCap;
         /// Should be idempotent.
         moveCallback: ?MoveCallback;
+        createCallback: ?(shared ({operationId: Nat; canister: PartitionCanister; subDBKey: SubDBKey}) -> async ());
         var isMoving: Bool;
         var moving: ?{
             oldCanister: PartitionCanister;
@@ -59,10 +60,12 @@ module {
         var nextCreatingSubDBOperationId: Nat;
     };
 
-    // TODO: Move:
+    // TODO: Move this and the following function:
     func startCreatingSubDB(superDB: SuperDB) : Nat {
         // trapMoving({superDB; subDBKey: SubDBKey}) // FIXME
-        // TODO: Restrict the length of the queue.
+        if (Deque.size() >= 10) { // TODO: Make configurable.
+            Debug.trap("queue full");
+        };
         superDB.creatingSubDB := Deque.pushFront<CreatingSubDB>(superDB.creatingSubDB, {
             operationId = superDB.nextCreatingSubDBOperationId;
             var stage = #saving;
@@ -71,17 +74,26 @@ module {
         superDB.nextCreatingSubDBOperationId;
     };
 
-    func finishCreatingSubDB(superDB: SuperDB) {
+    func finishCreatingSubDB(superDB: SuperDB, hardCap: ?Nat) : async () {
         let ?item = Deque.peekBack(superDB.creatingSubDB) else {
             Debug.trap("finished");
         };
-        switch (item.stage) {
-            case (#saving) {
-                createSubDB(FIXME);
+        label cycle loop {
+            switch (item.stage) {
+                case (#saving) {
+                    let subDBKey = createSubDB({superDB; hardCap});
+                    item.stage := #notifying {newSubDBKey = subDBKey};
+                };
+                case (#notifying {canister: PartitionCanister; subDBKey: SubDBKey}) {
+                    switch (superDB.createCallback) {
+                        case (?cb) { await cb({operationId = item.operationId; canister; subDBKey}); };
+                        case (null) {};
+                    };
+                    ignore Deque.popBack(superDB.creatingSubDB); // FIXME: It may be not the same as `peekBack` result!
+                    break cycle;
+                };
             };
-            case (#notifying) {};
         };
-        // TODO
     };
 
     public type DBIndex = {
@@ -376,13 +388,19 @@ module {
             indexCanister = options.indexCanister;
             oldCanister = options.currentCanister;
             oldSuperDB = options.superDB;
-            oldSubDBKey = options.subDBKey
+            oldSubDBKey = options.subDBKey;
         });
     };
 
-    // TODO:
-    // FIXME: How to return idempotent DB ID?
-    // public func createSubDB()
+    // TODO: Here and in other places wrap `hardCap` into an object.
+    public func createSubDB({superDB: SuperDB; hardCap: ?Nat}) : Nat {
+        let subDB : SubDB = {
+            var data = RBT.init();
+            hardCap = options.hardCap;
+        };
+        BTree.insert(superDB.subDBs, Nat.compare, superDB.nextKey, subDB);
+        superDB.nextKey += 1;        
+    }
 
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
     
