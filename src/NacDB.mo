@@ -30,7 +30,7 @@ module {
         var data: RBT.Tree<SK, AttributeValue>;
         hardCap: ?Nat; // Remove "looser" items (with least key values) after reaching this count.
         var busy: Bool; // Forbid to move this entry to other canister. // FIXME: check on reading, too?
-        /// FIXME: `var busy` seems not enough for moving `Tree` to another canister. Or enough?
+                        // During the move it is true. Deletion in old canister and setting it to false happen in the same atomic action.
     };
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
@@ -49,6 +49,7 @@ module {
         moveCap: MoveCap;
         /// Should be idempotent.
         moveCallback: ?MoveCallback;
+        /// Should be idempotent.
         createCallback: ?CreateCallback;
         var moving: ?{
             oldCanister: PartitionCanister;
@@ -57,7 +58,6 @@ module {
             newCanister: PartitionCanister;
             var stage: {#moving; #notifying : {newSubDBKey: SubDBKey}}
         };
-        // TODO: Use this variable:
         var creatingSubDB: RBT.Tree<Nat, CreatingSubDB>;
         var nextCreatingSubDBOperationId: Nat;
     };
