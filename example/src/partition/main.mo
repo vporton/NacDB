@@ -2,9 +2,9 @@ import RBT "mo:stable-rbtree/StableRBTree";
 import Nac "../../../src/NacDB";
 
 shared({caller}) actor class Partition() = this {
-    let index = caller;
+    stable let index = caller;
 
-    let superDB = Nac.createSuperDB({moveCap = #usedMemory 500_000; moveCallback = null});
+    stable let superDB = Nac.createSuperDB({moveCap = #usedMemory 500_000; moveCallback = null});
 
     // Mandatory methods //
 
