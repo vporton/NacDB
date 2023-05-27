@@ -1,3 +1,4 @@
+import I "mo:base/Iter";
 import Principal "mo:base/Principal";
 import BTree "mo:btree/BTree";
 import RBT "mo:stable-rbtree/StableRBTree";
@@ -345,5 +346,48 @@ module {
         ignore BTree.delete(options.superDB.subDBs, Nat.compare, options.subDBKey);
     };
 
-    // TODO: Scanning/enumerating
+    // Scanning/enumerating //
+
+    type IterOptions = {superDB: SuperDB; subDBKey: SubDBKey; dir : RBT.Direction};
+    
+    public func iter(options: IterOptions) : I.Iter<(Text, AttributeValue)> {
+        switch (getSubDB(options.superDB, options.subDBKey)) {
+            case (?subDB) {
+                RBT.iter(subDB.data, options.dir);
+            };
+            case (null) {
+                Debug.trap("missing sub-DB");
+            };
+        };
+    };
+
+    type EntriesOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    
+    public func entries(options: EntriesOptions) : I.Iter<(Text, AttributeValue)> {
+        iter({superDB = options.superDB; subDBKey = options.subDBKey; dir = #fwd});
+    };
+
+    type EntriesRevOptions = EntriesOptions;
+    
+    public func entriesRev(options: EntriesRevOptions) : I.Iter<(Text, AttributeValue)> {
+        iter({superDB = options.superDB; subDBKey = options.subDBKey; dir = #bwd});
+    };
+
+    public type ScanLimitResult = {
+        results: [(Text, AttributeValue)];
+        nextKey: ?Text;
+    };
+
+    type ScanLimitOptions = {superDB: SuperDB; subDBKey: SubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
+    
+    public func scanLimit(options: ScanLimitOptions): RBT.ScanLimitResult<Text, AttributeValue> {
+        switch (getSubDB(options.superDB, options.subDBKey)) {
+            case (?subDB) {
+                RBT.scanLimit(subDB.data, Text.compare, options.lowerBound, options.upperBound, options.dir, options.limit);
+            };
+            case (null) {
+                Debug.trap("missing sub-DB");
+            };
+        };
+    };
 };
