@@ -4,7 +4,7 @@ import Nac "../../../src/NacDB";
 shared({caller}) actor class Partition() = this {
     stable let index = caller;
 
-    stable let superDB = Nac.createSuperDB({moveCap = #usedMemory 500_000; moveCallback = null});
+    stable let superDB = Nac.createSuperDB({moveCap = #usedMemory 500_000; moveCallback = null; createCallback = null});
 
     // Mandatory methods //
 
