@@ -49,7 +49,7 @@ module {
         /// Should be idempotent.
         moveCallback: ?MoveCallback;
         createCallback: ?CreateCallback;
-        var isMoving: Bool;
+        var isMoving: Bool; // FIXME: Remove in preference of `busy`.
         var moving: ?{
             oldCanister: PartitionCanister;
             oldSuperDB: SuperDB;
