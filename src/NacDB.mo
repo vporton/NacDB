@@ -81,7 +81,7 @@ module {
         }
     };
 
-    func insertSubDB(superDB: SuperDB, subDB: SubDB): SubDBKey {
+    public func insertSubDB(superDB: SuperDB, subDB: SubDB): SubDBKey {
         switch (superDB.moving) {
             case (?_) { Debug.trap("DB is scaling") };
             case (null) {
