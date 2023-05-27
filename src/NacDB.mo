@@ -36,13 +36,13 @@ module {
         subDBs: BTree.BTree<SubDBKey, SubDB>;
         moveCap: MoveCap;
         /// Should be idempotent.
-        moveCallback: ?(shared ({oldCanister: DBCanister; oldSubDBKey: SubDBKey; newCanister: DBCanister; newSubDBKey: SubDBKey}) -> async ());
+        moveCallback: ?(shared ({oldCanister: PartitionCanister; oldSubDBKey: SubDBKey; newCanister: PartitionCanister; newSubDBKey: SubDBKey}) -> async ());
         var isMoving: Bool;
         var moving: ?{
-            oldCanister: DBCanister;
+            oldCanister: PartitionCanister;
             oldSuperDB: SuperDB;
             oldSubDBKey: SubDBKey;
-            newCanister: DBCanister;
+            newCanister: PartitionCanister;
             var stage: {#moving; #notifying : {newSubDBKey: SubDBKey}}
         };
     };
@@ -52,11 +52,11 @@ module {
     };
 
     type IndexCanister = actor {
-        getCanisters(): async [DBCanister];
-        newCanister(): async DBCanister;
+        getCanisters(): async [PartitionCanister];
+        newCanister(): async PartitionCanister;
     };
 
-    type DBCanister = actor {
+    type PartitionCanister = actor {
         isOverflowed() : async Bool;
         insertSubDB(data: RBT.Tree<SK, AttributeValue>) : async SubDBKey;
     };
@@ -77,7 +77,7 @@ module {
         BTree.get(superDB.subDBs, Nat.compare, subDBKey);
     };
 
-    func startMovingSpecifiedSubDB(options: {oldCanister: DBCanister; newCanister: DBCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
+    func startMovingSpecifiedSubDB(options: {oldCanister: PartitionCanister; newCanister: PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
         switch (options.superDB.moving) {
             case (?_) { Debug.trap("already moving") };
             case (null) {
@@ -129,13 +129,13 @@ module {
 
     // No race creating two new canisters, because we are guarded by `isMoving`.
     func doStartMovingSubDBToNewCanister(
-        options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* ()
+        options: {index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* ()
     {
         let newCanister = await options.index.newCanister();
         startMovingSpecifiedSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.oldSuperDB; subDBKey = options.oldSubDBKey});
     };
 
-    func startMovingSubDB(options: {index: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
+    func startMovingSubDB(options: {index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
         if (options.oldSuperDB.isMoving) {
             Debug.trap("is moving");
         };
@@ -160,7 +160,7 @@ module {
     };
 
     func startMovingSubDBIfOverflow(
-        options: {indexCanister: IndexCanister; oldCanister: DBCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}): async* ()
+        options: {indexCanister: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}): async* ()
     {
         let overflow = switch (options.oldSuperDB.moveCap) {
             case (#numDBs num) {
@@ -261,7 +261,7 @@ module {
 
     public type InsertOptions = {
         indexCanister: IndexCanister;
-        currentCanister: DBCanister;
+        currentCanister: PartitionCanister;
         superDB: SuperDB;
         subDBKey: SubDBKey;
         sk: SK;
@@ -290,7 +290,7 @@ module {
 
     public type InsertOrCreateOptions = {
         indexCanister: IndexCanister;
-        currentCanister: DBCanister;
+        currentCanister: PartitionCanister;
         superDB: SuperDB;
         subDBKey: SubDBKey;
         sk: SK;
