@@ -9,6 +9,7 @@ import Prim "mo:⛔";
 import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
 import Bool "mo:base/Bool";
+import Deque "mo:base/Deque";
 
 module {
     public type SubDBKey = Nat;
@@ -34,6 +35,11 @@ module {
 
     type MoveCallback = shared ({oldCanister: PartitionCanister; oldSubDBKey: SubDBKey; newCanister: PartitionCanister; newSubDBKey: SubDBKey}) -> async ();
 
+    type CreatingSubDB = {
+        operationId: Nat;
+        var stage: {#saving; #notifying : {canister: PartitionCanister; subDBKey: SubDBKey}}
+    };
+
     type SuperDB = {
         var nextKey: Nat;
         subDBs: BTree.BTree<SubDBKey, SubDB>;
@@ -48,6 +54,34 @@ module {
             newCanister: PartitionCanister;
             var stage: {#moving; #notifying : {newSubDBKey: SubDBKey}}
         };
+        // TODO: Use this variable:
+        var creatingSubDB: Deque.Deque<CreatingSubDB>;
+        var nextCreatingSubDBOperationId: Nat;
+    };
+
+    // TODO: Move:
+    func startCreatingSubDB(superDB: SuperDB) : Nat {
+        // trapMoving({superDB; subDBKey: SubDBKey}) // FIXME
+        // TODO: Restrict the length of the queue.
+        superDB.creatingSubDB := Deque.pushFront<CreatingSubDB>(superDB.creatingSubDB, {
+            operationId = superDB.nextCreatingSubDBOperationId;
+            var stage = #saving;
+        });
+        superDB.nextCreatingSubDBOperationId += 1;
+        superDB.nextCreatingSubDBOperationId;
+    };
+
+    func finishCreatingSubDB(superDB: SuperDB) {
+        let ?item = Deque.peekBack(superDB.creatingSubDB) else {
+            Debug.trap("finished");
+        };
+        switch (item.stage) {
+            case (#saving) {
+                createSubDB(FIXME);
+            };
+            case (#notifying) {};
+        };
+        // TODO
     };
 
     public type DBIndex = {
@@ -121,6 +155,7 @@ module {
                             case (?subDB) {
                                 let newSubDBKey = await moving.newCanister.insertSubDB(subDB.data);
                                 ignore BTree.delete(options.superDB.subDBs, Nat.compare, moving.oldSubDBKey);
+                                // FIXME: notifying stage should run now.
                                 moving.stage := #notifying {newCanister = moving.newCanister; newSubDBKey};
                             };
                             case (null) {};
