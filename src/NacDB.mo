@@ -345,6 +345,7 @@ module {
     };
 
     // TODO:
+    // FIXME: How to return idempotent DB ID?
     // public func createSubDB()
 
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
