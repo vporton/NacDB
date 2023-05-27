@@ -29,6 +29,7 @@ module {
     type SubDB = {
         var data: RBT.Tree<SK, AttributeValue>;
         hardCap: ?Nat; // Remove "looser" items (with least key values) after reaching this count.
+        var busy: Bool; // Forbid to move this entry to other canister.
     };
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
@@ -75,14 +76,13 @@ module {
     };
 
     func finishCreatingSubDB(canister: PartitionCanister, superDB: SuperDB, operationId: Nat, hardCap: ?Nat) : async () {
-        // TODO: Check `moving`/`isMoving`?
         let ?item = RBT.get(superDB.creatingSubDB, Nat.compare, operationId) else {
             Debug.trap("no such item");
         };
         label cycle loop {
             switch (item.stage) {
                 case (#saving) {
-                    let subDBKey = createSubDB({superDB; hardCap});
+                    let subDBKey = createSubDB({superDB; hardCap; busy = true});
                     item.stage := #notifying {canister; subDBKey = subDBKey};
                 };
                 case (#notifying {canister: PartitionCanister; subDBKey: SubDBKey}) {
@@ -91,6 +91,10 @@ module {
                         case (?cb) { await cb({operationId = operationId; canister; subDBKey}); };
                         case (null) {};
                     };
+                    let ?entry = BTree.get(superDB.subDBs, Nat.compare, subDBKey) else {
+                        Debug.trap("entry must exist");
+                    };
+                    entry.busy := false;
                     superDB.creatingSubDB := RBT.delete(superDB.creatingSubDB, Nat.compare, operationId); // marks as completed
                     break cycle;
                 };
@@ -171,6 +175,9 @@ module {
                         case (#moving) {
                             switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
                                 case (?subDB) {
+                                    if (subDB.busy) {
+                                        Debug.trap("entry is busy");
+                                    };
                                     let newSubDBKey = await moving.newCanister.insertSubDB(subDB.data);
                                     ignore BTree.delete(options.superDB.subDBs, Nat.compare, moving.oldSubDBKey);
                                     moving.stage := #notifying {newCanister = moving.newCanister; newSubDBKey};
@@ -384,6 +391,7 @@ module {
                 {
                     var data = RBT.init();
                     hardCap = options.hardCap;
+                    var busy = false; // FIXME
                 } : SubDB;
             };
         };
@@ -398,10 +406,11 @@ module {
     };
 
     // TODO: Here and in other places wrap `hardCap` into an object.
-    public func createSubDB({superDB: SuperDB; hardCap: ?Nat}) : Nat {
+    public func createSubDB({superDB: SuperDB; hardCap: ?Nat; busy: Bool}) : Nat {
         let subDB : SubDB = {
             var data = RBT.init();
             hardCap = hardCap;
+            var busy;
         };
         let key = superDB.nextKey;
         ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
