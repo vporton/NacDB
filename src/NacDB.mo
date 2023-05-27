@@ -2,6 +2,7 @@ import I "mo:base/Iter";
 import Principal "mo:base/Principal";
 import BTree "mo:btree/BTree";
 import RBT "mo:stable-rbtree/StableRBTree";
+import StableBuffer "mo:stable-buffer/StableBuffer";
 import Text "mo:base/Text";
 import Nat "mo:base/Nat";
 import Prim "mo:⛔";
@@ -31,12 +32,14 @@ module {
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
 
+    type MoveCallback = shared ({oldCanister: PartitionCanister; oldSubDBKey: SubDBKey; newCanister: PartitionCanister; newSubDBKey: SubDBKey}) -> async ();
+
     type SuperDB = {
         var nextKey: Nat;
         subDBs: BTree.BTree<SubDBKey, SubDB>;
         moveCap: MoveCap;
         /// Should be idempotent.
-        moveCallback: ?(shared ({oldCanister: PartitionCanister; oldSubDBKey: SubDBKey; newCanister: PartitionCanister; newSubDBKey: SubDBKey}) -> async ());
+        moveCallback: ?MoveCallback;
         var isMoving: Bool;
         var moving: ?{
             oldCanister: PartitionCanister;
@@ -47,18 +50,35 @@ module {
         };
     };
 
-    type DBIndex = {
-        canisters: Buffer.Buffer<Principal>;
+    public type DBIndex = {
+        canisters: StableBuffer.StableBuffer<Principal>;
     };
 
-    type IndexCanister = actor {
+    public type IndexCanister = actor {
         getCanisters(): async [PartitionCanister];
         newCanister(): async PartitionCanister;
     };
 
-    type PartitionCanister = actor {
-        isOverflowed() : async Bool;
+    public type PartitionCanister = actor {
         insertSubDB(data: RBT.Tree<SK, AttributeValue>) : async SubDBKey;
+        isOverflowed() : async Bool;
+    };
+
+    public func createDBIndex() : DBIndex {
+        {
+            canisters = StableBuffer.init<Principal>();
+        }
+    };
+
+    public func createSuperDB(options: {moveCap: MoveCap; moveCallback: ?MoveCallback}) : SuperDB {
+        {
+            var nextKey = 0;
+            subDBs = BTree.init<SubDBKey, SubDB>(null);
+            moveCap = options.moveCap;
+            moveCallback = options.moveCallback;
+            var isMoving = false;
+            var moving = null;
+        }
     };
 
     func insertSubDB(superDB: SuperDB, subDB: SubDB): SubDBKey {
@@ -159,21 +179,21 @@ module {
         };
     };
 
-    func startMovingSubDBIfOverflow(
-        options: {indexCanister: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}): async* ()
-    {
-        let overflow = switch (options.oldSuperDB.moveCap) {
+    public func isOverflowed(superDB: SuperDB) : Bool {
+        switch (superDB.moveCap) {
             case (#numDBs num) {
-                let ?subDB = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
-                    Debug.trap("missing sub-DB");
-                };
-                RBT.size(subDB.data) > num;
+                BTree.size(superDB.subDBs) > num;
             };
             case (#usedMemory mem) {
                 Prim.rts_heap_size() > mem;
             };
         };
-        if (overflow) {
+    };
+
+    func startMovingSubDBIfOverflow(
+        options: {indexCanister: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}): async* ()
+    {
+        if (isOverflowed(options.oldSuperDB)) {
             await* startMovingSubDB({
                 index = options.indexCanister;
                 oldCanister = options.oldCanister;
