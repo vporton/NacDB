@@ -29,7 +29,7 @@ module {
     type SubDB = {
         var data: RBT.Tree<SK, AttributeValue>;
         hardCap: ?Nat; // Remove "looser" items (with least key values) after reaching this count.
-        var busy: Bool; // Forbid to move this entry to other canister.
+        var busy: Bool; // Forbid to move this entry to other canister. // FIXME: check on reading, too?
     };
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
