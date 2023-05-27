@@ -318,6 +318,8 @@ module {
         hardCap: ?Nat;
     };
 
+    // FIXME: It creates a sub-DB and does not return its number.
+    // FIXME: Not idempotent.
     public func insertOrCreate(options: InsertOrCreateOptions) : async* () {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
