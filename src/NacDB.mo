@@ -147,38 +147,39 @@ module {
     };
 
     func finishMoveSubDB(options: {superDB: SuperDB}) : async* () {
-        switch (options.superDB.moving) {
-            case (?moving) {
-                switch (moving.stage) {
-                    case (#moving) {
-                        switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
-                            case (?subDB) {
-                                let newSubDBKey = await moving.newCanister.insertSubDB(subDB.data);
-                                ignore BTree.delete(options.superDB.subDBs, Nat.compare, moving.oldSubDBKey);
-                                // FIXME: notifying stage should run now.
-                                moving.stage := #notifying {newCanister = moving.newCanister; newSubDBKey};
+        label cycle loop {
+            switch (options.superDB.moving) {
+                case (?moving) {
+                    switch (moving.stage) {
+                        case (#moving) {
+                            switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
+                                case (?subDB) {
+                                    let newSubDBKey = await moving.newCanister.insertSubDB(subDB.data);
+                                    ignore BTree.delete(options.superDB.subDBs, Nat.compare, moving.oldSubDBKey);
+                                    moving.stage := #notifying {newCanister = moving.newCanister; newSubDBKey};
+                                };
+                                case (null) {};
                             };
-                            case (null) {};
                         };
-                    };
-                    case (#notifying {newSubDBKey: SubDBKey}) {
-                        switch (options.superDB.moveCallback) {
-                            case (?cb) {
-                                await cb({
-                                    oldCanister = moving.oldCanister;
-                                    oldSubDBKey = moving.oldSubDBKey;
-                                    newCanister = moving.newCanister;
-                                    newSubDBKey: SubDBKey;
-                                })
+                        case (#notifying {newSubDBKey: SubDBKey}) {
+                            switch (options.superDB.moveCallback) {
+                                case (?cb) {
+                                    await cb({
+                                        oldCanister = moving.oldCanister;
+                                        oldSubDBKey = moving.oldSubDBKey;
+                                        newCanister = moving.newCanister;
+                                        newSubDBKey: SubDBKey;
+                                    })
+                                };
+                                case (null) {};
                             };
-                            case (null) {};
+                            options.superDB.isMoving := false;
+                            options.superDB.moving := null;
                         };
-                        options.superDB.isMoving := false;
-                        options.superDB.moving := null;
                     };
                 };
-            };
-            case (null) {};
+                case (null) { break cycle; };
+            }
         }
     };
 
