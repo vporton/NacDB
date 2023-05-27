@@ -91,7 +91,7 @@ module {
                         case (?cb) { await cb({operationId = operationId; canister; subDBKey}); };
                         case (null) {};
                     };
-                    superDB.creatingSubDB := RBT.delete(superDB.creatingSubDB, Nat.compare, operationId); // mark s completed
+                    superDB.creatingSubDB := RBT.delete(superDB.creatingSubDB, Nat.compare, operationId); // marks as completed
                     break cycle;
                 };
             };
