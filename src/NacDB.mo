@@ -36,7 +36,6 @@ module {
     type MoveCallback = shared ({oldCanister: PartitionCanister; oldSubDBKey: SubDBKey; newCanister: PartitionCanister; newSubDBKey: SubDBKey}) -> async ();
 
     type CreatingSubDB = {
-        operationId: Nat;
         var stage: {#saving; #notifying : {canister: PartitionCanister; subDBKey: SubDBKey}}
     };
 
@@ -56,27 +55,27 @@ module {
             var stage: {#moving; #notifying : {newSubDBKey: SubDBKey}}
         };
         // TODO: Use this variable:
-        var creatingSubDB: Deque.Deque<CreatingSubDB>;
+        var creatingSubDB: RBT.Tree<Nat, CreatingSubDB>;
         var nextCreatingSubDBOperationId: Nat;
     };
 
     // TODO: Move this and the following function:
     func startCreatingSubDB(superDB: SuperDB) : Nat {
         // trapMoving({superDB; subDBKey: SubDBKey}) // FIXME
-        if (Deque.size() >= 10) { // TODO: Make configurable.
-            Debug.trap("queue full");
+        if (RBT.size(superDB.creatingSubDB) >= 10) { // TODO: Make configurable.
+            Debug.trap("queue full"); // FIXME: Instead, remove old items.
         };
-        superDB.creatingSubDB := Deque.pushFront<CreatingSubDB>(superDB.creatingSubDB, {
-            operationId = superDB.nextCreatingSubDBOperationId;
+        superDB.creatingSubDB := RBT.put(superDB.creatingSubDB, Nat.compare, superDB.nextCreatingSubDBOperationId, {
             var stage = #saving;
-        });
+        } : CreatingSubDB);
         superDB.nextCreatingSubDBOperationId += 1;
         superDB.nextCreatingSubDBOperationId;
     };
 
-    func finishCreatingSubDB(superDB: SuperDB, hardCap: ?Nat) : async () {
-        let ?item = Deque.peekBack(superDB.creatingSubDB) else {
-            Debug.trap("finished");
+    func finishCreatingSubDB(superDB: SuperDB, operationId: Nat, hardCap: ?Nat) : async () {
+        // TODO: Check `moving`/`isMoving`?
+        let ?item = RBT.get(superDB.creatingSubDB, Nat.compare, operationId) else {
+            Debug.trap("no such item");
         };
         label cycle loop {
             switch (item.stage) {
@@ -85,11 +84,12 @@ module {
                     item.stage := #notifying {newSubDBKey = subDBKey};
                 };
                 case (#notifying {canister: PartitionCanister; subDBKey: SubDBKey}) {
+                    // TODO: Add also another, non-shared, callback?
                     switch (superDB.createCallback) {
                         case (?cb) { await cb({operationId = item.operationId; canister; subDBKey}); };
                         case (null) {};
                     };
-                    ignore Deque.popBack(superDB.creatingSubDB); // FIXME: It may be not the same as `peekBack` result!
+                    RBT.delete(superDB.creatingSubDB, Nat.compare, operationId);
                     break cycle;
                 };
             };
@@ -396,11 +396,13 @@ module {
     public func createSubDB({superDB: SuperDB; hardCap: ?Nat}) : Nat {
         let subDB : SubDB = {
             var data = RBT.init();
-            hardCap = options.hardCap;
+            hardCap = hardCap;
         };
-        BTree.insert(superDB.subDBs, Nat.compare, superDB.nextKey, subDB);
-        superDB.nextKey += 1;        
-    }
+        let key = superDB.nextKey;
+        ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
+        superDB.nextKey += 1;
+        key;
+    };
 
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
     
