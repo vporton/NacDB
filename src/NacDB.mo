@@ -35,6 +35,8 @@ module {
 
     type MoveCallback = shared ({oldCanister: PartitionCanister; oldSubDBKey: SubDBKey; newCanister: PartitionCanister; newSubDBKey: SubDBKey}) -> async ();
 
+    type CreateCallback = shared ({operationId: Nat; canister: PartitionCanister; subDBKey: SubDBKey}) -> async ();
+
     type CreatingSubDB = {
         var stage: {#saving; #notifying : {canister: PartitionCanister; subDBKey: SubDBKey}}
     };
@@ -45,7 +47,7 @@ module {
         moveCap: MoveCap;
         /// Should be idempotent.
         moveCallback: ?MoveCallback;
-        createCallback: ?(shared ({operationId: Nat; canister: PartitionCanister; subDBKey: SubDBKey}) -> async ());
+        createCallback: ?CreateCallback;
         var isMoving: Bool;
         var moving: ?{
             oldCanister: PartitionCanister;
@@ -72,7 +74,7 @@ module {
         superDB.nextCreatingSubDBOperationId;
     };
 
-    func finishCreatingSubDB(superDB: SuperDB, operationId: Nat, hardCap: ?Nat) : async () {
+    func finishCreatingSubDB(canister: PartitionCanister, superDB: SuperDB, operationId: Nat, hardCap: ?Nat) : async () {
         // TODO: Check `moving`/`isMoving`?
         let ?item = RBT.get(superDB.creatingSubDB, Nat.compare, operationId) else {
             Debug.trap("no such item");
@@ -81,15 +83,15 @@ module {
             switch (item.stage) {
                 case (#saving) {
                     let subDBKey = createSubDB({superDB; hardCap});
-                    item.stage := #notifying {newSubDBKey = subDBKey};
+                    item.stage := #notifying {canister; subDBKey = subDBKey};
                 };
                 case (#notifying {canister: PartitionCanister; subDBKey: SubDBKey}) {
                     // TODO: Add also another, non-shared, callback?
                     switch (superDB.createCallback) {
-                        case (?cb) { await cb({operationId = item.operationId; canister; subDBKey}); };
+                        case (?cb) { await cb({operationId = operationId; canister; subDBKey}); };
                         case (null) {};
                     };
-                    RBT.delete(superDB.creatingSubDB, Nat.compare, operationId);
+                    superDB.creatingSubDB := RBT.delete(superDB.creatingSubDB, Nat.compare, operationId); // mark s completed
                     break cycle;
                 };
             };
@@ -116,14 +118,17 @@ module {
         }
     };
 
-    public func createSuperDB(options: {moveCap: MoveCap; moveCallback: ?MoveCallback}) : SuperDB {
+    public func createSuperDB(options: {moveCap: MoveCap; moveCallback: ?MoveCallback; createCallback: ?CreateCallback}) : SuperDB {
         {
             var nextKey = 0;
             subDBs = BTree.init<SubDBKey, SubDB>(null);
             moveCap = options.moveCap;
             moveCallback = options.moveCallback;
+            createCallback = options.createCallback;
             var isMoving = false;
             var moving = null;
+            var creatingSubDB = RBT.init();
+            var nextCreatingSubDBOperationId = 0;
         }
     };
 
