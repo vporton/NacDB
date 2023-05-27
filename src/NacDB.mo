@@ -30,6 +30,7 @@ module {
         var data: RBT.Tree<SK, AttributeValue>;
         hardCap: ?Nat; // Remove "looser" items (with least key values) after reaching this count.
         var busy: Bool; // Forbid to move this entry to other canister. // FIXME: check on reading, too?
+        /// FIXME: `var busy` seems not enough for moving `Tree` to another canister. Or enough?
     };
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
