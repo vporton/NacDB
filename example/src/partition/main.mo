@@ -10,7 +10,8 @@ shared({caller}) actor class Partition() = this {
 
     public shared func insertSubDB(data: RBT.Tree<Nac.SK, Nac.AttributeValue>) : async Nac.SubDBKey {
         // FIXME: `data` not here.
-        Nac.insertSubDB(superDB, {var data = data; hardCap = ?2000});
+        // FIXME: `busy` not here.
+        Nac.insertSubDB(superDB, {var data = data; hardCap = ?2000; var busy = false});
     };
 
     public shared func isOverflowed() : async Bool {
