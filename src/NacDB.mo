@@ -49,7 +49,6 @@ module {
         /// Should be idempotent.
         moveCallback: ?MoveCallback;
         createCallback: ?CreateCallback;
-        var isMoving: Bool; // FIXME: Remove in preference of `busy`.
         var moving: ?{
             oldCanister: PartitionCanister;
             oldSuperDB: SuperDB;
@@ -129,7 +128,6 @@ module {
             moveCap = options.moveCap;
             moveCallback = options.moveCallback;
             createCallback = options.createCallback;
-            var isMoving = false;
             var moving = null;
             var creatingSubDB = RBT.init();
             var nextCreatingSubDBOperationId = 0;
@@ -197,7 +195,10 @@ module {
                                 };
                                 case (null) {};
                             };
-                            options.superDB.isMoving := false;
+                            let ?item = BTree.get(options.superDB.subDBs, Nat.compare, moving.oldSubDBKey) else {
+                                Debug.trap("item must exist")
+                            };
+                            item.busy := false;
                             options.superDB.moving := null;
                         };
                     };
@@ -207,7 +208,6 @@ module {
         }
     };
 
-    // No race creating two new canisters, because we are guarded by `isMoving`.
     func doStartMovingSubDBToNewCanister(
         options: {index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* ()
     {
@@ -216,10 +216,13 @@ module {
     };
 
     func startMovingSubDB(options: {index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
-        if (options.oldSuperDB.isMoving) {
+        let ?item = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
+            Debug.trap("item must exist")
+        };
+        if (item.busy) {
             Debug.trap("is moving");
         };
-        options.oldSuperDB.isMoving := true;
+        item.busy := true;
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
         if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed())) {
@@ -264,17 +267,15 @@ module {
     };
 
     func trapMoving({superDB: SuperDB; subDBKey: SubDBKey}) {
-        // Too weak condition:
-        // if (superDB.isMoving) {
-        //     Debug.trap("is moving");
-        // };
-        switch (superDB.moving) {
-            case (?moving) {
-                if (subDBKey == moving.oldSubDBKey) {
-                    Debug.trap("is moving");
-                };
+        switch (BTree.get(superDB.subDBs, Nat.compare, subDBKey)) {
+            case (?item) {
+                if (item.busy) {
+                    Debug.trap("item busy");
+                }
             };
-            case (null) {};
+            case (null) { // TODO: needed?
+                Debug.trap("item busy");
+            };
         };
     };
 
