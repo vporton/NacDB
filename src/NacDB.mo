@@ -40,6 +40,8 @@ module {
 
     type CreateCallback = shared ({canister: PartitionCanister; subDBKey: SubDBKey}) -> async ();
 
+    type CreateCallbackNonShared = ({canister: PartitionCanister; subDBKey: SubDBKey}) -> ();
+
     type CreatingSubDB = {
         canister: PartitionCanister;
         subDBKey: SubDBKey
@@ -53,6 +55,8 @@ module {
         moveCallback: ?MoveCallback;
         /// Should be idempotent.
         createCallback: ?CreateCallback;
+        createCallbackNonShared: ?CreateCallbackNonShared;
+
         var moving: ?{
             oldCanister: PartitionCanister;
             oldSuperDB: SuperDB;
@@ -84,7 +88,12 @@ module {
         }
     };
 
-    public func createSuperDB(options: {moveCap: MoveCap; moveCallback: ?MoveCallback; createCallback: ?CreateCallback}) : SuperDB {
+    public func createSuperDB(options: {
+        moveCap: MoveCap;
+        moveCallback: ?MoveCallback;
+        createCallback: ?CreateCallback;
+        createCallbackNonShared: ?CreateCallbackNonShared;
+    }) : SuperDB {
         {
             var nextKey = 0;
             subDBs = BTree.init<SubDBKey, SubDB>(null);
@@ -94,6 +103,7 @@ module {
             var moving = null;
             var creatingSubDB = Deque.empty();
             var creatingSubDBSize = 0;
+            createCallbackNonShared = options.createCallbackNonShared;
         }
     };
 
@@ -387,7 +397,10 @@ module {
             let ?item = Deque.peekBack(superDB.creatingSubDB) else {
                 Debug.trap("no such item");
             };
-            // TODO: Add also another, non-shared, callback?
+            switch (superDB.createCallbackNonShared) {
+                case (?cb) { cb({canister = item.canister; subDBKey = item.subDBKey}); };
+                case (null) {};
+            };
             switch (superDB.createCallback) {
                 case (?cb) { await cb({canister = item.canister; subDBKey = item.subDBKey}); };
                 case (null) {};
