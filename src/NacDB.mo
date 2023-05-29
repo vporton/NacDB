@@ -30,7 +30,8 @@ module {
         var data: RBT.Tree<SK, AttributeValue>;
         hardCap: ?Nat; // Remove "looser" items (with least key values) after reaching this count.
         var busy: Bool; // Forbid to move this entry to other canister. // FIXME: check on reading, too?
-                        // During the move it is true. Deletion in old canister and setting it to false happen in the same atomic action.
+                        // During the move it is true. Deletion in old canister and setting it to false happen in the same atomic action,
+                        // so moving is also protected by this flag.
     };
 
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
@@ -63,8 +64,9 @@ module {
     };
 
     // TODO: Move this and the following function below in the code:
+    // It does not touch old items, so no locking.
+    // FIXME: Repeatedly calling this constitutes a DoS attack.
     func startCreatingSubDB(superDB: SuperDB) : Nat {
-        // trapMoving({superDB; subDBKey: SubDBKey}) // FIXME
         if (RBT.size(superDB.creatingSubDB) >= 10) { // TODO: Make configurable.
             Debug.trap("queue full"); // FIXME: Instead, remove old items.
         };
@@ -75,6 +77,7 @@ module {
         superDB.nextCreatingSubDBOperationId;
     };
 
+    // It does not touch old items, so no locking.
     func finishCreatingSubDB(canister: PartitionCanister, superDB: SuperDB, operationId: Nat, hardCap: ?Nat) : async () {
         let ?item = RBT.get(superDB.creatingSubDB, Nat.compare, operationId) else {
             Debug.trap("no such item");
