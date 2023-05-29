@@ -65,7 +65,7 @@ module {
 
     // TODO: Move this and the following function below in the code:
     // It does not touch old items, so no locking.
-    // FIXME: Repeatedly calling this constitutes a DoS attack.
+    // TODO: Repeatedly calling this constitutes a DoS attack.
     func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}) {
         // FIXME: Deque has no `size()`.
         // if (Deque.size(superDB.creatingSubDB) >= 10) { // TODO: Make configurable.
@@ -397,6 +397,7 @@ module {
                     hardCap = options.hardCap;
                     var busy = false; // FIXME
                 } : SubDB;
+                // FIXME: This `SubDB` seems not inserted!
             };
         };
         subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
