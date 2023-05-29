@@ -378,7 +378,6 @@ module {
 
     // Creating sub-DB //
 
-    // TODO: Move this and the following function below in the code:
     // It does not touch old items, so no locking.
     func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}) {
         // Deque has no `size()`.
