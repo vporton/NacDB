@@ -38,10 +38,11 @@ module {
 
     type MoveCallback = shared ({oldCanister: PartitionCanister; oldSubDBKey: SubDBKey; newCanister: PartitionCanister; newSubDBKey: SubDBKey}) -> async ();
 
-    type CreateCallback = shared ({operationId: Nat; canister: PartitionCanister; subDBKey: SubDBKey}) -> async ();
+    type CreateCallback = shared ({canister: PartitionCanister; subDBKey: SubDBKey}) -> async ();
 
     type CreatingSubDB = {
-        var stage: {#saving; #notifying : {canister: PartitionCanister; subDBKey: SubDBKey}}
+        canister: PartitionCanister;
+        subDBKey: SubDBKey
     };
 
     type SuperDB = {
@@ -59,49 +60,48 @@ module {
             newCanister: PartitionCanister;
             var stage: {#moving; #notifying : {newSubDBKey: SubDBKey}}
         };
-        var creatingSubDB: RBT.Tree<Nat, CreatingSubDB>;
-        var nextCreatingSubDBOperationId: Nat;
+        var creatingSubDB: Deque.Deque<CreatingSubDB>;
     };
 
     // TODO: Move this and the following function below in the code:
     // It does not touch old items, so no locking.
     // FIXME: Repeatedly calling this constitutes a DoS attack.
-    func startCreatingSubDB(superDB: SuperDB) : Nat {
-        if (RBT.size(superDB.creatingSubDB) >= 10) { // TODO: Make configurable.
-            Debug.trap("queue full"); // FIXME: Instead, remove old items.
+    func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}) {
+        // FIXME: Deque has no `size()`.
+        // if (Deque.size(superDB.creatingSubDB) >= 10) { // TODO: Make configurable.
+        //     Debug.trap("queue full");
+        // };
+        let subDBKey = createSubDB({superDB; hardCap; busy = true});
+        let ?item = Deque.peekBack(superDB.creatingSubDB) else {
+            Debug.trap("programming error");
         };
-        superDB.creatingSubDB := RBT.put(superDB.creatingSubDB, Nat.compare, superDB.nextCreatingSubDBOperationId, {
-            var stage = #saving;
+        superDB.creatingSubDB := Deque.pushFront(superDB.creatingSubDB, {
+            canister; subDBKey = subDBKey;
         } : CreatingSubDB);
-        superDB.nextCreatingSubDBOperationId += 1;
-        superDB.nextCreatingSubDBOperationId;
     };
 
-    // It does not touch old items, so no locking.
-    func finishCreatingSubDB(canister: PartitionCanister, superDB: SuperDB, operationId: Nat, hardCap: ?Nat) : async () {
-        let ?item = RBT.get(superDB.creatingSubDB, Nat.compare, operationId) else {
-            Debug.trap("no such item");
-        };
-        label cycle loop {
-            switch (item.stage) {
-                case (#saving) {
-                    let subDBKey = createSubDB({superDB; hardCap; busy = true});
-                    item.stage := #notifying {canister; subDBKey = subDBKey};
-                };
-                case (#notifying {canister: PartitionCanister; subDBKey: SubDBKey}) {
-                    // TODO: Add also another, non-shared, callback?
-                    switch (superDB.createCallback) {
-                        case (?cb) { await cb({operationId = operationId; canister; subDBKey}); };
-                        case (null) {};
-                    };
-                    let ?entry = BTree.get(superDB.subDBs, Nat.compare, subDBKey) else {
-                        Debug.trap("entry must exist");
-                    };
-                    entry.busy := false;
-                    superDB.creatingSubDB := RBT.delete(superDB.creatingSubDB, Nat.compare, operationId); // marks as completed
-                    break cycle;
-                };
+    func finishCreatingSubDB(superDB: SuperDB) : async () {
+        while (not Deque.isEmpty(superDB.creatingSubDB)) {
+            let ?item = Deque.peekBack(superDB.creatingSubDB) else {
+                Debug.trap("no such item");
             };
+            // TODO: Add also another, non-shared, callback?
+            switch (superDB.createCallback) {
+                case (?cb) { await cb({canister = item.canister; subDBKey = item.subDBKey}); };
+                case (null) {};
+            };
+            let ?entry = BTree.get(superDB.subDBs, Nat.compare, item.subDBKey) else {
+                Debug.trap("entry must exist");
+            };
+            entry.busy := false;
+            switch (Deque.popBack(superDB.creatingSubDB)) { // marks as completed
+                case (?(deque, _)) {
+                    superDB.creatingSubDB := deque;
+                };
+                case (null) {
+                    Debug.trap("programming error")
+                };
+            }
         };
     };
 
@@ -134,7 +134,6 @@ module {
             createCallback = options.createCallback;
             var moving = null;
             var creatingSubDB = RBT.init();
-            var nextCreatingSubDBOperationId = 0;
         }
     };
 
