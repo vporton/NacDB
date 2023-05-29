@@ -408,6 +408,7 @@ module {
                 Debug.trap("entry must exist");
             };
             entry.busy := false;
+            // FIXME: May popBack a different item!
             switch (Deque.popBack(superDB.creatingSubDB)) { // marks as completed
                 case (?(deque, _)) {
                     superDB.creatingSubDB := deque;
