@@ -2,4 +2,4 @@
 
 - TypeScript
 
-- Documentation `mo-doc` and `type-doc`.
+- Documentation `mo-doc` and `typedoc`.
