@@ -396,7 +396,7 @@ module {
                         case (?item2) {
                             item2.busy := false;
                         };
-                        case (null) {}
+                        case (null) {};
                     };                    
                     superDB.creatingSubDB := RBT.delete(superDB.creatingSubDB, Nat.compare, key);
                 };
