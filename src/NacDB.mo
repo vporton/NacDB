@@ -61,23 +61,22 @@ module {
             var stage: {#moving; #notifying : {newSubDBKey: SubDBKey}}
         };
         var creatingSubDB: Deque.Deque<CreatingSubDB>;
+        var creatingSubDBSize: Nat;
     };
 
     // TODO: Move this and the following function below in the code:
     // It does not touch old items, so no locking.
     // TODO: Repeatedly calling this constitutes a DoS attack.
     func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}) {
-        // FIXME: Deque has no `size()`.
-        // if (Deque.size(superDB.creatingSubDB) >= 10) { // TODO: Make configurable.
-        //     Debug.trap("queue full");
-        // };
-        let subDBKey = createSubDB({superDB; hardCap; busy = true});
-        let ?item = Deque.peekBack(superDB.creatingSubDB) else {
-            Debug.trap("programming error");
+        // Deque has no `size()`.
+        if (superDB.creatingSubDBSize >= 10) { // TODO: Make configurable.
+            Debug.trap("queue full");
         };
+        let subDBKey = createSubDB({superDB; hardCap; busy = true});
         superDB.creatingSubDB := Deque.pushFront(superDB.creatingSubDB, {
             canister; subDBKey = subDBKey;
         } : CreatingSubDB);
+        superDB.creatingSubDBSize += 1;
     };
 
     func finishCreatingSubDB(superDB: SuperDB) : async () {
@@ -134,6 +133,7 @@ module {
             createCallback = options.createCallback;
             var moving = null;
             var creatingSubDB = Deque.empty();
+            var creatingSubDBSize = 0;
         }
     };
 
@@ -370,44 +370,6 @@ module {
                 Debug.trap("missing sub-DB")
             }
         }
-    };
-
-    public type InsertOrCreateOptions = {
-        indexCanister: IndexCanister;
-        currentCanister: PartitionCanister;
-        superDB: SuperDB;
-        subDBKey: SubDBKey;
-        sk: SK;
-        value: AttributeValue;
-        hardCap: ?Nat;
-    };
-
-    // FIXME: It creates a sub-DB and does not return its number.
-    // FIXME: Not idempotent.
-    public func insertOrCreate(options: InsertOrCreateOptions) : async* () {
-        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
-
-        let subDB = switch (getSubDB(options.superDB, options.subDBKey)) {
-            case (?subDB) {
-                subDB;
-            };
-            case (null) {
-                {
-                    var data = RBT.init();
-                    hardCap = options.hardCap;
-                    var busy = false; // FIXME
-                } : SubDB;
-                // FIXME: This `SubDB` seems not inserted!
-            };
-        };
-        subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
-        removeLoosers(subDB);
-        await* startMovingSubDBIfOverflow({
-            indexCanister = options.indexCanister;
-            oldCanister = options.currentCanister;
-            oldSuperDB = options.superDB;
-            oldSubDBKey = options.subDBKey;
-        });
     };
 
     // TODO: Here and in other places wrap `hardCap` into an object.
