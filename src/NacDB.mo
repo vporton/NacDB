@@ -100,7 +100,8 @@ module {
                 case (null) {
                     Debug.trap("programming error")
                 };
-            }
+            };
+            superDB.creatingSubDBSize -= 1;
         };
     };
 
