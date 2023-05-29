@@ -40,8 +40,6 @@ module {
 
     type CreateCallback = shared ({canister: PartitionCanister; subDBKey: SubDBKey}) -> async ();
 
-    type CreateCallbackNonShared = ({canister: PartitionCanister; subDBKey: SubDBKey}) -> ();
-
     type CreatingSubDB = {
         canister: PartitionCanister;
         subDBKey: SubDBKey
@@ -55,7 +53,6 @@ module {
         moveCallback: ?MoveCallback;
         /// Should be idempotent.
         createCallback: ?CreateCallback;
-        createCallbackNonShared: ?CreateCallbackNonShared;
 
         var moving: ?{
             oldCanister: PartitionCanister;
@@ -91,7 +88,6 @@ module {
         moveCap: MoveCap;
         moveCallback: ?MoveCallback;
         createCallback: ?CreateCallback;
-        createCallbackNonShared: ?CreateCallbackNonShared;
     }) : SuperDB {
         {
             var nextKey = 0;
@@ -101,7 +97,6 @@ module {
             createCallback = options.createCallback;
             var moving = null;
             var creatingSubDB = RBT.init();
-            createCallbackNonShared = options.createCallbackNonShared;
         }
     };
 
@@ -392,10 +387,6 @@ module {
         loop {
             switch (RBT.entries(superDB.creatingSubDB).next()) {
                 case (?(key, item)) {
-                    switch (superDB.createCallbackNonShared) {
-                        case (?cb) { cb({canister = item.canister; subDBKey = item.subDBKey}); };
-                        case (null) {};
-                    };
                     switch (superDB.createCallback) {
                         case (?cb) { await cb({canister = item.canister; subDBKey = item.subDBKey}); };
                         case (null) {};
