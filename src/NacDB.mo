@@ -133,7 +133,7 @@ module {
             moveCallback = options.moveCallback;
             createCallback = options.createCallback;
             var moving = null;
-            var creatingSubDB = RBT.init();
+            var creatingSubDB = Deque.empty();
         }
     };
 
