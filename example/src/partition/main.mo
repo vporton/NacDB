@@ -24,7 +24,4 @@ shared({caller}) actor class Partition() = this {
         Nac.get({superDB; subDBKey = options.subDBKey; sk = options.sk})
     };
 
-//     public shared func insertOrCreate(options: {subDBKey: SubDBKey; sk: SK}) : async ?Nac.AttributeValue {
-//         Nac.get({superDB; subDBKey; sk})
-//     };
 }
