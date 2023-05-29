@@ -372,7 +372,7 @@ module {
     // Creating sub-DB //
 
     // It does not touch old items, so no locking.
-    func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}) {
+    func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}): SubDBKey {
         // Deque has no `size()`.
         if (RBT.size(superDB.creatingSubDB) >= 10) { // TODO: Make configurable.
             Debug.trap("queue full");
@@ -381,6 +381,7 @@ module {
         superDB.creatingSubDB := RBT.put(superDB.creatingSubDB, Nat.compare, subDBKey, {
             canister; subDBKey = subDBKey;
         } : CreatingSubDB);
+        subDBKey;
     };
 
     func finishCreatingSubDB(superDB: SuperDB) : async () {
