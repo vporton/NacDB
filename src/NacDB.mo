@@ -64,47 +64,6 @@ module {
         var creatingSubDBSize: Nat;
     };
 
-    // TODO: Move this and the following function below in the code:
-    // It does not touch old items, so no locking.
-    // TODO: Repeatedly calling this constitutes a DoS attack.
-    func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}) {
-        // Deque has no `size()`.
-        if (superDB.creatingSubDBSize >= 10) { // TODO: Make configurable.
-            Debug.trap("queue full");
-        };
-        let subDBKey = createSubDB({superDB; hardCap; busy = true});
-        superDB.creatingSubDB := Deque.pushFront(superDB.creatingSubDB, {
-            canister; subDBKey = subDBKey;
-        } : CreatingSubDB);
-        superDB.creatingSubDBSize += 1;
-    };
-
-    func finishCreatingSubDB(superDB: SuperDB) : async () {
-        while (not Deque.isEmpty(superDB.creatingSubDB)) {
-            let ?item = Deque.peekBack(superDB.creatingSubDB) else {
-                Debug.trap("no such item");
-            };
-            // TODO: Add also another, non-shared, callback?
-            switch (superDB.createCallback) {
-                case (?cb) { await cb({canister = item.canister; subDBKey = item.subDBKey}); };
-                case (null) {};
-            };
-            let ?entry = BTree.get(superDB.subDBs, Nat.compare, item.subDBKey) else {
-                Debug.trap("entry must exist");
-            };
-            entry.busy := false;
-            switch (Deque.popBack(superDB.creatingSubDB)) { // marks as completed
-                case (?(deque, _)) {
-                    superDB.creatingSubDB := deque;
-                };
-                case (null) {
-                    Debug.trap("programming error")
-                };
-            };
-            superDB.creatingSubDBSize -= 1;
-        };
-    };
-
     public type DBIndex = {
         canisters: StableBuffer.StableBuffer<Principal>;
     };
@@ -405,6 +364,48 @@ module {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         ignore BTree.delete(options.superDB.subDBs, Nat.compare, options.subDBKey);
+    };
+
+    // Creating sub-DB //
+
+    // TODO: Move this and the following function below in the code:
+    // It does not touch old items, so no locking.
+    func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}) {
+        // Deque has no `size()`.
+        if (superDB.creatingSubDBSize >= 10) { // TODO: Make configurable.
+            Debug.trap("queue full");
+        };
+        let subDBKey = createSubDB({superDB; hardCap; busy = true});
+        superDB.creatingSubDB := Deque.pushFront(superDB.creatingSubDB, {
+            canister; subDBKey = subDBKey;
+        } : CreatingSubDB);
+        superDB.creatingSubDBSize += 1;
+    };
+
+    func finishCreatingSubDB(superDB: SuperDB) : async () {
+        while (not Deque.isEmpty(superDB.creatingSubDB)) {
+            let ?item = Deque.peekBack(superDB.creatingSubDB) else {
+                Debug.trap("no such item");
+            };
+            // TODO: Add also another, non-shared, callback?
+            switch (superDB.createCallback) {
+                case (?cb) { await cb({canister = item.canister; subDBKey = item.subDBKey}); };
+                case (null) {};
+            };
+            let ?entry = BTree.get(superDB.subDBs, Nat.compare, item.subDBKey) else {
+                Debug.trap("entry must exist");
+            };
+            entry.busy := false;
+            switch (Deque.popBack(superDB.creatingSubDB)) { // marks as completed
+                case (?(deque, _)) {
+                    superDB.creatingSubDB := deque;
+                };
+                case (null) {
+                    Debug.trap("programming error")
+                };
+            };
+            superDB.creatingSubDBSize -= 1;
+        };
     };
 
     // Scanning/enumerating //
