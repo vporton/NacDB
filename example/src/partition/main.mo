@@ -34,11 +34,11 @@ shared({caller}) actor class Partition() = this {
 
     // Some data access methods //
 
-    public shared func get(options: {subDBKey: Nac.SubDBKey; sk: Nac.SK}) : async ?Nac.AttributeValue {
+    public query func get(options: {subDBKey: Nac.SubDBKey; sk: Nac.SK}) : async ?Nac.AttributeValue {
         Nac.get({superDB; subDBKey = options.subDBKey; sk = options.sk})
     };
 
-    public shared func insert({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue}) {
+    public shared func insert({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue}) : async () {
         await* Nac.insert({
             indexCanister = index;
             currentCanister = this;

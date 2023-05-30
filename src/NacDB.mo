@@ -70,7 +70,7 @@ module {
         createSubDB({hardCap: ?Nat; busy: Bool}) : async Nat; // TODO: Hardcap not here.
         releaseSubDB(subDBKey: SubDBKey) : async ();
         insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
-        get(options: {subDBKey: SubDBKey; sk: SK}) : async ?AttributeValue;
+        get: shared query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue; // FIXME: query
     };
 
     public func createDBIndex() : DBIndex {

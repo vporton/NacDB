@@ -1,5 +1,6 @@
-import Index "../index";
-import Partition "../partition";
+import Index "../index/main";
+import Partition "../partition/main";
+import Debug "mo:base/Debug";
 
 actor {
   public shared func greet(name : Text) : async Text {
@@ -7,9 +8,12 @@ actor {
     await index.init();
     
     let (part, subDBKey) = await index.insertSubDB();
-    part.insert({subDBKey; sk = "name"; value = #text name});
-    let name2 = part.get({subDBKey; sk = "name"});
+    await part.insert({subDBKey; sk = "name"; value = #text name});
+    let name2 = await part.get({subDBKey; sk = "name"});
+    let ?#text name3 = name2 else {
+      Debug.trap("error");
+    };
 
-    return "Hello, " # name2 # "!";
+    return "Hello, " # name3 # "!";
   };
 };

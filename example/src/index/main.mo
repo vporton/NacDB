@@ -1,5 +1,6 @@
+import Cycles "mo:base/ExperimentalCycles";
 import Nac "../../../src/NacDB";
-import Partition "../partition";
+import Partition "../partition/main";
 import StableBuffer "mo:stable-buffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
@@ -10,7 +11,8 @@ shared actor class Index() = this {
     stable var index: Nac.DBIndex = Nac.createDBIndex();
 
     public shared func init() : async () {
-        // TODO: too low level
+        Cycles.add(300_000_000_000); // TODO: duplicate line of code
+        // TODO: `StableBuffer` is too low level.
         StableBuffer.add(index.canisters, Principal.fromActor(await Partition.Partition()));
     };
 
@@ -19,6 +21,7 @@ shared actor class Index() = this {
     };
 
     public shared func newCanister(): async Partition.Partition {
+        Cycles.add(300_000_000_000); // TODO: duplicate line of code
         let canister = await Partition.Partition();
     };
 
