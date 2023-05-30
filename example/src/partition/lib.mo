@@ -11,8 +11,8 @@ shared({caller}) actor class Partition() = this {
 
     // Mandatory methods //
 
-    public shared func insertSubDB() {
-        subDBKey := ?Nac.creatingSubDBStage1({canister = this; superDB = superDB; hardCap = ?1000});
+    public shared func insertSubDB() : async () {
+        subDBKey := ?(await* Nac.creatingSubDBStage1({canister = this; superDB = superDB; hardCap = ?1000}));
         // Here process changes of subDBKey.
         Nac.creatingSubDBStage2(superDB);
     };
@@ -25,6 +25,10 @@ shared({caller}) actor class Partition() = this {
     public shared func isOverflowed() : async Bool {
         Nac.isOverflowed(superDB);
     };
+
+    // public shared func getSubDB() : async ?Nac.SubDB {
+    //     Nac.getSubDB(superDB);
+    // };
 
     // Some data access methods //
 

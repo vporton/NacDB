@@ -68,6 +68,7 @@ module {
         rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, hardCap: ?Nat) : async SubDBKey; // TODO: `hardCap` not here
         isOverflowed() : async Bool;
         createSubDB({hardCap: ?Nat; busy: Bool}) : async Nat; // TODO: Hardcap not here.
+        releaseSubDB(subDBKey: SubDBKey) : async ();
     };
 
     public func createDBIndex() : DBIndex {
@@ -105,6 +106,15 @@ module {
 
     public func getSubDB(superDB: SuperDB, subDBKey: SubDBKey) : ?SubDB {
         BTree.get(superDB.subDBs, Nat.compare, subDBKey);
+    };
+
+    public func releaseSubDB(superDB: SuperDB, subDBKey: SubDBKey) : async () {
+        switch (getSubDB(superDB, subDBKey)) {
+            case (?item2) {
+                item2.busy := false;
+            };
+            case (null) {};
+        };
     };
 
     func startMovingSpecifiedSubDB(options: {oldCanister: PartitionCanister; newCanister: PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
@@ -352,7 +362,7 @@ module {
 
     // FIXME: It is of `Index`, not of `Partition`.
     // It does not touch old items, so no locking.
-    public func creatingSubDBStage1({dbIndex: DBIndex; hardCap: ?Nat}): async SubDBKey {
+    public func creatingSubDBStage1({dbIndex: DBIndex; hardCap: ?Nat}): async* SubDBKey {
         // Deque has no `size()`.
         if (RBT.size(dbIndex.creatingSubDB) >= 10) { // TODO: Make configurable.
             Debug.trap("queue full");
@@ -362,28 +372,19 @@ module {
         };
         let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
         let part: PartitionCanister = actor(Principal.toText(pk));
-        let subDBKey = part.createSubDB({hardCap; busy = true});
+        let subDBKey = await part.createSubDB({hardCap; busy = true});
         dbIndex.creatingSubDB := RBT.put(dbIndex.creatingSubDB, Nat.compare, subDBKey, {
-            part; subDBKey = subDBKey;
+            canister = part; subDBKey = subDBKey;
         } : CreatingSubDB);
         subDBKey;
     };
 
-    public func creatingSubDBStage2(superDB: SuperDB) : () {
-        loop {
-            switch (RBT.entries(superDB.creatingSubDB).next()) {
-                case (?(key, item)) {
-                    switch (BTree.get(superDB.subDBs, Nat.compare, item.subDBKey)) {
-                        case (?item2) {
-                            item2.busy := false;
-                        };
-                        case (null) {};
-                    };                    
-                    superDB.creatingSubDB := RBT.delete(superDB.creatingSubDB, Nat.compare, key);
-                };
-                case (null) { return; }
-            }
+    public func creatingSubDBStage2(dbIndex: DBIndex, key: SubDBKey) : async* () {
+        let ?item = RBT.get(dbIndex.creatingSubDB, Nat.compare, key) else {
+            Debug.trap("no item");
         };
+        await item.canister.releaseSubDB(key);
+        dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, key);
     };
 
     // Scanning/enumerating //
