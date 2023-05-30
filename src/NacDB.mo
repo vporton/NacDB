@@ -74,7 +74,7 @@ module {
     };
 
     public type PartitionCanister = actor {
-        insertSubDB(data: RBT.Tree<SK, AttributeValue>) : async SubDBKey;
+        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>) : async SubDBKey;
         isOverflowed() : async Bool;
     };
 
@@ -100,7 +100,7 @@ module {
         }
     };
 
-    public func insertSubDB(superDB: SuperDB, subDB: SubDB): SubDBKey {
+    public func rawInsertSubDB(superDB: SuperDB, subDB: SubDB): SubDBKey {
         switch (superDB.moving) {
             case (?_) { Debug.trap("DB is scaling") };
             case (null) {
@@ -131,6 +131,7 @@ module {
         };
     };
 
+    // TODO: Instead of callback, call code in-between
     func finishMoveSubDB(options: {superDB: SuperDB}) : async* () {
         label cycle loop {
             switch (options.superDB.moving) {
@@ -142,7 +143,7 @@ module {
                                     if (subDB.busy) {
                                         Debug.trap("entry is busy");
                                     };
-                                    let newSubDBKey = await moving.newCanister.insertSubDB(subDB.data);
+                                    let newSubDBKey = await moving.newCanister.rawInsertSubDB(subDB.data);
                                     ignore BTree.delete(options.superDB.subDBs, Nat.compare, moving.oldSubDBKey);
                                     moving.stage := #notifying {newCanister = moving.newCanister; newSubDBKey};
                                 };
@@ -372,7 +373,7 @@ module {
     // Creating sub-DB //
 
     // It does not touch old items, so no locking.
-    func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}): SubDBKey {
+    public func startCreatingSubDB({canister: PartitionCanister; superDB: SuperDB; hardCap: ?Nat}): SubDBKey {
         // Deque has no `size()`.
         if (RBT.size(superDB.creatingSubDB) >= 10) { // TODO: Make configurable.
             Debug.trap("queue full");
@@ -384,14 +385,10 @@ module {
         subDBKey;
     };
 
-    func finishCreatingSubDB(superDB: SuperDB) : async () {
+    public func finishCreatingSubDB(superDB: SuperDB) : () {
         loop {
             switch (RBT.entries(superDB.creatingSubDB).next()) {
                 case (?(key, item)) {
-                    switch (superDB.createCallback) {
-                        case (?cb) { await cb({canister = item.canister; subDBKey = item.subDBKey}); };
-                        case (null) {};
-                    };
                     switch (BTree.get(superDB.subDBs, Nat.compare, item.subDBKey)) {
                         case (?item2) {
                             item2.busy := false;
