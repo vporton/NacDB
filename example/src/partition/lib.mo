@@ -12,14 +12,15 @@ shared({caller}) actor class Partition() = this {
     // Mandatory methods //
 
     public shared func insertSubDB() {
-        subDBKey := ?Nac.startCreatingSubDB({canister = this; superDB = superDB; hardCap = ?1000});
+        subDBKey := ?Nac.creatingSubDBStage1({canister = this; superDB = superDB; hardCap = ?1000});
         // Here process changes of subDBKey.
-        Nac.finishCreatingSubDB(superDB);
+        Nac.creatingSubDBStage2(superDB);
     };
 
-    public shared func rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>) : async SubDBKey {
-
-    }
+    // TODO: `hardCap` not here.
+    public shared func rawInsertSubDB(data: RBT.Tree<Nac.SK, Nac.AttributeValue>, hardCap: ?Nat) : async Nac.SubDBKey {
+        Nac.rawInsertSubDB(superDB, data, hardCap);
+    };
 
     public shared func isOverflowed() : async Bool {
         Nac.isOverflowed(superDB);
