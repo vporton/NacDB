@@ -69,6 +69,8 @@ module {
         isOverflowed() : async Bool;
         createSubDB({hardCap: ?Nat; busy: Bool}) : async Nat; // TODO: Hardcap not here.
         releaseSubDB(subDBKey: SubDBKey) : async ();
+        insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
+        get(options: {subDBKey: SubDBKey; sk: SK}) : async ?AttributeValue;
     };
 
     public func createDBIndex() : DBIndex {
@@ -362,7 +364,7 @@ module {
 
     // FIXME: It is of `Index`, not of `Partition`.
     // It does not touch old items, so no locking.
-    public func creatingSubDBStage1({dbIndex: DBIndex; hardCap: ?Nat}): async* SubDBKey {
+    public func creatingSubDBStage1({dbIndex: DBIndex; hardCap: ?Nat}): async* (PartitionCanister, SubDBKey) {
         // Deque has no `size()`.
         if (RBT.size(dbIndex.creatingSubDB) >= 10) { // TODO: Make configurable.
             Debug.trap("queue full");
@@ -376,7 +378,7 @@ module {
         dbIndex.creatingSubDB := RBT.put(dbIndex.creatingSubDB, Nat.compare, subDBKey, {
             canister = part; subDBKey = subDBKey;
         } : CreatingSubDB);
-        subDBKey;
+        (part, subDBKey);
     };
 
     public func creatingSubDBStage2(dbIndex: DBIndex, key: SubDBKey) : async* () {

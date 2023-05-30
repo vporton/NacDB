@@ -11,12 +11,6 @@ shared({caller}) actor class Partition() = this {
 
     // Mandatory methods //
 
-    public shared func insertSubDB() : async () {
-        subDBKey := ?(await* Nac.creatingSubDBStage1({canister = this; superDB = superDB; hardCap = ?1000}));
-        // Here process changes of subDBKey.
-        Nac.creatingSubDBStage2(superDB);
-    };
-
     // TODO: `hardCap` not here.
     public shared func rawInsertSubDB(data: RBT.Tree<Nac.SK, Nac.AttributeValue>, hardCap: ?Nat) : async Nac.SubDBKey {
         Nac.rawInsertSubDB(superDB, data, hardCap);
@@ -29,6 +23,14 @@ shared({caller}) actor class Partition() = this {
     // public shared func getSubDB() : async ?Nac.SubDB {
     //     Nac.getSubDB(superDB);
     // };
+
+    public shared func createSubDB({hardCap: ?Nat; busy: Bool}) : async Nat {
+        Nac.createSubDB({superDB; hardCap; busy});
+    };
+
+    public shared func releaseSubDB(subDBKey: Nac.SubDBKey) : async () {
+        await Nac.releaseSubDB(superDB, subDBKey);
+    };
 
     // Some data access methods //
 
