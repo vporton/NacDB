@@ -144,22 +144,14 @@ module {
                         };
                         let newSubDBKey = await moving.newCanister.rawInsertSubDB(subDB.data, hardCap);
                         ignore BTree.delete(superDB.subDBs, Nat.compare, moving.oldSubDBKey);
+                        let ?item = BTree.get(superDB.subDBs, Nat.compare, moving.oldSubDBKey) else {
+                            Debug.trap("item must exist")
+                        };
+                        item.busy := false;
+                        superDB.moving := null;
                     };
                     case (null) {};
                 };
-            };
-            case (null) {}; // TODO: trap?
-        };
-    };
-
-    func movingSpecifiedSubDBStage3(options: {superDB: SuperDB}) : async* () {
-        switch (options.superDB.moving) {
-            case (?moving) {
-                let ?item = BTree.get(options.superDB.subDBs, Nat.compare, moving.oldSubDBKey) else {
-                    Debug.trap("item must exist")
-                };
-                item.busy := false;
-                options.superDB.moving := null;
             };
             case (null) {}; // TODO: trap?
         };
