@@ -148,7 +148,7 @@ module {
                     case (null) {};
                 };
             };
-            case (null) {} // TODO: trap?
+            case (null) {}; // TODO: trap?
         };
     };
 
