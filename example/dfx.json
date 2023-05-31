@@ -2,8 +2,7 @@
   "canisters": {
     "index": {
       "main": "src/index/main.mo",
-      "type": "motoko",
-      "cycles": 1000000000
+      "type": "motoko"
     },
     "example_backend": {
       "main": "src/example_backend/main.mo",
