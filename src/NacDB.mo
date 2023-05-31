@@ -62,6 +62,13 @@ module {
     public type IndexCanister = actor {
         getCanisters(): async [PartitionCanister];
         newCanister(): async PartitionCanister;
+        // FIXME: having `movingCallback` in both Index and Partition seems wrong.
+        movingCallback: shared ({
+            oldCanister: PartitionCanister;
+            oldSubDBKey: SubDBKey;
+            newCanister: PartitionCanister;
+            newSubDBKey: SubDBKey;
+        }) -> async ()
     };
 
     public type PartitionCanister = actor {

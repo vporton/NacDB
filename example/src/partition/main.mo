@@ -11,15 +11,12 @@ shared({caller}) actor class Partition() = this {
 
     // Mandatory methods //
 
-    public shared func movingCallback({
+    let movingCallback: shared ({
         oldCanister: Nac.PartitionCanister;
         oldSubDBKey: Nac.SubDBKey;
         newCanister: Nac.PartitionCanister;
         newSubDBKey: Nac.SubDBKey;
-    }) : async ()
-    {
-        subDBKey := ?newSubDBKey;
-    };
+    }) -> async () = index.movingCallback;
 
     // TODO: `hardCap` not here.
     public shared func rawInsertSubDB(data: RBT.Tree<Nac.SK, Nac.AttributeValue>, dbOptions: Nac.DBOptions) : async Nac.SubDBKey {

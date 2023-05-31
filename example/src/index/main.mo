@@ -10,7 +10,10 @@ shared actor class Index() = this {
 
     stable var index: Nac.DBIndex = Nac.createDBIndex();
 
-    public shared func init() : async () {
+    stable var movingCallback: ?Nac.MovingCallback = null;
+
+    public shared func init(movingCallbackValue: ?Nac.MovingCallback) : async () {
+        movingCallback := movingCallbackValue;
         Cycles.add(300_000_000_000); // TODO: duplicate line of code
         // TODO: `StableBuffer` is too low level.
         StableBuffer.add(index.canisters, Principal.fromActor(await Partition.Partition()));
