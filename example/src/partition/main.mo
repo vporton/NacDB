@@ -7,13 +7,23 @@ shared({caller}) actor class Partition() = this {
 
     stable let superDB = Nac.createSuperDB({moveCap = #usedMemory 500_000; moveCallback = null; createCallback = null});
 
-    stable var subDBKey: ?Nac.SubDBKey = null;
+    stable var subDBKey: ?Nac.SubDBKey = null; // FIXME: not here
 
     // Mandatory methods //
 
+    public shared func movingCallback({
+        oldCanister: Nac.PartitionCanister;
+        oldSubDBKey: Nac.SubDBKey;
+        newCanister: Nac.PartitionCanister;
+        newSubDBKey: Nac.SubDBKey;
+    }) : async ()
+    {
+        subDBKey := ?newSubDBKey;
+    };
+
     // TODO: `hardCap` not here.
-    public shared func rawInsertSubDB(data: RBT.Tree<Nac.SK, Nac.AttributeValue>, hardCap: ?Nat) : async Nac.SubDBKey {
-        Nac.rawInsertSubDB(superDB, data, hardCap);
+    public shared func rawInsertSubDB(data: RBT.Tree<Nac.SK, Nac.AttributeValue>, dbOptions: Nac.DBOptions) : async Nac.SubDBKey {
+        Nac.rawInsertSubDB(superDB, data, dbOptions);
     };
 
     public shared func isOverflowed() : async Bool {
@@ -24,8 +34,8 @@ shared({caller}) actor class Partition() = this {
     //     Nac.getSubDB(superDB);
     // };
 
-    public shared func createSubDB({hardCap: ?Nat; busy: Bool}) : async Nat {
-        Nac.createSubDB({superDB; hardCap; busy});
+    public shared func createSubDB({dbOptions: Nac.DBOptions; busy: Bool}) : async Nat {
+        Nac.createSubDB({superDB; dbOptions; busy});
     };
 
     public shared func releaseSubDB(subDBKey: Nac.SubDBKey) : async () {

@@ -65,9 +65,9 @@ module {
     };
 
     public type PartitionCanister = actor {
-        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, hardCap: ?Nat) : async SubDBKey; // TODO: `hardCap` not here
+        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey; // TODO: `hardCap` not here
         isOverflowed() : async Bool;
-        createSubDB({hardCap: ?Nat; busy: Bool}) : async Nat; // TODO: Hardcap not here.
+        createSubDB({dbOptions: DBOptions; busy: Bool}) : async Nat; // TODO: Hardcap not here.
         releaseSubDB(subDBKey: SubDBKey) : async ();
         insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
         get: shared query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue; // FIXME: query
@@ -92,14 +92,31 @@ module {
         }
     };
 
+    public type MovingCallback = shared ({
+        oldCanister: PartitionCanister;
+        oldSubDBKey: SubDBKey;
+        newCanister: PartitionCanister;
+        newSubDBKey: SubDBKey;
+    }) -> async ();
+
+    public type DBOptions = {
+        hardCap: ?Nat;
+        movingCallback: ?MovingCallback;
+    };
+
     // TODO: Move `hardCap`.
-    public func rawInsertSubDB(superDB: SuperDB, subDBData: RBT.Tree<SK, AttributeValue>, hardCap: ?Nat): SubDBKey {
+    public func rawInsertSubDB(superDB: SuperDB, subDBData: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions): SubDBKey {
         switch (superDB.moving) {
             case (?_) { Debug.trap("DB is scaling") };
             case (null) {
                 let key = superDB.nextKey;
                 superDB.nextKey += 1;
-                let subDB : SubDB = {var data = subDBData; hardCap; var busy = false};
+                let subDB : SubDB = {
+                    var data = subDBData;
+                    hardCap = dbOptions.hardCap;
+                    movingCallback = dbOptions.movingCallback;
+                    var busy = false;
+                };
                 ignore BTree.insert<SubDBKey, SubDB>(superDB.subDBs, Nat.compare, key, subDB);
                 key;
             };
@@ -134,7 +151,7 @@ module {
     };
 
     // TODO: `hardCap` not here.
-    func movingSpecifiedSubDBStage2({superDB: SuperDB; hardCap: ?Nat}) : async () {
+    func movingSpecifiedSubDBStage2({superDB: SuperDB; dbOptions: DBOptions}) : async () {
         switch (superDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
@@ -142,8 +159,19 @@ module {
                         if (subDB.busy) {
                             Debug.trap("entry is busy");
                         };
-                        let newSubDBKey = await moving.newCanister.rawInsertSubDB(subDB.data, hardCap);
+                        let newSubDBKey = await moving.newCanister.rawInsertSubDB(subDB.data, dbOptions);
                         ignore BTree.delete(superDB.subDBs, Nat.compare, moving.oldSubDBKey);
+                        switch (dbOptions.movingCallback) {
+                            case (?movingCallback) {
+                                await movingCallback({
+                                    oldCanister = moving.oldCanister;
+                                    oldSubDBKey = moving.oldSubDBKey;
+                                    newCanister = moving.newCanister;
+                                    newSubDBKey;
+                                });
+                            };
+                            case (null) {};
+                        };
                         let ?item = BTree.get(superDB.subDBs, Nat.compare, moving.oldSubDBKey) else {
                             Debug.trap("item must exist")
                         };
@@ -270,7 +298,7 @@ module {
         get(options) != null;
     };
 
-    public type HasSubDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    public type HasDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
 
     public func hasSubDB(options: ExistsOptions) : Bool {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
@@ -319,10 +347,11 @@ module {
     };
 
     // TODO: Here and in other places wrap `hardCap` into an object.
-    public func createSubDB({superDB: SuperDB; hardCap: ?Nat; busy: Bool}) : Nat {
+    public func createSubDB({superDB: SuperDB; dbOptions: DBOptions; busy: Bool}) : Nat {
         let subDB : SubDB = {
             var data = RBT.init();
-            hardCap = hardCap;
+            hardCap = dbOptions.hardCap;
+            movingCallback = dbOptions.movingCallback;
             var busy;
         };
         let key = superDB.nextKey;
@@ -344,9 +373,9 @@ module {
         };
     };
 
-    type DeleteSubDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    type DeleteDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
     
-    public func deleteSubDB(options: DeleteSubDBOptions) {
+    public func deleteSubDB(options: DeleteDBOptions) {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         ignore BTree.delete(options.superDB.subDBs, Nat.compare, options.subDBKey);
@@ -356,7 +385,7 @@ module {
 
     // FIXME: It is of `Index`, not of `Partition`.
     // It does not touch old items, so no locking.
-    public func creatingSubDBStage1({dbIndex: DBIndex; hardCap: ?Nat}): async* (PartitionCanister, SubDBKey) {
+    public func creatingSubDBStage1({dbIndex: DBIndex; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
         // Deque has no `size()`.
         if (RBT.size(dbIndex.creatingSubDB) >= 10) { // TODO: Make configurable.
             Debug.trap("queue full");
@@ -366,7 +395,7 @@ module {
         };
         let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
         let part: PartitionCanister = actor(Principal.toText(pk));
-        let subDBKey = await part.createSubDB({hardCap; busy = true});
+        let subDBKey = await part.createSubDB({dbOptions; busy = true});
         dbIndex.creatingSubDB := RBT.put(dbIndex.creatingSubDB, Nat.compare, subDBKey, {
             canister = part; subDBKey = subDBKey;
         } : CreatingSubDB);
