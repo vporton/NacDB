@@ -1,9 +1,11 @@
+import Cycles "mo:base/ExperimentalCycles";
 import Index "../index/main";
 import Partition "../partition/main";
 import Debug "mo:base/Debug";
 
 actor {
   public shared func greet(name : Text) : async Text {
+    Cycles.add(700_000_000_000);
     let index = await Index.Index();
     await index.init();
     
