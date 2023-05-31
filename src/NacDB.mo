@@ -72,12 +72,12 @@ module {
     };
 
     public type PartitionCanister = actor {
-        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey; // TODO: `hardCap` not here
+        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
         isOverflowed() : async Bool;
-        createSubDB({dbOptions: DBOptions; busy: Bool}) : async Nat; // TODO: Hardcap not here.
+        createSubDB({dbOptions: DBOptions; busy: Bool}) : async Nat;
         releaseSubDB(subDBKey: SubDBKey) : async ();
         insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
-        get: shared query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue; // FIXME: query
+        get: shared query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
     };
 
     public func createDBIndex() : DBIndex {
