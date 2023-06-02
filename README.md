@@ -5,7 +5,7 @@ The current stage of development is an untested MVP. The API most likely will ch
 
 NacDB is a no-SQL multicanister database. In each canister there are several sub-DBs.
 
-Each sub-DB is seamlessly enumerable (unlike CanDB).
+Each sub-DB is seamlessly enumerable (unlike [CanDB](https://github.com/ORIGYN-SA/CanDB)).
 
 When databases in a canister become too big or too many, a new canister is created and
 a sub-database is moved to it. When a sub-DB is moved, a shared callback is called in
