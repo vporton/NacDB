@@ -18,7 +18,6 @@ shared({caller}) actor class Partition() = this {
         newSubDBKey: Nac.SubDBKey;
     }) -> async () = index.movingCallback;
 
-    // TODO: `hardCap` not here.
     public shared func rawInsertSubDB(data: RBT.Tree<Nac.SK, Nac.AttributeValue>, dbOptions: Nac.DBOptions) : async Nac.SubDBKey {
         Nac.rawInsertSubDB(superDB, data, dbOptions);
     };
