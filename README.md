@@ -1,7 +1,7 @@
 # NacDB
 
 This is an unfinished project, NacDB.
-The current stage of development is an untested MVP.
+The current stage of development is an untested MVP. The API most likely will change.
 
 NacDB is a no-SQL multicanister database. In each canister there are several sub-DBs.
 
