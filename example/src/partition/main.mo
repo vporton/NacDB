@@ -11,6 +11,7 @@ shared({caller}) actor class Partition() = this {
 
     // Mandatory methods //
 
+    // TODO: Don't duplicate in partition and index.
     let movingCallback: shared ({
         oldCanister: Nac.PartitionCanister;
         oldSubDBKey: Nac.SubDBKey;
