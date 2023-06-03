@@ -390,9 +390,7 @@ module {
 
     public func creatingSubDBKeys(dbIndex: DBIndex) : [SubDBKey] {
         let iter = Iter.map(RBT.entries(dbIndex.creatingSubDB), func(e: (SubDBKey, CreatingSubDB)): SubDBKey {
-            let (key, _) = e else {
-                Debug.trap("programming error");
-            };
+            let (key, _) = e;
             key;
         });
         Iter.toArray(iter);
