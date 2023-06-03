@@ -122,7 +122,7 @@ module {
                     movingCallback = dbOptions.movingCallback;
                     var busy = false;
                 };
-                ignore BTree.insert<SubDBKey, SubDB>(superDB.subDBs, Nat.compare, key, subDB);
+                ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
                 key;
             };
         };
