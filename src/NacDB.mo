@@ -396,7 +396,6 @@ module {
         Iter.toArray(iter);
     };
 
-    // TODO: Should not pass both `dbIndex` and `dbOptions`, because all options should be (?) in dbIndex.
     // It does not touch old items, so no locking.
     public func creatingSubDBStage1({dbIndex: DBIndex; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
         // TODO: Need to be able to query `creatingSubDB`.
