@@ -110,7 +110,6 @@ module {
         movingCallback: ?MovingCallback;
     };
 
-    // TODO: Move `hardCap`.
     public func rawInsertSubDB(superDB: SuperDB, subDBData: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions): SubDBKey {
         switch (superDB.moving) {
             case (?_) { Debug.trap("DB is scaling") };
@@ -156,7 +155,6 @@ module {
         };
     };
 
-    // TODO: `hardCap` not here.
     func movingSpecifiedSubDBStage2({superDB: SuperDB; dbOptions: DBOptions}) : async () {
         switch (superDB.moving) {
             case (?moving) {
@@ -394,7 +392,7 @@ module {
         if (RBT.size(dbIndex.creatingSubDB) >= 10) { // TODO: Make configurable.
             Debug.trap("queue full");
         };
-        if (StableBuffer.size(dbIndex.canisters) == 0) { // TODO: Make configurable.
+        if (StableBuffer.size(dbIndex.canisters) == 0) {
             Debug.trap("no partition canisters");
         };
         let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
