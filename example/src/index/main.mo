@@ -39,4 +39,12 @@ shared actor class Index() = this {
         await* Nac.creatingSubDBStage2(index, subDBKey);
         (part, subDBKey);
     };
+
+    public shared func creatingSubDBKeys() : async [Nac.SubDBKey] {
+        Nac.creatingSubDBKeys(index);
+    };
+
+    public shared func finishInsertSubDB(subDBKey: Nac.SubDBKey) : async () {
+        await* Nac.creatingSubDBStage2(index, subDBKey)
+    };
 }

@@ -10,6 +10,7 @@ import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
 import Bool "mo:base/Bool";
 import Deque "mo:base/Deque";
+import Iter "mo:base/Iter";
 
 module {
     public type SubDBKey = Nat;
@@ -386,6 +387,17 @@ module {
     };
 
     // Creating sub-DB //
+
+    public func creatingSubDBKeys(dbIndex: DBIndex) : [SubDBKey] {
+        let iter0 = RBT.entries<SubDBKey, CreatingSubDB>(dbIndex.creatingSubDB);
+        let iter = Iter.map<(SubDBKey, CreatingSubDB), SubDBKey>(iter0, func(e: (SubDBKey, CreatingSubDB)): SubDBKey {
+            let (key, _) = e else {
+                Debug.trap("programming error");
+            };
+            key;
+        });
+        Iter.toArray(iter);
+    };
 
     // TODO: Should not pass both `dbIndex` and `dbOptions`, because all options should be (?) in dbIndex.
     // It does not touch old items, so no locking.
