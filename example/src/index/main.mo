@@ -36,7 +36,7 @@ shared actor class Index() = this {
             maxSubDBsInCreating = 15;
         }});
         // TODO: React on state update code here.
-        await* Nac.creatingSubDBStage2(index, subDBKey);
+        await* Nac.creatingSubDBStage2(index);
         (part, subDBKey);
     };
 
@@ -45,6 +45,6 @@ shared actor class Index() = this {
     };
 
     public shared func finishInsertSubDB(subDBKey: Nac.SubDBKey) : async () {
-        await* Nac.creatingSubDBStage2(index, subDBKey)
+        await* Nac.creatingSubDBStage2(index)
     };
 }
