@@ -57,7 +57,6 @@ module {
     public type DBIndex = {
         var canisters: StableBuffer.StableBuffer<Principal>;
         var creatingSubDB: RBT.Tree<SubDBKey, CreatingSubDB>;
-        maxSubDBsInCreating: Nat;
     };
 
     public type IndexCanister = actor {
@@ -80,11 +79,10 @@ module {
         get: shared query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
     };
 
-    public func createDBIndex({maxSubDBsInCreating: Nat}) : DBIndex {
+    public func createDBIndex() : DBIndex {
         {
             var canisters = StableBuffer.init<Principal>();
             var creatingSubDB = RBT.init();
-            maxSubDBsInCreating;
         }
     };
 
@@ -110,6 +108,7 @@ module {
     public type DBOptions = {
         hardCap: ?Nat;
         movingCallback: ?MovingCallback;
+        maxSubDBsInCreating: Nat;
     };
 
     public func rawInsertSubDB(superDB: SuperDB, subDBData: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions): SubDBKey {
@@ -393,7 +392,7 @@ module {
     public func creatingSubDBStage1({dbIndex: DBIndex; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
         // TODO: Need to be able to query `creatingSubDB`.
         // Deque has no `size()`.
-        if (RBT.size(dbIndex.creatingSubDB) >= dbIndex.maxSubDBsInCreating) {
+        if (RBT.size(dbIndex.creatingSubDB) >= dbOptions.maxSubDBsInCreating) {
             Debug.trap("queue full");
         };
         if (StableBuffer.size(dbIndex.canisters) == 0) {

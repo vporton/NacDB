@@ -8,7 +8,7 @@ import Debug "mo:base/Debug";
 shared actor class Index() = this {
     let hardCap = 1000;
 
-    stable var index: Nac.DBIndex = Nac.createDBIndex({maxSubDBsInCreating = 15});
+    stable var index: Nac.DBIndex = Nac.createDBIndex();
 
     stable var movingCallback: ?Nac.MovingCallback = null;
 
@@ -30,7 +30,11 @@ shared actor class Index() = this {
 
     public shared func insertSubDB() : async (Nac.PartitionCanister, Nac.SubDBKey) {
         // TODO: For this kind of operation no need for two stages?
-        let (part, subDBKey) = await* Nac.creatingSubDBStage1({dbIndex = index; dbOptions = {hardCap = ?1000; movingCallback = movingCallback}});
+        let (part, subDBKey) = await* Nac.creatingSubDBStage1({dbIndex = index; dbOptions = {
+            hardCap = ?1000;
+            movingCallback = movingCallback;
+            maxSubDBsInCreating = 15;
+        }});
         // TODO: React on state update code here.
         await* Nac.creatingSubDBStage2(index, subDBKey);
         (part, subDBKey);
