@@ -5,8 +5,8 @@ import Partition "../partition/main";
 import Debug "mo:base/Debug";
 
 actor {
-  var index : ?Index.Index = null;
-  var location: ?(Nac.PartitionCanister, Nac.SubDBKey) = null;
+  stable var index : ?Index.Index = null;
+  stable var location: ?(Nac.PartitionCanister, Nac.SubDBKey) = null;
 
   public shared func movingCallback({
       oldCanister: Nac.PartitionCanister;
