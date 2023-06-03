@@ -352,7 +352,6 @@ module {
         }
     };
 
-    // TODO: Here and in other places wrap `hardCap` into an object.
     public func createSubDB({superDB: SuperDB; dbOptions: DBOptions; busy: Bool}) : Nat {
         let subDB : SubDB = {
             var data = RBT.init();
