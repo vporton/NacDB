@@ -415,14 +415,9 @@ module {
     };
 
     public func creatingSubDBStage2(dbIndex: DBIndex) : async* () {
-        for ((key, _) in RBT.entries(dbIndex.creatingSubDB)) {
-            switch (RBT.get(dbIndex.creatingSubDB, Nat.compare, key)) {
-                case (?item) {
-                    await item.canister.releaseSubDB(key);
-                    dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, key);
-                };
-                case (null) {}; // may happen, if `dbIndex.creatingSubDB` was modified
-            };
+        for ((key, value) in RBT.entries(dbIndex.creatingSubDB)) {
+            await value.canister.releaseSubDB(key);
+            dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, key);
         };
 
     };
