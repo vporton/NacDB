@@ -348,8 +348,8 @@ module {
             };
             case (null) {
                 Debug.trap("missing sub-DB")
-            }
-        }
+            };
+        };
     };
 
     public func createSubDB({superDB: SuperDB; dbOptions: DBOptions; busy: Bool}) : Nat {
