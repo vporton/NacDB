@@ -370,7 +370,7 @@ module {
 
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
-                subDB.data := RBT.delete<Text, AttributeValue>(subDB.data, Text.compare, options.sk);
+                subDB.data := RBT.delete(subDB.data, Text.compare, options.sk);
             };
             case (null) {}; // TODO: trap?
         };
