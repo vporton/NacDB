@@ -388,7 +388,6 @@ module {
 
     // Creating sub-DB //
 
-    // FIXME: It is of `Index`, not of `Partition`.
     // It does not touch old items, so no locking.
     public func creatingSubDBStage1({dbIndex: DBIndex; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
         // Deque has no `size()`.
