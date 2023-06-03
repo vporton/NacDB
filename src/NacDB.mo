@@ -398,7 +398,6 @@ module {
 
     // It does not touch old items, so no locking.
     public func creatingSubDBStage1({dbIndex: DBIndex; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
-        // TODO: Need to be able to query `creatingSubDB`.
         // Deque has no `size()`.
         if (RBT.size(dbIndex.creatingSubDB) >= dbOptions.maxSubDBsInCreating) {
             Debug.trap("queue full");
