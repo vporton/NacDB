@@ -57,6 +57,7 @@ module {
     public type DBIndex = {
         var canisters: StableBuffer.StableBuffer<Principal>;
         var creatingSubDB: RBT.Tree<SubDBKey, CreatingSubDB>;
+        maxSubDBsInCreating: Nat;
     };
 
     public type IndexCanister = actor {
@@ -79,10 +80,11 @@ module {
         get: shared query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
     };
 
-    public func createDBIndex() : DBIndex {
+    public func createDBIndex({maxSubDBsInCreating: Nat}) : DBIndex {
         {
             var canisters = StableBuffer.init<Principal>();
             var creatingSubDB = RBT.init();
+            maxSubDBsInCreating;
         }
     };
 
@@ -389,7 +391,7 @@ module {
     // It does not touch old items, so no locking.
     public func creatingSubDBStage1({dbIndex: DBIndex; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
         // Deque has no `size()`.
-        if (RBT.size(dbIndex.creatingSubDB) >= 10) { // TODO: Make configurable.
+        if (RBT.size(dbIndex.creatingSubDB) >= dbIndex.maxSubDBsInCreating) {
             Debug.trap("queue full");
         };
         if (StableBuffer.size(dbIndex.canisters) == 0) {

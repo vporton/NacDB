@@ -8,7 +8,7 @@ import Debug "mo:base/Debug";
 shared actor class Index() = this {
     let hardCap = 1000;
 
-    stable var index: Nac.DBIndex = Nac.createDBIndex();
+    stable var index: Nac.DBIndex = Nac.createDBIndex({maxSubDBsInCreating = 15});
 
     stable var movingCallback: ?Nac.MovingCallback = null;
 
