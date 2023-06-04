@@ -77,7 +77,7 @@ module {
         createSubDB({dbOptions: DBOptions; busy: Bool}) : async Nat;
         releaseSubDB(subDBKey: SubDBKey) : async ();
         insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
-        get: shared query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
+        get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
     };
 
     public func createDBIndex() : DBIndex {
