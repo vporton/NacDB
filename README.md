@@ -11,6 +11,15 @@ When databases in a canister become too big or too many, a new canister is creat
 a sub-database is moved to it. When a sub-DB is moved, a shared callback is called in
 order for your project that may use this library to update its references to the sub-DB.
 
+## Usage
+
+You are recommended to copy (and possibly modify) code from
+`example/src/index/` and `example/src/partition/` to use this system.
+These folders contain source for the "index" (controller) canister and for
+"partition" (part of the actual DB) canisters. You create only index canister
+(as exampled in `example/src/example_backend`), the partition canisters will
+be create by index canister automatically.
+
 The below text in this `README` file may be inexact.
 
 ## Running the project locally
