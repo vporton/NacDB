@@ -3,11 +3,11 @@ import Nac "../../../src/NacDB";
 import Principal "mo:base/Principal";
 
 shared({caller}) actor class Partition() = this {
-    stable let index: Nac.IndexCanister = actor(Principal.toText(caller)); // FIXME: wrong caller
+    stable let index: Nac.IndexCanister = actor(Principal.toText(caller));
 
     stable let superDB = Nac.createSuperDB({moveCap = #usedMemory 500_000; moveCallback = null; createCallback = null});
 
-    stable var subDBKey: ?Nac.SubDBKey = null; // FIXME: not here
+    stable var subDBKey: ?Nac.SubDBKey = null;
 
     // Mandatory methods //
 
