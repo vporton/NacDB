@@ -29,14 +29,13 @@ shared actor class Index() = this {
     };
 
     public shared func insertSubDB() : async (Nac.PartitionCanister, Nac.SubDBKey) {
-        // TODO: For this kind of operation no need for two stages?
-        let (part, subDBKey) = await* Nac.creatingSubDBStage1({dbIndex = index; dbOptions = {
+        let (part, subDBKey) = await* Nac.startCreatingSubDB({dbIndex = index; dbOptions = {
             hardCap = ?1000;
             movingCallback = movingCallback;
             maxSubDBsInCreating = 15;
         }});
         // TODO: React on state update code here.
-        await* Nac.creatingSubDBStage2(index);
+        await* Nac.finishCreatingSubDB(index);
         (part, subDBKey);
     };
 
@@ -45,6 +44,6 @@ shared actor class Index() = this {
     };
 
     public shared func finishInsertSubDB(subDBKey: Nac.SubDBKey) : async () {
-        await* Nac.creatingSubDBStage2(index)
+        await* Nac.finishCreatingSubDB(index)
     };
 }

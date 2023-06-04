@@ -157,7 +157,7 @@ module {
         };
     };
 
-    func movingSpecifiedSubDBStage2({superDB: SuperDB; dbOptions: DBOptions}) : async* () {
+    func finishMovingSpecifiedSubDB({superDB: SuperDB; dbOptions: DBOptions}) : async* () {
         switch (superDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
@@ -397,7 +397,7 @@ module {
     };
 
     // It does not touch old items, so no locking.
-    public func creatingSubDBStage1({dbIndex: DBIndex; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
+    public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
         // Deque has no `size()`.
         if (RBT.size(dbIndex.creatingSubDB) >= dbOptions.maxSubDBsInCreating) {
             Debug.trap("queue full");
@@ -414,7 +414,7 @@ module {
         (part, subDBKey);
     };
 
-    public func creatingSubDBStage2(dbIndex: DBIndex) : async* () {
+    public func finishCreatingSubDB(dbIndex: DBIndex) : async* () {
         for ((key, value) in RBT.entries(dbIndex.creatingSubDB)) {
             await value.canister.releaseSubDB(key);
             dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, key);
