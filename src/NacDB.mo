@@ -179,7 +179,7 @@ module {
                             case (null) {};
                         };
                         let ?item = BTree.get(superDB.subDBs, Nat.compare, moving.oldSubDBKey) else {
-                            Debug.trap("item must exist")
+                            Debug.trap("item must exist");
                         };
                         item.busy := false;
                         superDB.moving := null;
