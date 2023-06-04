@@ -17,10 +17,6 @@ shared({caller}) actor class Partition() = this {
         Nac.isOverflowed(superDB);
     };
 
-    // public shared func getSubDB() : async ?Nac.SubDB {
-    //     Nac.getSubDB(superDB);
-    // };
-
     public shared func createSubDB({dbOptions: Nac.DBOptions; busy: Bool}) : async Nat {
         Nac.createSubDB({superDB; dbOptions; busy});
     };
