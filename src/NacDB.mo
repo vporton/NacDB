@@ -166,7 +166,7 @@ module {
                             Debug.trap("entry is busy");
                         };
                         let newSubDBKey = await moving.newCanister.rawInsertSubDB(subDB.data, dbOptions);
-                        ignore BTree.delete(superDB.subDBs, Nat.compare, moving.oldSubDBKey);
+                        ignore BTree.delete(superDB.subDBs, Nat.compare, moving.oldSubDBKey); // FIXME: Seems to fail on repeated call.
                         switch (dbOptions.movingCallback) {
                             case (?movingCallback) {
                                 await movingCallback({
