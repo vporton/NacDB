@@ -1,4 +1,4 @@
 {
   dependencies = [ "base", "btree", "stable-rbtree", "stable-buffer" ],
-  compiler = None Text
+  compiler = Some "0.9.1"
 }
