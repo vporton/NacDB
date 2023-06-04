@@ -134,7 +134,7 @@ module {
         BTree.get(superDB.subDBs, Nat.compare, subDBKey);
     };
 
-    public func releaseSubDB(superDB: SuperDB, subDBKey: SubDBKey) : async () {
+    public func releaseSubDB(superDB: SuperDB, subDBKey: SubDBKey) : async* () {
         switch (getSubDB(superDB, subDBKey)) {
             case (?item2) {
                 item2.busy := false;
@@ -157,7 +157,7 @@ module {
         };
     };
 
-    func movingSpecifiedSubDBStage2({superDB: SuperDB; dbOptions: DBOptions}) : async () {
+    func movingSpecifiedSubDBStage2({superDB: SuperDB; dbOptions: DBOptions}) : async* () {
         switch (superDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {

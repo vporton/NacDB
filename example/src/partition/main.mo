@@ -28,7 +28,7 @@ shared({caller}) actor class Partition() = this {
     };
 
     public shared func releaseSubDB(subDBKey: Nac.SubDBKey) : async () {
-        await Nac.releaseSubDB(superDB, subDBKey);
+        await* Nac.releaseSubDB(superDB, subDBKey);
     };
 
     // Some data access methods //
