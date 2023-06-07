@@ -8,6 +8,8 @@ It is usually recommended to use NacDB together with CanDB, because NacDB is str
 in one specific point: seamless enumeration of its sub-databases.
 Both CanDB and NacDB are implemented in Motoko.
 
+TBD: TypeScript client API and automated tests.
+
 ## Architecture: General
 
 NacDB is a no-SQL multicanister database. In each canister there are several sub-DBs.
