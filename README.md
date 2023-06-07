@@ -4,6 +4,8 @@ This is NacDB distributed database.
 
 The current stage of development is an not enough tested MVP.
 
+It is usually recommended to use NacDB together with CanDB.
+
 ## Architecture: General
 
 NacDB is a no-SQL multicanister database. In each canister there are several sub-DBs.
@@ -35,6 +37,33 @@ type `DBIndex` (the common data for the entire multi-canister database).
 As examples `example/src/index/` and `example/src/partition/` show, you define
 shared functions using operations provided by this library on variables of types
 `DBIndex` and `SuperDB`.
+
+## More on examples
+
+`example/src/example_backend` shows an example of usage of the system:
+
+`movingCallback` updates a shared variable that stores a location (the canister and
+the ID) of a sub-DB. (In more elaborate systems, it would probably be an update of
+a location stored in CanDB.)
+
+The example uses `insert` and `get` functions (as defined in `example/src/partition/`)
+to store and again retrieve a value.
+
+## Locking
+
+In `src/partition/` there is used locking by boolean flags: `?...` variable `moving`
+and `Bool` variable `moving`. While these flags are set, both write and read operations
+fail (and need to be repeated).
+
+It works similarly to invoice/pay (where need first create an invoice and only then
+pay):
+
+- Creating a sub-DB goes in two stages: `startCreatingSubDB` and `finishCreatingSubDB`.
+  As `examples/src/index/` example shows, between these two calls there can be inserted
+  a reaction on state update (e.g. insertion of a new entry in CanDB).
+- `insert` function (that inserts into a sub-DB) under the hood calls
+  `startMovingSubDBIfOverflow`. If the move is unsuccessful, it needs to be finished
+  by explcit call of `finishMovingSpecifiedSubDB` function.
 
 The below text in this `README` file may be inexact.
 

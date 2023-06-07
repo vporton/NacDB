@@ -157,7 +157,7 @@ module {
         };
     };
 
-    func finishMovingSpecifiedSubDB({superDB: SuperDB; dbOptions: DBOptions}) : async* () {
+    public func finishMovingSpecifiedSubDB({superDB: SuperDB; dbOptions: DBOptions}) : async* () {
         switch (superDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
