@@ -4,7 +4,9 @@ This is NacDB distributed database.
 
 The current stage of development is an not enough tested MVP.
 
-It is usually recommended to use NacDB together with CanDB.
+It is usually recommended to use NacDB together with CanDB, because NacDB is strong
+in one specific point: seamless enumeration of its sub-databases.
+Both CanDB and NacDB are implemented in Motoko.
 
 ## Architecture: General
 
@@ -17,6 +19,14 @@ a sub-database is moved to it (or, if the last canister is not yet filled, the s
 just moved to it). When a sub-DB is moved, a shared callback is called in
 order for your project that may use this library to update its references to the sub-DB.
 Such the architecture is chosen because of high cost of creating a new canister.
+
+When to move a sub-DB is decided by `moveCap` value of the following type, that restrict
+either the number of databases per canister or the memory used by the canister (the move
+occurs when we have the actual value above `moveCap` threshold):
+
+```motoko
+type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
+```
 
 ## Architecture: Details
 
@@ -38,6 +48,42 @@ As examples `example/src/index/` and `example/src/partition/` show, you define
 shared functions using operations provided by this library on variables of types
 `DBIndex` and `SuperDB`.
 
+Keys in `SuperDB` (identifying sub-databases) are of the type `SubDBKey = Nat`.
+keys in sub-DBs are of the type `SK = Text`. Values stored in the sub-DBs are
+of type `AttributeKey` defined similarly to the same-named type in CanDB, but
+I chose to return `AttributeKey` directly, not a map of values (as in CanDB).
+
+The index canister provides the API for managing partition canisters:
+```motoko
+public type IndexCanister = actor {
+    getCanisters(): async [PartitionCanister];
+    newCanister(): async PartitionCanister;
+    movingCallback: shared ({
+        oldCanister: PartitionCanister;
+        oldSubDBKey: SubDBKey;
+        newCanister: PartitionCanister;
+        newSubDBKey: SubDBKey;
+    }) -> async ()
+};
+```
+
+Likewise, the partition canisters provide (at least) the API:
+```motoko
+public type PartitionCanister = actor {
+    rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
+    isOverflowed() : async Bool;
+    createSubDB({dbOptions: DBOptions; busy: Bool}) : async Nat;
+    releaseSubDB(subDBKey: SubDBKey) : async ();
+    insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
+    get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
+};
+```
+## Looser Items
+
+Each sub-DB has optional `Nat` value `hardCap`. If the number of items in the sub-DB
+reaches this number, the value with the smallest (`SK = Text`) key is removed (it is
+useful among other things to ensure that a sub-DB fits into a canister).
+
 ## More on examples
 
 `example/src/example_backend` shows an example of usage of the system:
@@ -47,7 +93,11 @@ the ID) of a sub-DB. (In more elaborate systems, it would probably be an update 
 a location stored in CanDB.)
 
 The example uses `insert` and `get` functions (as defined in `example/src/partition/`)
-to store and again retrieve a value.
+to store and again retrieve a value to/from a sub-DB. There are also `has` (for an element
+of a sub-DB), `hasSubDB`, `delete` (for an element of a sub-DB), `deleteSubDB`, `subDBSize`,
+`createSubDB`, and for enumeration of elements of a sub-DB `iter`, `entries`, and `entriesRev`
+(the reverse order iterator), as well as `scanLimit` that returns an array instead of an
+iterator.
 
 ## Locking
 
