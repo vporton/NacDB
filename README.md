@@ -115,7 +115,7 @@ pay):
   `startMovingSubDBIfOverflow`. If the move is unsuccessful, it needs to be finished
   by explcit call of `finishMovingSpecifiedSubDB` function.
 
-## Running the project locally
+## Testing the project locally
 
 If you want to test your project locally, you can use the following commands inside
 the folder `example/`:
