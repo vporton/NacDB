@@ -4,7 +4,7 @@ This is NacDB distributed database.
 
 The current stage of development is an not enough tested MVP.
 
-## Architecture
+## Architecture: General
 
 NacDB is a no-SQL multicanister database. In each canister there are several sub-DBs.
 
@@ -16,7 +16,7 @@ just moved to it). When a sub-DB is moved, a shared callback is called in
 order for your project that may use this library to update its references to the sub-DB.
 Such the architecture is chosen because of high cost of creating a new canister.
 
-## Usage
+## Architecture: Details
 
 You are recommended to copy (and possibly modify) code from
 `example/src/index/` and `example/src/partition/` to use this system.
@@ -24,6 +24,17 @@ These folders contain source for the "index" (controller) canister and for
 "partition" (part of the actual DB) canisters. You create only index canister
 (as exampled in `example/src/example_backend`), the partition canisters will
 be create by index canister automatically.
+
+As you see in `example/src/partition/`, each partition contains a stable variable
+of type `SuperDB`. `SuperDB` contains several values of type `SubDB` (that is several
+sub-databases).
+
+As you see in `example/src/index/`, the index canister contains a stable variable of
+type `DBIndex` (the common data for the entire multi-canister database).
+
+As examples `example/src/index/` and `example/src/partition/` show, you define
+shared functions using operations provided by this library on variables of types
+`DBIndex` and `SuperDB`.
 
 The below text in this `README` file may be inexact.
 
