@@ -20,7 +20,7 @@ just moved to it). When a sub-DB is moved, a shared callback is called in
 order for your project that may use this library to update its references to the sub-DB.
 Such the architecture is chosen because of high cost of creating a new canister.
 
-When to move a sub-DB is decided by `moveCap` value of the following type, that restrict
+When to move a sub-DB is decided by `moveCap` value of the following type, that restricts
 either the number of databases per canister or the memory used by the canister (the move
 occurs when we have the actual value above `moveCap` threshold):
 
