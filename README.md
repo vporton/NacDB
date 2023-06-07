@@ -8,7 +8,9 @@ It is usually recommended to use NacDB together with CanDB, because NacDB is str
 in one specific point: seamless enumeration of its sub-databases.
 Both CanDB and NacDB are implemented in Motoko.
 
-TBD: TypeScript client API and automated tests.
+TypeScript client is not provided, because it is automatically created from Candid.
+
+TBD: Automated tests.
 
 ## Architecture: General
 
