@@ -1,15 +1,20 @@
 # NacDB
 
-This is an unfinished project, NacDB.
-The current stage of development is an untested MVP. The API most likely will change.
+This is NacDB distributed database.
+
+The current stage of development is an not enough tested MVP.
+
+## Architecture
 
 NacDB is a no-SQL multicanister database. In each canister there are several sub-DBs.
 
 Each sub-DB is seamlessly enumerable (unlike [CanDB](https://github.com/ORIGYN-SA/CanDB)).
 
 When databases in a canister become too big or too many, a new canister is created and
-a sub-database is moved to it. When a sub-DB is moved, a shared callback is called in
+a sub-database is moved to it (or, if the last canister is not yet filled, the sub-DB is
+just moved to it). When a sub-DB is moved, a shared callback is called in
 order for your project that may use this library to update its references to the sub-DB.
+Such the architecture is chosen because of high cost of creating a new canister.
 
 ## Usage
 
