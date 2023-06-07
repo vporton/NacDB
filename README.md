@@ -5,7 +5,8 @@ This is NacDB distributed database.
 The current stage of development is an not enough tested MVP.
 
 It is usually recommended to use NacDB together with CanDB, because NacDB is strong
-in one specific point: seamless enumeration of its sub-databases.
+in one specific point: seamless enumeration of its sub-databases. For example, in
+a usual workflow, NacDB could store CanDB keys rather than full values.
 Both CanDB and NacDB are implemented in Motoko.
 
 TypeScript client is not provided, because it is automatically created from Candid.
