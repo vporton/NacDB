@@ -35,7 +35,7 @@ You are recommended to copy (and possibly modify) code from
 These folders contain source for the "index" (controller) canister and for
 "partition" (part of the actual DB) canisters. You create only index canister
 (as exampled in `example/src/example_backend`), the partition canisters will
-be create by index canister automatically.
+be created by index canister automatically.
 
 As you see in `example/src/partition/`, each partition contains a stable variable
 of type `SuperDB`. `SuperDB` contains several values of type `SubDB` (that is several
