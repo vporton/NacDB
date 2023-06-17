@@ -20,6 +20,6 @@ let success = run([
     ]),
 ]);
 
-if(success == false){
+if (success == false) {
   Debug.trap("Tests failed");
 }
