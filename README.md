@@ -77,7 +77,7 @@ Likewise, the partition canisters provide (at least) the API:
 public type PartitionCanister = actor {
     rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
     isOverflowed() : async Bool;
-    createSubDB({dbOptions: DBOptions; busy: Bool}) : async Nat;
+    createSubDB({dbOptions: DBOptions}) : async Nat;
     releaseSubDB(subDBKey: SubDBKey) : async ();
     insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
     get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;

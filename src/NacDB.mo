@@ -74,7 +74,7 @@ module {
     public type PartitionCanister = actor {
         rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
         isOverflowed() : async Bool;
-        createSubDB({dbOptions: DBOptions; busy: Bool}) : async Nat;
+        createSubDB({dbOptions: DBOptions}) : async Nat;
         releaseSubDB(subDBKey: SubDBKey) : async ();
         insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
         get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
@@ -306,7 +306,7 @@ module {
 
     public type HasDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
 
-    public func hasSubDB(options: ExistsOptions) : Bool {
+    public func hasSubDB(options: HasDBOptions) : Bool {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         BTree.has(options.superDB.subDBs, Nat.compare, options.subDBKey);
@@ -352,12 +352,12 @@ module {
         };
     };
 
-    public func createSubDB({superDB: SuperDB; dbOptions: DBOptions; busy: Bool}) : Nat {
+    public func createSubDB({superDB: SuperDB; dbOptions: DBOptions}) : Nat {
         let subDB : SubDB = {
             var data = RBT.init();
             hardCap = dbOptions.hardCap;
             movingCallback = dbOptions.movingCallback;
-            var busy;
+            var busy = false;
         };
         let key = superDB.nextKey;
         ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
@@ -407,7 +407,7 @@ module {
         };
         let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
         let part: PartitionCanister = actor(Principal.toText(pk));
-        let subDBKey = await part.createSubDB({dbOptions; busy = true});
+        let subDBKey = await part.createSubDB({dbOptions}); // We don't need `busy = true`, because we didn't yet created "links" to it.
         dbIndex.creatingSubDB := RBT.put(dbIndex.creatingSubDB, Nat.compare, subDBKey, {
             canister = part; subDBKey = subDBKey;
         } : CreatingSubDB);
@@ -416,7 +416,7 @@ module {
 
     public func finishCreatingSubDB(dbIndex: DBIndex) : async* () {
         for ((key, value) in RBT.entries(dbIndex.creatingSubDB)) {
-            await value.canister.releaseSubDB(key);
+            // await value.canister.releaseSubDB(key);
             dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, key);
         };
 
