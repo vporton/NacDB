@@ -45,6 +45,17 @@ let success = run([
                     has,
                 ]);
             }),
+            it("insert/get miss", do {
+                let {index; part; subDBKey} = await createSubDB();
+                let name = "Dummy";
+                await part.insert({subDBKey = subDBKey; sk = "name"; value = #text name});
+                let name2 = await part.get({subDBKey; sk = "namex"});
+                let has = await part.has({subDBKey; sk = "namex"});
+                ActorSpec.assertAllTrue([
+                    name2 == null,
+                    not has,
+                ]);
+            }),
         ]),
     ]),
 ]);
