@@ -84,6 +84,9 @@ let success = run([
                     (await part3.superDBSize()) == 3,
                 ]);
             }),
+            it("move to a new partition canister", do {
+                
+            }),
         ]),
     ]),
 ]);
