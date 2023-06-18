@@ -20,11 +20,15 @@ func createCanisters() : async {index: Index.Index} {
     {index};
 };
 
-func createSubDB() : async {index: Index.Index; part: Nac.PartitionCanister; subDBKey: Nac.SubDBKey}
+func createSubDB() : async {index: Index.Index; part: Partition.Partition; subDBKey: Nac.SubDBKey}
 {
     let {index} = await createCanisters();
     let (part, subDBKey) = await index.insertSubDB();
-    {index; part; subDBKey}
+    {
+        index = actor(Principal.toText(Principal.fromActor(index)));
+        part = actor(Principal.toText(Principal.fromActor(part)));
+        subDBKey;
+    }
 };
 
 let success = run([
@@ -35,7 +39,11 @@ let success = run([
                 let name = "Dummy";
                 await part.insert({subDBKey = subDBKey; sk = "name"; value = #text name});
                 let name2 = await part.get({subDBKey; sk = "name"});
-                ActorSpec.assertTrue(name2 == ?(#text name));
+                let has = await part.has({subDBKey; sk = "name"});
+                ActorSpec.assertAllTrue([
+                    name2 == ?(#text name),
+                    has,
+                ]);
             }),
         ]),
     ]),
