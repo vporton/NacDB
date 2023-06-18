@@ -30,7 +30,7 @@ shared actor class Index() = this {
 
     public shared func insertSubDB() : async (Nac.PartitionCanister, Nac.SubDBKey) {
         let (part, subDBKey) = await* Nac.startCreatingSubDB({dbIndex = index; dbOptions = {
-            hardCap = ?1000;
+            hardCap = ?hardCap;
             movingCallback = movingCallback;
             maxSubDBsInCreating = 15;
         }});
