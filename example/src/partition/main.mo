@@ -1,8 +1,10 @@
 import I "mo:base/Iter";
 import RBT "mo:stable-rbtree/StableRBTree";
 import Nac "../../../src/NacDB";
+import NacUtils "../../../src/NacDB/utils";
 import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
+import Nat "mo:base/Nat";
 
 shared({caller}) actor class Partition() = this {
     stable let index: Nac.IndexCanister = actor(Principal.toText(caller));
@@ -68,19 +70,19 @@ shared({caller}) actor class Partition() = this {
         Nac.deleteSubDB({superDB; subDBKey});
     };
 
-    public shared func iter({subDBKey: Nac.SubDBKey; dir : RBT.Direction}) : async I.Iter<(Text, Nac.AttributeValue)> {
-        Nac.iter({superDB; subDBKey; dir});
+    public shared func iter({subDBKey: Nac.SubDBKey; dir : RBT.Direction}) : async NacUtils.SharedNacDBIter {
+        NacUtils.SharedNacDBIter(Nac.iter({superDB; subDBKey; dir}));
     };
 
-    public shared func entries({subDBKey: Nac.SubDBKey}) : async I.Iter<(Text, Nac.AttributeValue)> {
-        Nac.entries({superDB; subDBKey});
+    public shared func entries({subDBKey: Nac.SubDBKey}) : async NacUtils.SharedNacDBIter {
+        NacUtils.SharedNacDBIter(Nac.entries({superDB; subDBKey}));
     };
 
-    public shared func entriesRev({subDBKey: Nac.SubDBKey}) : async I.Iter<(Text, Nac.AttributeValue)> {
-        Nac.entriesRev({superDB; subDBKey});
+    public shared func entriesRev({subDBKey: Nac.SubDBKey}) : async NacUtils.SharedNacDBIter {
+        NacUtils.SharedNacDBIter(Nac.entriesRev({superDB; subDBKey}));
     };
 
-    public shared func scanLimit({subDBKey: Nac.SubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat}) : async I.Iter<(Text, Nac.AttributeValue)> {
+    public shared func scanLimit({subDBKey: Nac.SubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat}) : async Nac.ScanLimitResult {
         Nac.scanLimit({superDB; subDBKey; lowerBound; upperBound; dir; limit});
     };
 }
