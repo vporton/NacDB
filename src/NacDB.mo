@@ -374,7 +374,7 @@ module {
             case (?subDB) {
                 subDB.data := RBT.delete(subDB.data, Text.compare, options.sk);
             };
-            case (null) {}; // TODO: trap?
+            case (null) {};
         };
     };
 
