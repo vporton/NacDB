@@ -40,9 +40,11 @@ let success = run([
                 await part.insert({subDBKey = subDBKey; sk = "name"; value = #text name});
                 let name2 = await part.get({subDBKey; sk = "name"});
                 let has = await part.has({subDBKey; sk = "name"});
+                let has2 = await part.hasSubDB({subDBKey});
                 ActorSpec.assertAllTrue([
                     name2 == ?(#text name),
                     has,
+                    has2,
                 ]);
             }),
             it("insert/get miss", do {
@@ -54,6 +56,13 @@ let success = run([
                 ActorSpec.assertAllTrue([
                     name2 == null,
                     not has,
+                ]);
+            }),
+            it("hasSubDB miss", do {
+                let {index; part; subDBKey} = await createSubDB();
+                let has2 = await part.has({subDBKey; sk = "name"});
+                ActorSpec.assertAllTrue([
+                    not has2,
                 ]);
             }),
         ]),
