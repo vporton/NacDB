@@ -85,7 +85,22 @@ let success = run([
                 ]);
             }),
             it("move to a new partition canister", do {
-                
+                var counter = 0;
+                shared func movingCallback({
+                    oldCanister: Nac.PartitionCanister;
+                    oldSubDBKey: Nac.SubDBKey;
+                    newCanister: Nac.PartitionCanister;
+                    newSubDBKey: Nac.SubDBKey;
+                }) : async () {
+                    counter += 1;
+                };
+                let index = await Index.Index();
+                await index.init(?movingCallback);
+                let (partx1, subDBKey1) = await index.insertSubDBDetailed({hardCap = ?2});
+                let (partx2, subDBKey2) = await index.insertSubDBDetailed({hardCap = ?2});
+                let (partx3, subDBKey3) = await index.insertSubDBDetailed({hardCap = ?2});
+
+                ActorSpec.assertAllTrue([counter == 1]);
             }),
         ]),
     ]),
