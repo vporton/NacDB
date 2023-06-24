@@ -191,6 +191,7 @@ module {
         };
     };
 
+    // FIXME: not idempotent
     func doStartMovingSubDBToNewCanister(
         options: {index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* ()
     {
