@@ -332,6 +332,7 @@ module {
         value: AttributeValue;
     };
 
+    // FIXME: not idempotent
     public func insert(options: InsertOptions) : async* () {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
