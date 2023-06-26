@@ -164,7 +164,7 @@ module {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
                     case (?subDB) {
                         if (subDB.busy) {
-                            Debug.trap("entry is busy");
+                            Debug.trap("sub-DB is busy");
                         };
                         let newCanister = switch (dbOptions.newCanister) {
                             case (?newCanister) { newCanister };
