@@ -51,7 +51,8 @@ module {
             oldCanister: PartitionCanister;
             oldSuperDB: SuperDB;
             oldSubDBKey: SubDBKey;
-            newCanister: PartitionCanister;
+            var newCanister: ?PartitionCanister; // null - not yet determined
+            var newSubDBKey: SubDBKey;
         };
     };
 
@@ -143,7 +144,7 @@ module {
         };
     };
 
-    func startMovingSpecifiedSubDB(options: {oldCanister: PartitionCanister; newCanister: PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
+    func startMovingSpecifiedSubDB(options: {oldCanister: PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
         switch (options.superDB.moving) {
             case (?_) { Debug.trap("already moving") };
             case (null) {
@@ -151,7 +152,7 @@ module {
                     oldCanister = options.oldCanister;
                     oldSuperDB = options.superDB;
                     oldSubDBKey = options.subDBKey;
-                    newCanister = options.newCanister;
+                    newCanister = null;
                 }
             };
         };
@@ -165,14 +166,29 @@ module {
                         if (subDB.busy) {
                             Debug.trap("entry is busy");
                         };
-                        let newSubDBKey = await moving.newCanister.rawInsertSubDB(subDB.data, dbOptions);
+                        let newCanister = switch (dbOptions.newCanister) {
+                            case (?newCanister) { newCanister };
+                            case (null) {
+                                let newCanister = await options.index.newCanister();
+                                dbOptions.newCanister := ?newCanister;
+                                newCanister;
+                            };
+                        };
+                        let newSubDBKey = switch (moving.newSubDBKey) {
+                            case (?newSubDBKey) { newSubDBKey };
+                            case (null) {
+                                let newSubDBKey = await moving.newCanister.rawInsertSubDB(subDB.data, dbOptions);
+                                moving.newSubDBKey := ?newSubDBKey;
+                                newSubDBKey;
+                            }
+                        };                        
                         ignore BTree.delete(superDB.subDBs, Nat.compare, moving.oldSubDBKey);
                         switch (dbOptions.movingCallback) {
                             case (?movingCallback) {
                                 await movingCallback({
                                     oldCanister = moving.oldCanister;
                                     oldSubDBKey = moving.oldSubDBKey;
-                                    newCanister = moving.newCanister;
+                                    newCanister;
                                     newSubDBKey;
                                 });
                             };
