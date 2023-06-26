@@ -194,10 +194,10 @@ module {
                             };
                             case (null) {};
                         };
-                        let ?item = BTree.get(superDB.subDBs, Nat.compare, moving.oldSubDBKey) else {
-                            Debug.trap("item must exist");
+                        let ?subDB = BTree.get(superDB.subDBs, Nat.compare, moving.oldSubDBKey) else {
+                            Debug.trap("sub-DB must exist");
                         };
-                        item.busy := false;
+                        subDB.busy := false;
                         superDB.moving := null;
                     };
                     case (null) {};
