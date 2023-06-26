@@ -52,7 +52,7 @@ module {
             oldSuperDB: SuperDB;
             oldSubDBKey: SubDBKey;
             var newCanister: ?PartitionCanister; // null - not yet determined
-            var newSubDBKey: SubDBKey;
+            var newSubDBKey: ?SubDBKey; // null - not yet determined
         };
     };
 
@@ -152,13 +152,14 @@ module {
                     oldCanister = options.oldCanister;
                     oldSuperDB = options.superDB;
                     oldSubDBKey = options.subDBKey;
-                    newCanister = null;
+                    var newCanister = null;
+                    var newSubDBKey = null;
                 }
             };
         };
     };
 
-    public func finishMovingSpecifiedSubDB({superDB: SuperDB; dbOptions: DBOptions}) : async* () {
+    public func finishMovingSpecifiedSubDB({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions}) : async* () {
         switch (superDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
@@ -166,23 +167,23 @@ module {
                         if (subDB.busy) {
                             Debug.trap("sub-DB is busy");
                         };
-                        let newCanister = switch (dbOptions.newCanister) {
+                        let newCanister = switch (moving.newCanister) {
                             case (?newCanister) { newCanister };
                             case (null) {
-                                let newCanister = await options.index.newCanister();
-                                dbOptions.newCanister := ?newCanister;
+                                let newCanister = await index.newCanister();
+                                moving.newCanister := ?newCanister;
                                 newCanister;
                             };
                         };
                         let newSubDBKey = switch (moving.newSubDBKey) {
                             case (?newSubDBKey) { newSubDBKey };
                             case (null) {
-                                let newSubDBKey = await moving.newCanister.rawInsertSubDB(subDB.data, dbOptions);
+                                let newSubDBKey = await newCanister.rawInsertSubDB(subDB.data, dbOptions);
                                 moving.newSubDBKey := ?newSubDBKey;
                                 newSubDBKey;
                             }
                         };                        
-                        ignore BTree.delete(superDB.subDBs, Nat.compare, moving.oldSubDBKey);
+                        ignore BTree.delete(superDB.subDBs, Nat.compare, moving.oldSubDBKey); // FIXME: idempotent?
                         switch (dbOptions.movingCallback) {
                             case (?movingCallback) {
                                 await movingCallback({
@@ -194,9 +195,9 @@ module {
                             };
                             case (null) {};
                         };
-                        let ?subDB = BTree.get(superDB.subDBs, Nat.compare, moving.oldSubDBKey) else {
-                            Debug.trap("sub-DB must exist");
-                        };
+                        // let ?subDB = BTree.get(superDB.subDBs, Nat.compare, moving.oldSubDBKey) else {
+                        //     Debug.trap("sub-DB must exist");
+                        // };
                         subDB.busy := false;
                         superDB.moving := null;
                     };
