@@ -155,7 +155,6 @@ module {
                     oldSuperDB = options.superDB;
                     oldSubDBKey = options.subDBKey;
                     var newCanister = null;
-                    var newSubDBKey = null;
                 }
             };
         };
