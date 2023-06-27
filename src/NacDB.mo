@@ -151,7 +151,7 @@ module {
             case (?_) { Debug.trap("already moving") };
             case (null) {
                 options.superDB.moving := ?{
-                    oldCanister = options.oldCanister;
+                    oldCanister = options.oldCanister; // TODO: Is this variable used in any way?
                     oldSuperDB = options.superDB;
                     oldSubDBKey = options.subDBKey;
                     var newCanister = null;
