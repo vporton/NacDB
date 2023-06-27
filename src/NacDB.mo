@@ -146,7 +146,8 @@ module {
         };
     };
 
-    func startMovingSpecifiedSubDB(options: {oldCanister: PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
+    /// Moves to the specified `newCanister` or to a newly allocated canister, if null.
+    func startMovingSpecifiedSubDB(options: {oldCanister: PartitionCanister; newCanister: ?PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
         switch (options.superDB.moving) {
             case (?_) { Debug.trap("already moving") };
             case (null) {
@@ -154,7 +155,12 @@ module {
                     oldCanister = options.oldCanister;
                     oldSuperDB = options.superDB;
                     oldSubDBKey = options.subDBKey;
-                    var newCanister = null;
+                    var newCanister = do ? {
+                        {
+                            canister = options.newCanister!;
+                            var newSubDBKey = null;
+                        };
+                    };
                 }
             };
         };
@@ -207,14 +213,6 @@ module {
         };
     };
 
-    // FIXME: not idempotent
-    func doStartMovingSubDBToNewCanister(
-        options: {index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* ()
-    {
-        let newCanister = await options.index.newCanister();
-        startMovingSpecifiedSubDB({oldCanister = options.oldCanister; newCanister; superDB = options.oldSuperDB; subDBKey = options.oldSubDBKey});
-    };
-
     func startMovingSubDB(options: {index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
         let ?item = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
             Debug.trap("item must exist")
@@ -226,16 +224,16 @@ module {
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
         if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed())) {
-            await* doStartMovingSubDBToNewCanister({
-                index = options.index;
+            startMovingSpecifiedSubDB({
                 oldCanister = options.oldCanister;
-                oldSuperDB = options.oldSuperDB;
-                oldSubDBKey = options.oldSubDBKey;
+                newCanister = null;
+                superDB = options.oldSuperDB;
+                subDBKey = options.oldSubDBKey;
             });
         } else {
             startMovingSpecifiedSubDB({
                 oldCanister = options.oldCanister;
-                newCanister = lastCanister;
+                newCanister = ?lastCanister;
                 superDB = options.oldSuperDB;
                 subDBKey = options.oldSubDBKey;
             });
