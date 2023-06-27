@@ -169,16 +169,16 @@ module {
                         if (subDB.busy) {
                             Debug.trap("sub-DB is busy");
                         };
-                        let (canister, newSubDBKeyOpt, newCanister) = switch (moving.newCanister) {
-                            case (?newCanister) { (newCanister.canister, newCanister.newSubDBKey, newCanister) };
+                        let (canister, newCanister) = switch (moving.newCanister) {
+                            case (?newCanister) { (newCanister.canister, newCanister) };
                             case (null) {
                                 let newCanister = await index.newCanister();
                                 let s = {canister = newCanister; var newSubDBKey: ?SubDBKey = null};
                                 moving.newCanister := ?s;
-                                (newCanister, null, s);
+                                (newCanister, s);
                             };
                         };
-                        let newSubDBKey = switch (newSubDBKeyOpt) {
+                        let newSubDBKey = switch (newCanister.newSubDBKey) {
                             case (?newSubDBKey) { newSubDBKey };
                             case (null) {
                                 let newSubDBKey = await canister.rawInsertSubDB(subDB.data, dbOptions);
