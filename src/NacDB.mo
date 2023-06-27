@@ -226,16 +226,16 @@ module {
         if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed())) {
             startMovingSpecifiedSubDB({
                 oldCanister = options.oldCanister;
-                newCanister = null;
                 superDB = options.oldSuperDB;
                 subDBKey = options.oldSubDBKey;
+                newCanister = null;
             });
         } else {
             startMovingSpecifiedSubDB({
                 oldCanister = options.oldCanister;
-                newCanister = ?lastCanister;
                 superDB = options.oldSuperDB;
                 subDBKey = options.oldSubDBKey;
+                newCanister = ?lastCanister;
             });
         };
     };
