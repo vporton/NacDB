@@ -39,7 +39,6 @@ module {
 
     type CreatingSubDB = {
         canister: PartitionCanister;
-        subDBKey: SubDBKey
     };
 
     type SuperDB = {
@@ -413,7 +412,8 @@ module {
     };
 
     // It does not touch old items, so no locking.
-    public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
+    // FIXME
+    public func startCreatingSubDB({dbIndex: DBIndex}): async* () {
         // Deque has no `size()`.
         if (RBT.size(dbIndex.creatingSubDB) >= dbOptions.maxSubDBsInCreating) {
             Debug.trap("queue full");
@@ -421,22 +421,22 @@ module {
         if (StableBuffer.size(dbIndex.canisters) == 0) {
             Debug.trap("no partition canisters");
         };
-        let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
-        let part: PartitionCanister = actor(Principal.toText(pk));
-        // FIXME: The following is not idempotent.
-        let subDBKey = await part.createSubDB({dbOptions}); // We don't need `busy = true`, because we didn't yet created "links" to it.
         dbIndex.creatingSubDB := RBT.put(dbIndex.creatingSubDB, Nat.compare, subDBKey, {
             canister = part; subDBKey = subDBKey;
         } : CreatingSubDB);
-        (part, subDBKey);
     };
 
-    public func finishCreatingSubDB(dbIndex: DBIndex) : async* () {
-        for ((key, value) in RBT.entries(dbIndex.creatingSubDB)) {
+    // FIXME
+    public func finishCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}) : async* (PartitionCanister, SubDBKey) {
+        for (key in creatingSubDBKeys(dbIndex).vals()) {
             // await value.canister.releaseSubDB(key);
+            // FIXME: deletion while iterating
             dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, key);
         };
-
+        let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
+        let part: PartitionCanister = actor(Principal.toText(pk));
+        let subDBKey = await part.createSubDB({dbOptions}); // We don't need `busy = true`, because we didn't yet created "links" to it.
+        (part, subDBKey);
     };
 
     // Scanning/enumerating //
