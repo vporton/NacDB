@@ -423,6 +423,7 @@ module {
         };
         let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
         let part: PartitionCanister = actor(Principal.toText(pk));
+        // FIXME: The following is not idempotent.
         let subDBKey = await part.createSubDB({dbOptions}); // We don't need `busy = true`, because we didn't yet created "links" to it.
         dbIndex.creatingSubDB := RBT.put(dbIndex.creatingSubDB, Nat.compare, subDBKey, {
             canister = part; subDBKey = subDBKey;
