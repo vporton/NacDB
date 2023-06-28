@@ -147,7 +147,7 @@ module {
     };
 
     /// Moves to the specified `newCanister` or to a newly allocated canister, if null.
-    func startMovingSpecifiedSubDB(options: {oldCanister: PartitionCanister; newCanister: ?PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
+    func startMovingSubDBImpl(options: {oldCanister: PartitionCanister; newCanister: ?PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
         switch (options.superDB.moving) {
             case (?_) { Debug.trap("already moving") };
             case (null) {
@@ -224,14 +224,14 @@ module {
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
         if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed())) {
-            startMovingSpecifiedSubDB({
+            startMovingSubDBImpl({
                 oldCanister = options.oldCanister;
                 superDB = options.oldSuperDB;
                 subDBKey = options.oldSubDBKey;
                 newCanister = null;
             });
         } else {
-            startMovingSpecifiedSubDB({
+            startMovingSubDBImpl({
                 oldCanister = options.oldCanister;
                 superDB = options.oldSuperDB;
                 subDBKey = options.oldSubDBKey;
