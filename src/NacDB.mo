@@ -366,6 +366,7 @@ module {
         };
     };
 
+    // FIXME: Move to a new partition if needed.
     public func createSubDB({superDB: SuperDB; dbOptions: DBOptions}) : Nat {
         let subDB : SubDB = {
             var data = RBT.init();
