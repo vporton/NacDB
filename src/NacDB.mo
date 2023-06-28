@@ -74,11 +74,11 @@ module {
     };
 
     public type PartitionCanister = actor {
-        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
+        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey; // FIXME: not idempotent
         isOverflowed() : async Bool;
-        createSubDB({dbOptions: DBOptions}) : async Nat;
+        createSubDB({dbOptions: DBOptions}) : async Nat; // FIXME: not idempotent
         releaseSubDB(subDBKey: SubDBKey) : async ();
-        insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
+        insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async (); // FIXME: not idempotent
         get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
     };
 
@@ -345,7 +345,6 @@ module {
         value: AttributeValue;
     };
 
-    // FIXME: not idempotent
     public func insert(options: InsertOptions) : async* () {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
@@ -415,24 +414,24 @@ module {
     };
 
     // FIXME: It does not attempt to create a new partition, when needed.
-    public func finishCreatingSubDB({index: IndexCanister; dbIndex: DBIndex; dbOptions: DBOptions}) : async* (PartitionCanister, SubDBKey) {
+    public func finishCreatingSubDB({index: IndexCanister; superDB: SuperDB; dbIndex: DBIndex; dbOptions: DBOptions}) : async* (PartitionCanister, SubDBKey) {
         if (dbIndex.creatingSubDB == 0) {
             Debug.trap("not creating a sub-DB");
         };
         let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
         let part: PartitionCanister = actor(Principal.toText(pk));
-        switch (dbIndex.moveCap) {
+        switch (superDB.moveCap) {
+            case (#numDBs n) {
+                if (BTree.size(superDB.subDBs) >= n) {
+                    let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
 
+                }
+            };
+            case (#usedMemory m) {
+
+            };
         };
-        let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
-        dbIndex.creatingSubDB -= 1;
-
-        await* startMovingSubDBIfOverflow({
-            indexCanister = index;
-            oldCanister = part;
-            oldSuperDB = superDB;
-            oldSubDBKey = subDBKey
-        });
+        // dbIndex.creatingSubDB -= 1;
 
         (part, subDBKey);
     };
