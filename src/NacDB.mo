@@ -244,7 +244,7 @@ module {
                 BTree.size(superDB.subDBs) > num;
             };
             case (#usedMemory mem) {
-                Prim.rts_heap_size() > mem;
+                Prim.rts_heap_size() > mem; // current canister
             };
         };
     };
@@ -414,14 +414,25 @@ module {
     };
 
     // FIXME: It does not attempt to create a new partition, when needed.
-    public func finishCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}) : async* (PartitionCanister, SubDBKey) {
+    public func finishCreatingSubDB({index: IndexCanister; dbIndex: DBIndex; dbOptions: DBOptions}) : async* (PartitionCanister, SubDBKey) {
         if (dbIndex.creatingSubDB == 0) {
             Debug.trap("not creating a sub-DB");
         };
         let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
         let part: PartitionCanister = actor(Principal.toText(pk));
-        let subDBKey = await part.createSubDB({dbOptions}); // We don't need `busy = true`, because we didn't yet created "links" to it.
+        switch (dbIndex.moveCap) {
+
+        };
+        let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
         dbIndex.creatingSubDB -= 1;
+
+        await* startMovingSubDBIfOverflow({
+            indexCanister = index;
+            oldCanister = part;
+            oldSuperDB = superDB;
+            oldSubDBKey = subDBKey
+        });
+
         (part, subDBKey);
     };
 
