@@ -59,7 +59,7 @@ module {
 
     public type DBIndex = {
         var canisters: StableBuffer.StableBuffer<Principal>;
-        var creatingSubDB: RBT.Tree<SubDBKey, CreatingSubDB>;
+        var creatingSubDB: Nat;
     };
 
     public type IndexCanister = actor {
@@ -85,7 +85,7 @@ module {
     public func createDBIndex() : DBIndex {
         {
             var canisters = StableBuffer.init<Principal>();
-            var creatingSubDB = RBT.init();
+            var creatingSubDB = 0;
         }
     };
 
@@ -97,7 +97,6 @@ module {
             subDBs = BTree.init<SubDBKey, SubDB>(null);
             moveCap = options.moveCap;
             var moving = null;
-            var creatingSubDB = RBT.init();
         }
     };
 
@@ -403,39 +402,26 @@ module {
 
     // Creating sub-DB //
 
-    public func creatingSubDBKeys(dbIndex: DBIndex) : [SubDBKey] {
-        let iter = Iter.map(RBT.entries(dbIndex.creatingSubDB), func(e: (SubDBKey, CreatingSubDB)): SubDBKey {
-            let (key, _) = e;
-            key;
-        });
-        Iter.toArray(iter);
-    };
-
     // It does not touch old items, so no locking.
-    // FIXME
-    public func startCreatingSubDB({dbIndex: DBIndex}): async* () {
-        // Deque has no `size()`.
-        if (RBT.size(dbIndex.creatingSubDB) >= dbOptions.maxSubDBsInCreating) {
+    public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}): async* () {
+        if (dbIndex.creatingSubDB >= dbOptions.maxSubDBsInCreating) {
             Debug.trap("queue full");
         };
         if (StableBuffer.size(dbIndex.canisters) == 0) {
             Debug.trap("no partition canisters");
         };
-        dbIndex.creatingSubDB := RBT.put(dbIndex.creatingSubDB, Nat.compare, subDBKey, {
-            canister = part; subDBKey = subDBKey;
-        } : CreatingSubDB);
+        dbIndex.creatingSubDB += 1;
     };
 
-    // FIXME
+    // FIXME: It does not attempt to create a new partition, when needed.
     public func finishCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}) : async* (PartitionCanister, SubDBKey) {
-        for (key in creatingSubDBKeys(dbIndex).vals()) {
-            // await value.canister.releaseSubDB(key);
-            // FIXME: deletion while iterating
-            dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, key);
+        if (dbIndex.creatingSubDB == 0) {
+            Debug.trap("not creating a sub-DB");
         };
         let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
         let part: PartitionCanister = actor(Principal.toText(pk));
         let subDBKey = await part.createSubDB({dbOptions}); // We don't need `busy = true`, because we didn't yet created "links" to it.
+        dbIndex.creatingSubDB -= 1;
         (part, subDBKey);
     };
 
