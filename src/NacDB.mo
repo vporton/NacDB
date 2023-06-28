@@ -11,6 +11,7 @@ import Debug "mo:base/Debug";
 import Bool "mo:base/Bool";
 import Deque "mo:base/Deque";
 import Iter "mo:base/Iter";
+import StableRbTree "mo:stable-rbtree/StableRBTree";
 
 module {
     public type SubDBKey = Nat;
@@ -38,7 +39,7 @@ module {
     type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
 
     type CreatingSubDB = {
-        canister: PartitionCanister;
+        var canister: ?PartitionCanister;
     };
 
     type SuperDB = {
@@ -59,7 +60,7 @@ module {
 
     public type DBIndex = {
         var canisters: StableBuffer.StableBuffer<Principal>;
-        var creatingSubDB: Nat;
+        var creatingSubDB: RBT.Tree<Nat, CreatingSubDB>;
     };
 
     public type IndexCanister = actor {
@@ -74,9 +75,9 @@ module {
     };
 
     public type PartitionCanister = actor {
-        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey; // FIXME: not idempotent
+        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
         isOverflowed() : async Bool;
-        createSubDB({dbOptions: DBOptions}) : async Nat; // FIXME: not idempotent
+        createSubDB({dbOptions: DBOptions}) : async Nat;
         releaseSubDB(subDBKey: SubDBKey) : async ();
         insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async (); // FIXME: not idempotent
         get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
@@ -85,7 +86,7 @@ module {
     public func createDBIndex() : DBIndex {
         {
             var canisters = StableBuffer.init<Principal>();
-            var creatingSubDB = 0;
+            var creatingSubDB = StableRbTree.init();
         }
     };
 
@@ -404,36 +405,56 @@ module {
 
     // It does not touch old items, so no locking.
     public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}): async* () {
-        if (dbIndex.creatingSubDB >= dbOptions.maxSubDBsInCreating) {
+        if (StableRbTree.size(dbIndex.creatingSubDB) >= dbOptions.maxSubDBsInCreating) {
             Debug.trap("queue full");
         };
         if (StableBuffer.size(dbIndex.canisters) == 0) {
             Debug.trap("no partition canisters");
         };
-        dbIndex.creatingSubDB += 1;
+        let i = StableRbTree.iter(dbIndex.creatingSubDB, #bwd);
+        let key = switch (i.next()) {
+            case (?(n, _)) { n + 1 };
+            case (null) { 0 }; // FIXME: Does reusing indexes create race conditions?
+        };
+        dbIndex.creatingSubDB := StableRbTree.put<Nat, CreatingSubDB>(dbIndex.creatingSubDB, Nat.compare, key, {var canister = null});
     };
 
-    // FIXME: It does not attempt to create a new partition, when needed.
+    // FIXME: not idempotent
+    // TODO: Iterate to process all entries.
     public func finishCreatingSubDB({index: IndexCanister; superDB: SuperDB; dbIndex: DBIndex; dbOptions: DBOptions}) : async* (PartitionCanister, SubDBKey) {
-        if (dbIndex.creatingSubDB == 0) {
+        if (StableBuffer.size(dbIndex.creatingSubDB) == 0) {
             Debug.trap("not creating a sub-DB");
         };
-        let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
-        let part: PartitionCanister = actor(Principal.toText(pk));
-        switch (superDB.moveCap) {
-            case (#numDBs n) {
-                if (BTree.size(superDB.subDBs) >= n) {
-                    let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
-
-                }
-            };
-            case (#usedMemory m) {
-
+        let creating = StableBuffer.get(dbIndex.creatingSubDB, StableBuffer.size(dbIndex.creatingSubDB) - 1);
+        let part: PartitionCanister = switch (creating.canister) { // FIXME
+            case (?part) { part };
+            case (null) {
+                switch (superDB.moveCap) {
+                    case (#numDBs n) {
+                        if (BTree.size(superDB.subDBs) >= n) {
+                            await index.newCanister(); // FIXME: not idempotent
+                        } else {
+                            let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
+                            actor(Principal.toText(pk));
+                        };
+                    };
+                    case (#usedMemory m) {
+                        let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
+                        var part: PartitionCanister = actor(Principal.toText(pk));
+                        let subDBKey = createSubDB({superDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                        if (await part.isOverflowed()) {
+                            ignore BTree.delete(superDB.subDBs, Nat.compare, subDBKey);
+                            part := await index.newCanister(); // FIXME: not idempotent
+                        };
+                        part;
+                    };
+                };
             };
         };
-        // dbIndex.creatingSubDB -= 1;
-
+        creating.canister := ?part;
+        let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
         (part, subDBKey);
+        // dbIndex.creatingSubDB -= 1; // FIXME
     };
 
     // Scanning/enumerating //
