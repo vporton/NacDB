@@ -419,42 +419,45 @@ module {
         dbIndex.creatingSubDB := StableRbTree.put<Nat, CreatingSubDB>(dbIndex.creatingSubDB, Nat.compare, key, {var canister = null});
     };
 
-    // FIXME: not idempotent
-    // TODO: Iterate to process all entries.
+    // FIXME: not idempotent?
     public func finishCreatingSubDB({index: IndexCanister; superDB: SuperDB; dbIndex: DBIndex; dbOptions: DBOptions}) : async* (PartitionCanister, SubDBKey) {
-        if (StableBuffer.size(dbIndex.creatingSubDB) == 0) {
-            Debug.trap("not creating a sub-DB");
-        };
-        let creating = StableBuffer.get(dbIndex.creatingSubDB, StableBuffer.size(dbIndex.creatingSubDB) - 1);
-        let part: PartitionCanister = switch (creating.canister) { // FIXME
-            case (?part) { part };
-            case (null) {
-                switch (superDB.moveCap) {
-                    case (#numDBs n) {
-                        if (BTree.size(superDB.subDBs) >= n) {
-                            await index.newCanister(); // FIXME: not idempotent
-                        } else {
-                            let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
-                            actor(Principal.toText(pk));
+        let i = StableRbTree.iter(dbIndex.creatingSubDB, #bwd);
+        let key = switch (i.next()) {
+            case (?(n, creating)) {
+                let part: PartitionCanister = switch (creating.canister) { // FIXME
+                    case (?part) { part };
+                    case (null) {
+                        switch (superDB.moveCap) {
+                            case (#numDBs n) {
+                                if (BTree.size(superDB.subDBs) >= n) {
+                                    await index.newCanister();
+                                } else {
+                                    let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
+                                    actor(Principal.toText(pk));
+                                };
+                            };
+                            case (#usedMemory m) {
+                                let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
+                                var part: PartitionCanister = actor(Principal.toText(pk));
+                                let subDBKey = createSubDB({superDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                                if (await part.isOverflowed()) {
+                                    ignore BTree.delete(superDB.subDBs, Nat.compare, subDBKey);
+                                    part := await index.newCanister();
+                                };
+                                part;
+                            };
                         };
-                    };
-                    case (#usedMemory m) {
-                        let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
-                        var part: PartitionCanister = actor(Principal.toText(pk));
-                        let subDBKey = createSubDB({superDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
-                        if (await part.isOverflowed()) {
-                            ignore BTree.delete(superDB.subDBs, Nat.compare, subDBKey);
-                            part := await index.newCanister(); // FIXME: not idempotent
-                        };
-                        part;
                     };
                 };
+                creating.canister := ?part;
+                dbIndex.creatingSubDB := StableRbTree.delete(dbIndex.creatingSubDB, Nat.compare, n);
+                let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                (part, subDBKey);
+            };
+            case (null) {
+                Debug.trap("not creating");
             };
         };
-        creating.canister := ?part;
-        let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
-        (part, subDBKey);
-        // dbIndex.creatingSubDB -= 1; // FIXME
     };
 
     // Scanning/enumerating //
