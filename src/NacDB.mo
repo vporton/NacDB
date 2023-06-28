@@ -211,7 +211,6 @@ module {
         };
     };
 
-    // FIXME: not idempotent
     func startMovingSubDB(options: {index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
         let ?item = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
             Debug.trap("item must exist");
