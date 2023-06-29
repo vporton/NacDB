@@ -404,7 +404,7 @@ module {
     // Creating sub-DB //
 
     // It does not touch old items, so no locking.
-    public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}): async* () {
+    public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}): async* Nat {
         if (StableRbTree.size(dbIndex.creatingSubDB) >= dbOptions.maxSubDBsInCreating) {
             Debug.trap("queue full");
         };
@@ -417,14 +417,15 @@ module {
             case (null) { 0 }; // FIXME: Does reusing indexes create race conditions?
         };
         dbIndex.creatingSubDB := StableRbTree.put<Nat, CreatingSubDB>(dbIndex.creatingSubDB, Nat.compare, key, {var canister = null});
+        key;
     };
 
-    // FIXME: not idempotent?
-    public func finishCreatingSubDB({index: IndexCanister; superDB: SuperDB; dbIndex: DBIndex; dbOptions: DBOptions}) : async* (PartitionCanister, SubDBKey) {
-        let i = StableRbTree.iter(dbIndex.creatingSubDB, #bwd);
-        let key = switch (i.next()) {
-            case (?(n, creating)) {
-                let part: PartitionCanister = switch (creating.canister) { // FIXME
+    public func finishCreatingSubDB({index: IndexCanister; superDB: SuperDB; dbIndex: DBIndex; dbOptions: DBOptions; creatingId: Nat})
+        : async* (PartitionCanister, SubDBKey)
+    {
+        switch (RBT.get(dbIndex.creatingSubDB, Nat.compare, creatingId)) {
+            case (?creating) {
+                let part: PartitionCanister = switch (creating.canister) {
                     case (?part) { part };
                     case (null) {
                         switch (superDB.moveCap) {
@@ -450,7 +451,7 @@ module {
                     };
                 };
                 creating.canister := ?part;
-                dbIndex.creatingSubDB := StableRbTree.delete(dbIndex.creatingSubDB, Nat.compare, n);
+                dbIndex.creatingSubDB := StableRbTree.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
                 let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
                 (part, subDBKey);
             };
