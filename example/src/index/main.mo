@@ -28,14 +28,26 @@ shared actor class Index() = this {
         let canister = await Partition.Partition();
     };
 
-    public shared func insertSubDB() : async (Nac.PartitionCanister, Nac.SubDBKey) {
-        let (part, subDBKey) = await* Nac.startCreatingSubDB({dbIndex = index; dbOptions = {
+    public shared func startInsertingSubDB() : async Nat {
+        await* Nac.startCreatingSubDB({dbIndex = index; dbOptions = {
             hardCap = ?hardCap;
             movingCallback = movingCallback;
             maxSubDBsInCreating = 15;
         }});
+    };
+
+    public shared func finishInsertingSubDB(creatingId: Nat) : async (Nac.PartitionCanister, Nac.SubDBKey) {
         // TODO: React on state update code here.
-        await* Nac.finishCreatingSubDB(index);
+        let (part, subDBKey) = await* Nac.finishCreatingSubDB({
+            creatingId;
+            index = this;
+            dbIndex = index;
+            dbOptions = {
+                hardCap = ?hardCap;
+                movingCallback = movingCallback;
+                maxSubDBsInCreating = 15;
+            }
+        });
         (part, subDBKey);
     };
 

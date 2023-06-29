@@ -45,7 +45,6 @@ module {
     type SuperDB = {
         var nextKey: Nat;
         subDBs: BTree.BTree<SubDBKey, SubDB>;
-        moveCap: MoveCap;
 
         var moving: ?{
             oldCanister: PartitionCanister;
@@ -61,6 +60,7 @@ module {
     public type DBIndex = {
         var canisters: StableBuffer.StableBuffer<Principal>;
         var creatingSubDB: RBT.Tree<Nat, CreatingSubDB>;
+        moveCap: MoveCap;
     };
 
     public type IndexCanister = actor {
@@ -77,16 +77,19 @@ module {
     public type PartitionCanister = actor {
         rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
         isOverflowed() : async Bool;
+        superDBSize() : async Nat;
         createSubDB({dbOptions: DBOptions}) : async Nat;
         releaseSubDB(subDBKey: SubDBKey) : async ();
+        deleteSubDB(subDBKey: SubDBKey) : async ();
         insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async (); // FIXME: not idempotent
         get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
     };
 
-    public func createDBIndex() : DBIndex {
+    public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
         {
             var canisters = StableBuffer.init<Principal>();
             var creatingSubDB = StableRbTree.init();
+            moveCap = options.moveCap;
         }
     };
 
@@ -96,7 +99,6 @@ module {
         {
             var nextKey = 0;
             subDBs = BTree.init<SubDBKey, SubDB>(null);
-            moveCap = options.moveCap;
             var moving = null;
         }
     };
@@ -239,8 +241,8 @@ module {
         };
     };
 
-    public func isOverflowed(superDB: SuperDB) : Bool {
-        switch (superDB.moveCap) {
+    public func isOverflowed({index: DBIndex; superDB: SuperDB}) : Bool {
+        switch (index.moveCap) {
             case (#numDBs num) {
                 BTree.size(superDB.subDBs) > num;
             };
@@ -253,7 +255,7 @@ module {
     func startMovingSubDBIfOverflow(
         options: {indexCanister: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}): async* ()
     {
-        if (isOverflowed(options.oldSuperDB)) {
+        if (await options.oldCanister.isOverflowed()) {
             await* startMovingSubDB({
                 index = options.indexCanister;
                 oldCanister = options.oldCanister;
@@ -420,7 +422,7 @@ module {
         key;
     };
 
-    public func finishCreatingSubDB({index: IndexCanister; superDB: SuperDB; dbIndex: DBIndex; dbOptions: DBOptions; creatingId: Nat})
+    public func finishCreatingSubDB({index: IndexCanister; dbIndex: DBIndex; dbOptions: DBOptions; creatingId: Nat})
         : async* (PartitionCanister, SubDBKey)
     {
         switch (RBT.get(dbIndex.creatingSubDB, Nat.compare, creatingId)) {
@@ -428,23 +430,25 @@ module {
                 let part: PartitionCanister = switch (creating.canister) {
                     case (?part) { part };
                     case (null) {
-                        switch (superDB.moveCap) {
+                        switch (dbIndex.moveCap) {
                             case (#numDBs n) {
-                                if (BTree.size(superDB.subDBs) >= n) {
+                                let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
+                                let part: PartitionCanister = actor(Principal.toText(pk));
+                                if ((await part.superDBSize()) >= n) {
                                     await index.newCanister();
                                 } else {
-                                    let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
-                                    actor(Principal.toText(pk));
+                                    part
                                 };
                             };
                             case (#usedMemory m) {
                                 let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
                                 var part: PartitionCanister = actor(Principal.toText(pk));
                                 // Trial creation...
-                                let subDBKey = createSubDB({superDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
-                                if (await part.isOverflowed()) {
+                                let subDBKey = await part.createSubDB({dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                                creating.canister := ?part;
+                                if (await part.isOverflowed()) { // TODO: Join .isOverflowed and .deleteSubDB into one call?
                                     // ... with possible deletion afterward.
-                                    ignore BTree.delete(superDB.subDBs, Nat.compare, subDBKey);
+                                    await part.deleteSubDB(subDBKey);
                                     part := await index.newCanister();
                                     creating.canister := ?part;
                                 } else {
