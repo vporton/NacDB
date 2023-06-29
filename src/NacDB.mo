@@ -446,8 +446,9 @@ module {
                                     // ... with possible deletion afterward.
                                     ignore BTree.delete(superDB.subDBs, Nat.compare, subDBKey);
                                     part := await index.newCanister();
+                                    creating.canister := ?part;
                                 } else {
-                                    dbIndex.creatingSubDB := StableRbTree.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
+                                    dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
                                     return (part, subDBKey);
                                 };
                                 part;
@@ -455,8 +456,8 @@ module {
                         };
                     };
                 };
-                dbIndex.creatingSubDB := StableRbTree.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
                 let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
                 (part, subDBKey);
             };
             case (null) {
