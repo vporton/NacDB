@@ -8,7 +8,11 @@ import Nat "mo:base/Nat";
 shared({caller}) actor class Partition() = this {
     stable let index: Nac.IndexCanister = actor(Principal.toText(caller));
 
-    stable let superDB = Nac.createSuperDB({moveCap = #usedMemory 500_000; moveCallback = null; createCallback = null});
+    // TODO: Not good to duplicate in two places:
+    let moveCap = #usedMemory 500_000;
+    let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000; maxSubDBsInCreating = 15};
+
+    stable let superDB = Nac.createSuperDB();
 
     // Mandatory methods //
 
@@ -16,8 +20,8 @@ shared({caller}) actor class Partition() = this {
         Nac.rawInsertSubDB(superDB, data, dbOptions);
     };
 
-    public shared func isOverflowed() : async Bool {
-        Nac.isOverflowed(superDB);
+    public shared func isOverflowed({dbOptions: Nac.DBOptions}) : async Bool {
+        Nac.isOverflowed({dbOptions; superDB});
     };
 
     public shared func createSubDB({dbOptions: Nac.DBOptions}) : async Nat {
@@ -50,8 +54,10 @@ shared({caller}) actor class Partition() = this {
         Nac.subDBSize({superDB; subDBKey});
     };
 
+    // FIXME: Split into two operations.
     public shared func insert({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue}) : async () {
         await* Nac.insert({
+            dbOptions;
             indexCanister = index;
             currentCanister = this;
             superDB = superDB;
