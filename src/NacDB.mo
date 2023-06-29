@@ -440,17 +440,21 @@ module {
                             case (#usedMemory m) {
                                 let pk = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
                                 var part: PartitionCanister = actor(Principal.toText(pk));
+                                // Trial creation...
                                 let subDBKey = createSubDB({superDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
                                 if (await part.isOverflowed()) {
+                                    // ... with possible deletion afterward.
                                     ignore BTree.delete(superDB.subDBs, Nat.compare, subDBKey);
                                     part := await index.newCanister();
+                                } else {
+                                    dbIndex.creatingSubDB := StableRbTree.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
+                                    return (part, subDBKey);
                                 };
                                 part;
                             };
                         };
                     };
                 };
-                creating.canister := ?part;
                 dbIndex.creatingSubDB := StableRbTree.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
                 let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
                 (part, subDBKey);
