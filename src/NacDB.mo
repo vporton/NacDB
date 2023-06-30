@@ -164,7 +164,7 @@ module {
         };
     };
 
-    public func finishMovingSpecifiedSubDB({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions}) : async* () {
+    public func finishMovingSubDB({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions}) : async* () {
         switch (superDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
@@ -364,7 +364,7 @@ module {
                 });
             };
             case (null) {
-                Debug.trap("missing sub-DB")
+                Debug.trap("missing sub-DB");
             };
         };
     };

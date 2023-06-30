@@ -29,10 +29,12 @@ actor {
     let ?index0 = index else {
       Debug.trap("no index canister")
     };
-    let location0 = await index0.insertSubDB();
+    let insertId = await index0.startInsertingSubDB();
+    let location0 = await index0.finishInsertingSubDB(insertId);
     location := ?location0;
     let (part, subDBKey) = location0;
     await part.insert({subDBKey = subDBKey; sk = "name"; value = #text name});
+    await part.finishMovingSubDB({index; superDB; dbOptions});
     let name2 = await part.get({subDBKey; sk = "name"});
     let ?#text name3 = name2 else {
       Debug.trap("error");
