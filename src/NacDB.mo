@@ -77,7 +77,6 @@ module {
         rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
         isOverflowed({dbOptions: DBOptions}) : async Bool;
         superDBSize: query () -> async Nat;
-        createSubDB({dbOptions: DBOptions}) : async Nat;
         releaseSubDB(subDBKey: SubDBKey) : async (); // FIXME
         deleteSubDB({subDBKey: SubDBKey}) : async ();
         insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async (); // FIXME: not idempotent
@@ -370,20 +369,6 @@ module {
         };
     };
 
-    // FIXME: Move to a new partition if needed.
-    public func createSubDB({superDB: SuperDB; dbOptions: DBOptions}) : Nat {
-        let subDB : SubDB = {
-            var data = RBT.init();
-            hardCap = dbOptions.hardCap;
-            movingCallback = dbOptions.movingCallback;
-            var busy = false;
-        };
-        let key = superDB.nextKey;
-        ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
-        superDB.nextKey += 1;
-        key;
-    };
-
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
     
     public func delete(options: DeleteOptions) {
@@ -444,7 +429,7 @@ module {
                             case (#usedMemory m) {
                                 var part = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
                                 // Trial creation...
-                                let subDBKey = await part.createSubDB({dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                                let subDBKey = await part.rawInsertSubDB(RBT.init(), dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                                 creating.canister := ?part;
                                 if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .deleteSubDB into one call?
                                     // ... with possible deletion afterward.
@@ -460,7 +445,7 @@ module {
                         };
                     };
                 };
-                let subDBKey = await part.createSubDB({createSubDB; dbOptions}); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                let subDBKey = await part.rawInsertSubDB(RBT.init(), dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                 dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
                 (part, subDBKey);
             };
