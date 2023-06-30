@@ -79,7 +79,8 @@ module {
         superDBSize: query () -> async Nat;
         releaseSubDB(subDBKey: SubDBKey) : async (); // FIXME
         deleteSubDB({subDBKey: SubDBKey}) : async ();
-        insert({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async (); // FIXME: not idempotent
+        startInserting({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
+        finishInserting(): async (PartitionCanister, SubDBKey);
         get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
     };
 
@@ -164,7 +165,9 @@ module {
         };
     };
 
-    public func finishMovingSubDB({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions}) : async* () {
+    public func finishMovingSubDB({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions})
+        : async* (PartitionCanister, SubDBKey)
+    {
         switch (superDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
@@ -203,11 +206,14 @@ module {
                         };
                         subDB.busy := false;
                         superDB.moving := null;
+                        return (canister, newSubDBKey);
                     };
-                    case (null) {};
+                    case (null) {
+                        return (moving.oldCanister, moving.oldSubDBKey);
+                    };
                 };
             };
-            case (null) {};
+            case (null) { Debug.trap("not moving"); };
         };
     };
 
@@ -348,7 +354,7 @@ module {
         value: AttributeValue;
     };
 
-    public func insert(options: InsertOptions) : async* () {
+    public func startInserting(options: InsertOptions) : async* () {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         switch (getSubDB(options.superDB, options.subDBKey)) {
@@ -367,6 +373,10 @@ module {
                 Debug.trap("missing sub-DB");
             };
         };
+    };
+
+    public func finishInserting({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
+        await* finishMovingSubDB({index; superDB; dbOptions});
     };
 
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};

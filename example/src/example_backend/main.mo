@@ -33,9 +33,9 @@ actor {
     let location0 = await index0.finishInsertingSubDB(insertId);
     location := ?location0;
     let (part, subDBKey) = location0;
-    await part.insert({subDBKey = subDBKey; sk = "name"; value = #text name});
-    await part.finishMovingSubDB({index; superDB; dbOptions});
-    let name2 = await part.get({subDBKey; sk = "name"});
+    await part.startInserting({subDBKey = subDBKey; sk = "name"; value = #text name});
+    let (part2, subDBKey2) = await part.finishInserting();
+    let name2 = await part2.get({subDBKey = subDBKey2; sk = "name"});
     let ?#text name3 = name2 else {
       Debug.trap("error");
     };

@@ -55,8 +55,8 @@ shared({caller}) actor class Partition() = this {
     };
 
     // FIXME: Split into two operations.
-    public shared func insert({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue}) : async () {
-        await* Nac.insert({
+    public shared func startInserting({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue}) : async () {
+        await* Nac.startInserting({
             dbOptions;
             indexCanister = index;
             currentCanister = this;
@@ -65,6 +65,10 @@ shared({caller}) actor class Partition() = this {
             sk;
             value;
         })
+    };
+
+    public shared func finishInserting(): async (Nac.PartitionCanister, Nac.SubDBKey) {
+        await* Nac.finishInserting({index; superDB; dbOptions});
     };
 
     public shared func delete({subDBKey: Nac.SubDBKey; sk: Nac.SK}) : async () {
