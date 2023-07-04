@@ -172,11 +172,8 @@ module {
         };
     };
 
-    // FIXME: How can here be `superDB`?
-    public func finishMovingSubDB({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions})
-        : async* ?(PartitionCanister, SubDBKey)
-    {
-        switch (superDB.moving) {
+    public func finishMovingSubDB({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions}) : async* ?(PartitionCanister, SubDBKey) {
+        switch (oldSuperDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
                     case (?subDB) {
@@ -200,7 +197,7 @@ module {
                                 newSubDBKey;
                             }
                         };                        
-                        ignore BTree.delete(superDB.subDBs, Nat.compare, moving.oldSubDBKey); // FIXME: idempotent?
+                        ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey); // FIXME: idempotent?
                         switch (dbOptions.movingCallback) {
                             case (?movingCallback) {
                                 await movingCallback({
@@ -213,7 +210,7 @@ module {
                             case (null) {};
                         };
                         subDB.busy := false;
-                        superDB.moving := null;
+                        oldSuperDB.moving := null;
                         return ?(canister, newSubDBKey);
                     };
                     case (null) {
