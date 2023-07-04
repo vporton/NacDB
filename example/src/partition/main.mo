@@ -4,6 +4,7 @@ import Nac "../../../src/NacDB";
 import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
 import Nat "mo:base/Nat";
+import SparseQueue "../../../lib/SparseQueue"
 
 shared({caller}) actor class Partition() = this {
     stable let index: Nac.IndexCanister = actor(Principal.toText(caller));
@@ -55,8 +56,9 @@ shared({caller}) actor class Partition() = this {
     };
 
     // FIXME: Split into two operations.
-    public shared func startInserting({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue}) : async Nat {
+    public shared func startInserting({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue; insertId: SparseQueue.SparseQueueKey}) : async Nat {
         await* Nac.startInserting({
+            dbIndex;
             dbOptions;
             indexCanister = index;
             currentCanister = this;
@@ -64,6 +66,7 @@ shared({caller}) actor class Partition() = this {
             subDBKey;
             sk;
             value;
+            insertId;
         })
     };
 
