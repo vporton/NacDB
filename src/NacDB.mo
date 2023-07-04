@@ -44,7 +44,7 @@ module {
 
     /// Treat this as an opaque data structure, because this data is ignored if the sub-DB moves during insertion.
     public type InsertingItem = {
-        part: PartitionCanister;
+        part: PartitionCanister; // TODO: Can we remove this?
         subDBKey: SubDBKey;
     };
 
@@ -61,12 +61,12 @@ module {
                 var newSubDBKey: ?SubDBKey; // null - not yet determined
             };
         };
+        var inserting: SparseQueue.SparseQueue<InsertingItem>;
     };
 
     public type DBIndex = {
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
-        var inserting: SparseQueue.SparseQueue<InsertingItem>;
     };
 
     public type IndexCanister = actor {
@@ -95,7 +95,6 @@ module {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
             var creatingSubDB = SparseQueue.init(100); // TODO
-            var inserting = SparseQueue.init(100);
             moveCap = options.moveCap;
         }
     };
@@ -105,6 +104,7 @@ module {
             var nextKey = 0;
             subDBs = BTree.init<SubDBKey, SubDB>(null);
             var moving = null;
+            var inserting = SparseQueue.init(100);
         }
     };
 
@@ -350,7 +350,6 @@ module {
     };
 
     public type InsertOptions = {
-        dbIndex: DBIndex;
         dbOptions: DBOptions;
         indexCanister: IndexCanister;
         currentCanister: PartitionCanister;
@@ -368,7 +367,7 @@ module {
                 subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
                 removeLoosers(subDB);
 
-                let insertId = SparseQueue.add<InsertingItem>(options.dbIndex.inserting, {
+                let insertId = SparseQueue.add<InsertingItem>(options.superDB.inserting, {
                     part = options.currentCanister;
                     subDBKey = options.subDBKey;
                 });
@@ -389,19 +388,21 @@ module {
         };
     };
 
-    // FIXME: arguments
-    public func finishInserting({index: IndexCanister; dbIndex: DBIndex; superDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey}): async* (PartitionCanister, SubDBKey) {
-        let (part, subDBKey) = switch(await* finishMovingSubDB({index; superDB; dbOptions})) {
+    public func finishInserting({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey}): async* (PartitionCanister, SubDBKey) {
+        let ?v = SparseQueue.get(oldSuperDB.inserting, insertId) else {
+            Debug.trap("not inserting");
+        };
+        let (part, subDBKey) = switch(await* finishMovingSubDB({index; oldSuperDB; dbOptions})) {
             case (?(part, subDBKey)) { (part, subDBKey) };
             case (null) {
-                let x = SparseQueue.get(dbIndex.inserting, insertId);
+                let x = SparseQueue.get(oldSuperDB.inserting, insertId);
                 let ?{part; subDBKey} = x else {
                     Debug.trap("not inserting");
                 };
                 (part, subDBKey)
             }
         };
-        SparseQueue.delete(dbIndex.inserting, insertId);
+        SparseQueue.delete(oldSuperDB.inserting, insertId);
         (part, subDBKey);
     };
 

@@ -55,10 +55,8 @@ shared({caller}) actor class Partition() = this {
         Nac.subDBSize({superDB; subDBKey});
     };
 
-    // FIXME: Split into two operations.
     public shared func startInserting({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue; insertId: SparseQueue.SparseQueueKey}) : async Nat {
         await* Nac.startInserting({
-            dbIndex;
             dbOptions;
             indexCanister = index;
             currentCanister = this;
