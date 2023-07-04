@@ -11,7 +11,6 @@ import Debug "mo:base/Debug";
 import Bool "mo:base/Bool";
 import Deque "mo:base/Deque";
 import Iter "mo:base/Iter";
-import StableRbTree "mo:stable-rbtree/StableRBTree"; // FIXME: `RBT` instead
 import SparseQueue "../lib/SparseQueue";
 
 module {
@@ -173,6 +172,7 @@ module {
         };
     };
 
+    // FIXME: How can here be `superDB`?
     public func finishMovingSubDB({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions})
         : async* ?(PartitionCanister, SubDBKey)
     {
@@ -392,14 +392,20 @@ module {
         };
     };
 
-    // FIXME: Inserting and creating sub-DBs can be locked by filling the buffer.
-    public func finishInserting({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
-        switch(await* finishMovingSubDB({index; superDB; dbOptions})) {
+    // FIXME: arguments
+    public func finishInserting({index: IndexCanister; dbIndex: DBIndex; superDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey}): async* (PartitionCanister, SubDBKey) {
+        let (part, subDBKey) = switch(await* finishMovingSubDB({index; superDB; dbOptions})) {
             case (?(part, subDBKey)) { (part, subDBKey) };
             case (null) {
-                // FIXME: dbIndex.inserting
+                let x = SparseQueue.get(dbIndex.inserting, insertId);
+                let ?{part; subDBKey} = x else {
+                    Debug.trap("not inserting");
+                };
+                (part, subDBKey)
             }
-        }
+        };
+        SparseQueue.delete(dbIndex.inserting, insertId);
+        (part, subDBKey);
     };
 
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
