@@ -11,7 +11,8 @@ import Debug "mo:base/Debug";
 import Bool "mo:base/Bool";
 import Deque "mo:base/Deque";
 import Iter "mo:base/Iter";
-import StableRbTree "mo:stable-rbtree/StableRBTree";
+import StableRbTree "mo:stable-rbtree/StableRBTree"; // FIXME: `RBT` instead
+import SparseQueue "../lib/SparseQueue";
 
 module {
     public type SubDBKey = Nat;
@@ -42,6 +43,12 @@ module {
         var canister: ?PartitionCanister;
     };
 
+    /// Treat this as an opaque data structure, because this data is ignored if the sub-DB moves during insertion.
+    public type InsertingItem = {
+        part: PartitionCanister;
+        subDBKey: SubDBKey;
+    };
+
     public type SuperDB = {
         var nextKey: Nat;
         subDBs: BTree.BTree<SubDBKey, SubDB>;
@@ -59,7 +66,8 @@ module {
 
     public type DBIndex = {
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
-        var creatingSubDB: RBT.Tree<Nat, CreatingSubDB>;
+        var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
+        var inserting: SparseQueue.SparseQueue<InsertingItem>;
     };
 
     public type IndexCanister = actor {
@@ -87,7 +95,8 @@ module {
     public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
-            var creatingSubDB = StableRbTree.init();
+            var creatingSubDB = SparseQueue.init(100); // TODO
+            var inserting = SparseQueue.init(100);
             moveCap = options.moveCap;
         }
     };
@@ -111,7 +120,6 @@ module {
         hardCap: ?Nat;
         moveCap: MoveCap;
         movingCallback: ?MovingCallback;
-        maxSubDBsInCreating: Nat;
     };
 
     public func rawInsertSubDB(superDB: SuperDB, subDBData: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions): SubDBKey {
@@ -166,7 +174,7 @@ module {
     };
 
     public func finishMovingSubDB({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions})
-        : async* (PartitionCanister, SubDBKey)
+        : async* ?(PartitionCanister, SubDBKey)
     {
         switch (superDB.moving) {
             case (?moving) {
@@ -206,14 +214,14 @@ module {
                         };
                         subDB.busy := false;
                         superDB.moving := null;
-                        return (canister, newSubDBKey);
+                        return ?(canister, newSubDBKey);
                     };
                     case (null) {
-                        return (moving.oldCanister, moving.oldSubDBKey);
+                        return ?(moving.oldCanister, moving.oldSubDBKey);
                     };
                 };
             };
-            case (null) { Debug.trap("not moving"); };
+            case (null) { null }; // may be called from `finishInserting`, so should not trap.
         };
     };
 
@@ -345,6 +353,7 @@ module {
     };
 
     public type InsertOptions = {
+        dbIndex: DBIndex;
         dbOptions: DBOptions;
         indexCanister: IndexCanister;
         currentCanister: PartitionCanister;
@@ -354,13 +363,19 @@ module {
         value: AttributeValue;
     };
 
-    public func startInserting(options: InsertOptions) : async* () {
+    public func startInserting(options: InsertOptions) : async* Nat {
         trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
 
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
                 subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
                 removeLoosers(subDB);
+
+                let insertId = SparseQueue.add<InsertingItem>(options.dbIndex.inserting, {
+                    part = options.currentCanister;
+                    subDBKey = options.subDBKey;
+                });
+
                 await* startMovingSubDBIfOverflow({
                     dbOptions = options.dbOptions;
                     indexCanister = options.indexCanister;
@@ -368,6 +383,8 @@ module {
                     oldSuperDB = options.superDB;
                     oldSubDBKey = options.subDBKey
                 });
+
+                insertId;
             };
             case (null) {
                 Debug.trap("missing sub-DB");
@@ -375,8 +392,14 @@ module {
         };
     };
 
+    // FIXME: Inserting and creating sub-DBs can be locked by filling the buffer.
     public func finishInserting({index: IndexCanister; superDB: SuperDB; dbOptions: DBOptions}): async* (PartitionCanister, SubDBKey) {
-        await* finishMovingSubDB({index; superDB; dbOptions});
+        switch(await* finishMovingSubDB({index; superDB; dbOptions})) {
+            case (?(part, subDBKey)) { (part, subDBKey) };
+            case (null) {
+                // FIXME: dbIndex.inserting
+            }
+        }
     };
 
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
@@ -404,25 +427,16 @@ module {
 
     // It does not touch old items, so no locking.
     public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}): async* Nat {
-        if (StableRbTree.size(dbIndex.creatingSubDB) >= dbOptions.maxSubDBsInCreating) {
-            Debug.trap("queue full");
-        };
         if (StableBuffer.size(dbIndex.canisters) == 0) {
             Debug.trap("no partition canisters");
         };
-        let i = StableRbTree.iter(dbIndex.creatingSubDB, #bwd);
-        let key = switch (i.next()) {
-            case (?(n, _)) { n + 1 };
-            case (null) { 0 }; // FIXME: Does reusing indexes create race conditions?
-        };
-        dbIndex.creatingSubDB := StableRbTree.put<Nat, CreatingSubDB>(dbIndex.creatingSubDB, Nat.compare, key, {var canister = null});
-        key;
+        SparseQueue.add<CreatingSubDB>(dbIndex.creatingSubDB, {var canister = null});
     };
 
     public func finishCreatingSubDB({index: IndexCanister; dbIndex: DBIndex; dbOptions: DBOptions; creatingId: Nat})
         : async* (PartitionCanister, SubDBKey)
     {
-        switch (RBT.get(dbIndex.creatingSubDB, Nat.compare, creatingId)) {
+        switch (SparseQueue.get(dbIndex.creatingSubDB, creatingId)) {
             case (?creating) {
                 let part: PartitionCanister = switch (creating.canister) {
                     case (?part) { part };
@@ -447,7 +461,7 @@ module {
                                     part := await index.newCanister();
                                     creating.canister := ?part;
                                 } else {
-                                    dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
+                                    SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
                                     return (part, subDBKey);
                                 };
                                 part;
@@ -456,7 +470,7 @@ module {
                     };
                 };
                 let subDBKey = await part.rawInsertSubDB(RBT.init(), dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
-                dbIndex.creatingSubDB := RBT.delete(dbIndex.creatingSubDB, Nat.compare, creatingId);
+                SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
                 (part, subDBKey);
             };
             case (null) {
