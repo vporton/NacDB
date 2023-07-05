@@ -29,10 +29,6 @@ shared({caller}) actor class Partition() = this {
         Nac.rawInsertSubDB(superDB, RBT.init(), dbOptions);
     };
 
-    public shared func releaseSubDB(subDBKey: Nac.SubDBKey) : async () {
-        await* Nac.releaseSubDB(superDB, subDBKey);
-    };
-
     // Some data access methods //
 
     public query func get(options: {subDBKey: Nac.SubDBKey; sk: Nac.SK}) : async ?Nac.AttributeValue {
