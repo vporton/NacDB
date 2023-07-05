@@ -35,6 +35,8 @@ type MoveCap = { #numDBs: Nat; #usedMemory: Nat };
 
 ## Architecture: Details
 
+FIXME: Details below are outdated.
+
 You are recommended to copy (and possibly modify) code from
 `example/src/index/` and `example/src/partition/` to use this system.
 These folders contain source for the "index" (controller) canister and for
