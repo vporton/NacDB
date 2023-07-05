@@ -86,8 +86,12 @@ module {
         superDBSize: query () -> async Nat;
         releaseSubDB(subDBKey: SubDBKey) : async (); // FIXME
         deleteSubDB({subDBKey: SubDBKey}) : async ();
-        startInserting({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async ();
-        finishInserting(): async (PartitionCanister, SubDBKey);
+        startInserting({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async SparseQueue.SparseQueueKey;
+        finishInserting({
+            dbOptions : DBOptions;
+            index : IndexCanister;
+            insertId : SparseQueue.SparseQueueKey
+        }): async (PartitionCanister, SubDBKey);
         get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
     };
 

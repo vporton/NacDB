@@ -55,7 +55,7 @@ shared({caller}) actor class Partition() = this {
         Nac.subDBSize({superDB; subDBKey});
     };
 
-    public shared func startInserting({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue; insertId: SparseQueue.SparseQueueKey}) : async Nat {
+    public shared func startInserting({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue}) : async Nat {
         await* Nac.startInserting({
             dbOptions;
             indexCanister = index;
@@ -64,12 +64,11 @@ shared({caller}) actor class Partition() = this {
             subDBKey;
             sk;
             value;
-            insertId;
         })
     };
 
-    public shared func finishInserting(): async (Nac.PartitionCanister, Nac.SubDBKey) {
-        await* Nac.finishInserting({index; superDB; dbOptions});
+    public shared func finishInserting({index: Nac.IndexCanister; dbOptions: Nac.DBOptions; insertId: SparseQueue.SparseQueueKey}): async (Nac.PartitionCanister, Nac.SubDBKey) {
+        await* Nac.finishInserting({index; oldSuperDB = superDB; dbOptions; insertId});
     };
 
     public shared func delete({subDBKey: Nac.SubDBKey; sk: Nac.SK}) : async () {

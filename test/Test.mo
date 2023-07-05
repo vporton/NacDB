@@ -14,6 +14,10 @@ let skip = ActorSpec.skip;
 let pending = ActorSpec.pending;
 let run = ActorSpec.run;
 
+// TODO: Not good to duplicate in more than two places:
+let moveCap = #usedMemory 500_000;
+let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000; maxSubDBsInCreating = 15};
+
 func createCanisters() : async* {index: Index.Index} {
     let index = await Index.Index();
     await index.init(null); // TODO: `movingCallback`
@@ -48,7 +52,7 @@ let success = run([
                 let {index; part; subDBKey} = await* createSubDB();
                 let name = "Dummy";
                 let insertId = await part.startInserting({subDBKey = subDBKey; sk = "name"; value = #text name});
-                ignore await part.finishInserting(insertId);
+                ignore await part.finishInserting({dbOptions; index; insertId});
                 let name2 = await part.get({subDBKey; sk = "name"});
                 let has = await part.has({subDBKey; sk = "name"});
                 let has2 = await part.hasSubDB({subDBKey});
