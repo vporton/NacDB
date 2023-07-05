@@ -62,35 +62,39 @@ let success = run([
                     has2,
                 ]);
             }),
-            // it("insert/get miss", do {
-            //     let {index; part; subDBKey} = await* createSubDB();
-            //     let name = "Dummy";
-            //     await part.insert({subDBKey = subDBKey; sk = "name"; value = #text name});
-            //     let name2 = await part.get({subDBKey; sk = "namex"});
-            //     let has = await part.has({subDBKey; sk = "namex"});
-            //     ActorSpec.assertAllTrue([
-            //         name2 == null,
-            //         not has,
-            //     ]);
-            // }),
-            // it("hasSubDB miss", do {
-            //     let {index; part; subDBKey} = await* createSubDB();
-            //     let has2 = await part.has({subDBKey; sk = "name"});
-            //     ActorSpec.assertTrue(not has2);
-            // }),
-            // it("elements count", do {
-            //     let {index} = await* createCanisters();
-            //     let (part1, subDBKey1) = await* insertSubDB(index);
-            //     let (part2, subDBKey2) = await* insertSubDB(index);
-            //     let (part3, subDBKey3) = await* insertSubDB(index);
-            //     await part3.insert({subDBKey = subDBKey3; sk = "name"; value = #text "xxx"});
-            //     await part3.insert({subDBKey = subDBKey3; sk = "name"; value = #text "xxx"}); // duplicate name
-            //     await part3.insert({subDBKey = subDBKey3; sk = "name2"; value = #text "yyy"});
-            //     ActorSpec.assertAllTrue([
-            //         (await part3.subDBSize({subDBKey = subDBKey3})) == ?2,
-            //         (await part3.superDBSize()) == 3,
-            //     ]);
-            // }),
+            it("insert/get miss", do {
+                let {index; part; subDBKey} = await* createSubDB();
+                let name = "Dummy";
+                let insertId = await part.startInserting({subDBKey = subDBKey; sk = "name"; value = #text name});
+                ignore await part.finishInserting({dbOptions; index; insertId});
+                let name2 = await part.get({subDBKey; sk = "namex"});
+                let has = await part.has({subDBKey; sk = "namex"});
+                ActorSpec.assertAllTrue([
+                    name2 == null,
+                    not has,
+                ]);
+            }),
+            it("hasSubDB miss", do {
+                let {index; part; subDBKey} = await* createSubDB();
+                let has2 = await part.has({subDBKey; sk = "name"});
+                ActorSpec.assertTrue(not has2);
+            }),
+            it("elements count", do {
+                let {index} = await* createCanisters();
+                let (part1, subDBKey1) = await* insertSubDB(index);
+                let (part2, subDBKey2) = await* insertSubDB(index);
+                let (part3, subDBKey3) = await* insertSubDB(index);
+                let insertId1 = await part3.startInserting({subDBKey = subDBKey3; sk = "name"; value = #text "xxx"});
+                ignore await part3.finishInserting({dbOptions; index; insertId = insertId1});
+                let insertId2 = await part3.startInserting({subDBKey = subDBKey3; sk = "name"; value = #text "xxx"}); // duplicate name
+                ignore await part3.finishInserting({dbOptions; index; insertId = insertId2});
+                let insertId3 = await part3.startInserting({subDBKey = subDBKey3; sk = "name2"; value = #text "yyy"});
+                ignore await part3.finishInserting({dbOptions; index; insertId = insertId3});
+                ActorSpec.assertAllTrue([
+                    (await part3.subDBSize({subDBKey = subDBKey3})) == ?2,
+                    (await part3.superDBSize()) == 3,
+                ]);
+            }),
             // it("move to a new partition canister", do {
             //     var counter = 0;
             //     shared func movingCallback({
