@@ -33,8 +33,8 @@ actor {
         let ?index0 = index else {
           Debug.trap("no index canister")
         };
-        let insertId = await index0.startInsertingSubDB();
-        let location0 = await index0.finishInsertingSubDB(insertId);
+        let insertId = await index0.startCreatingSubDB({dbOptions : Nac.DBOptions});
+        let location0 = await index0.finishCreatingSubDB({dbOptions : Nac.DBOptions; creatingId = insertId; index = index0});
         location := ?location0;
         let (part, subDBKey) = location0;
         let insertId2 = await part.startInserting({dbOptions; subDBKey = subDBKey; sk = "name"; value = #text name});

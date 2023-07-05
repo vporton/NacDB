@@ -4,7 +4,7 @@ import Nac "../../../src/NacDB";
 import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
 import Nat "mo:base/Nat";
-import SparseQueue "../../../lib/SparseQueue"
+import SparseQueue "../../../lib/SparseQueue";
 
 shared({caller}) actor class Partition() = this {
     stable let index: Nac.IndexCanister = actor(Principal.toText(caller));

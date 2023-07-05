@@ -78,6 +78,9 @@ module {
             newCanister: PartitionCanister;
             newSubDBKey: SubDBKey;
         }) -> async ();
+        startCreatingSubDB: shared({dbOptions: DBOptions}) -> async Nat;
+        finishCreatingSubDB: shared({index: IndexCanister; dbOptions: DBOptions; creatingId: Nat})
+            -> async (PartitionCanister, SubDBKey);
     };
 
     public type PartitionCanister = actor {

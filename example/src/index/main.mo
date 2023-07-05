@@ -10,7 +10,7 @@ shared actor class Index() = this {
     let moveCap = #usedMemory 500_000;
     let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000; maxSubDBsInCreating = 15};
 
-    stable var index: Nac.DBIndex = Nac.createDBIndex({moveCap});
+    stable var dbIndex: Nac.DBIndex = Nac.createDBIndex({moveCap});
 
     stable var movingCallbackV: ?Nac.MovingCallback = null; // TODO: Rename.
 
@@ -27,11 +27,11 @@ shared actor class Index() = this {
         movingCallbackV := movingCallbackValue;
         Cycles.add(300_000_000_000); // TODO: duplicate line of code
         // TODO: `StableBuffer` is too low level.
-        StableBuffer.add(index.canisters, await Partition.Partition());
+        StableBuffer.add(dbIndex.canisters, await Partition.Partition());
     };
 
     public query func getCanisters(): async [Nac.PartitionCanister] {
-        StableBuffer.toArray(index.canisters);
+        StableBuffer.toArray(dbIndex.canisters);
     };
 
     public shared func newCanister(): async Nac.PartitionCanister {
@@ -39,24 +39,26 @@ shared actor class Index() = this {
         let canister = await Partition.Partition();
     };
 
-    public shared func startInsertingSubDB() : async Nat {
-        await* Nac.startCreatingSubDB({dbIndex = index; dbOptions});
+    public shared func startCreatingSubDB({dbOptions : Nac.DBOptions}) : async Nat {
+        await* Nac.startCreatingSubDB({dbIndex; dbOptions});
     };
 
-    public shared func finishInsertingSubDB(creatingId: Nat) : async (Nac.PartitionCanister, Nac.SubDBKey) {
+    public shared func finishCreatingSubDB({creatingId : Nat; dbOptions : Nac.DBOptions; index : Nac.IndexCanister})
+        : async (Nac.PartitionCanister, Nac.SubDBKey)
+    {
         // TODO: React on state update code here.
         let (part, subDBKey) = await* Nac.finishCreatingSubDB({
             creatingId;
             index = this;
-            dbIndex = index;
+            dbIndex;
             dbOptions;
         });
         (part, subDBKey);
     };
 
     // Intended for testing only.
-    public shared func startInsertingSubDBDetailed({hardCap: ?Nat}) : async Nat {
-        let creatingId = await* Nac.startCreatingSubDB({dbIndex = index; dbOptions = {
+    public shared func startCreatingSubDBDetailed({hardCap: ?Nat}) : async Nat {
+        let creatingId = await* Nac.startCreatingSubDB({dbIndex; dbOptions = {
             dbOptions;
             hardCap;
             moveCap;

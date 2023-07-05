@@ -4,6 +4,7 @@ import Nac "../src/NacDB";
 import Index "../example/src/index/main";
 import Partition "../example/src/partition/main";
 import Principal "mo:base/Principal";
+import SparseQueue "../lib/SparseQueue";
 
 type Group = ActorSpec.Group;
 
@@ -25,8 +26,8 @@ func createCanisters() : async* {index: Index.Index} {
 };
 
 func insertSubDB(index: Index.Index) : async* (Partition.Partition, Nac.SubDBKey) {
-    let insertId = await index.startInsertingSubDB();
-    let (part, subDBKey) = await index.finishInsertingSubDB(insertId);
+    let insertId = await index.startCreatingSubDB({dbOptions});
+    let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId});
     (
         actor(Principal.toText(Principal.fromActor(part))),
         subDBKey,
@@ -36,8 +37,8 @@ func insertSubDB(index: Index.Index) : async* (Partition.Partition, Nac.SubDBKey
 func createSubDB() : async* {index: Index.Index; part: Partition.Partition; subDBKey: Nac.SubDBKey}
 {
     let {index} = await* createCanisters();
-    let insertId = await index.startInsertingSubDB();
-    let (part, subDBKey) = await index.finishInsertingSubDB(insertId);
+    let insertId = await index.startCreatingSubDB({dbOptions});
+    let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId});
     {
         index = actor(Principal.toText(Principal.fromActor(index)));
         part = actor(Principal.toText(Principal.fromActor(part)));
@@ -95,24 +96,27 @@ let success = run([
                     (await part3.superDBSize()) == 3,
                 ]);
             }),
-            // it("move to a new partition canister", do {
-            //     var counter = 0;
-            //     shared func movingCallback({
-            //         oldCanister: Nac.PartitionCanister;
-            //         oldSubDBKey: Nac.SubDBKey;
-            //         newCanister: Nac.PartitionCanister;
-            //         newSubDBKey: Nac.SubDBKey;
-            //     }) : async () {
-            //         counter += 1;
-            //     };
-            //     let index = await Index.Index();
-            //     await index.init(?movingCallback);
-            //     let (partx1, subDBKey1) = await index.insertSubDBDetailed({hardCap = ?2});
-            //     let (partx2, subDBKey2) = await index.insertSubDBDetailed({hardCap = ?2});
-            //     let (partx3, subDBKey3) = await index.insertSubDBDetailed({hardCap = ?2});
+            it("move to a new partition canister", do {
+                var counter = 0;
+                shared func movingCallback({
+                    oldCanister: Nac.PartitionCanister;
+                    oldSubDBKey: Nac.SubDBKey;
+                    newCanister: Nac.PartitionCanister;
+                    newSubDBKey: Nac.SubDBKey;
+                }) : async () {
+                    counter += 1;
+                };
+                let index = await Index.Index();
+                await index.init(?movingCallback);
+                let insertId1 = await index.startCreatingSubDBDetailed({hardCap = ?2});
+                ignore await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId1});
+                let insertId2 = await index.startCreatingSubDBDetailed({hardCap = ?2});
+                ignore await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId2});
+                let insertId3 = await index.startCreatingSubDBDetailed({hardCap = ?2});
+                ignore await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId3});
 
-            //     ActorSpec.assertAllTrue([counter == 1]);
-            // }),
+                ActorSpec.assertAllTrue([counter == 1]);
+            }),
         ]),
     ]),
 ]);
