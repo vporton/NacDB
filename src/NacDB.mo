@@ -5,6 +5,7 @@ import RBT "mo:stable-rbtree/StableRBTree";
 import StableBuffer "mo:stable-buffer/StableBuffer";
 import Text "mo:base/Text";
 import Nat "mo:base/Nat";
+import Int "mo:base/Int";
 import Prim "mo:⛔";
 import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
@@ -438,7 +439,7 @@ module {
                     case (null) {
                         switch (dbOptions.moveCap) {
                             case (#numDBs n) {
-                                let part = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
+                                let part = StableBuffer.get(dbIndex.canisters, Int.abs(+StableBuffer.size(dbIndex.canisters) - 1));
                                 if ((await part.superDBSize()) >= n) {
                                     await index.newCanister();
                                 } else {
@@ -446,7 +447,7 @@ module {
                                 };
                             };
                             case (#usedMemory m) {
-                                var part = StableBuffer.get(dbIndex.canisters, StableBuffer.size(dbIndex.canisters) - 1);
+                                var part = StableBuffer.get(dbIndex.canisters, Int.abs(+StableBuffer.size(dbIndex.canisters) - 1));
                                 // Trial creation...
                                 let subDBKey = await part.rawInsertSubDB(RBT.init(), dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                                 creating.canister := ?part;
