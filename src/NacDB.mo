@@ -77,7 +77,7 @@ module {
             oldSubDBKey: SubDBKey;
             newCanister: PartitionCanister;
             newSubDBKey: SubDBKey;
-        }) -> async ()
+        }) -> async ();
     };
 
     public type PartitionCanister = actor {
