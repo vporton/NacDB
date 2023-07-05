@@ -17,7 +17,7 @@ let run = ActorSpec.run;
 
 // TODO: Not good to duplicate in more than two places:
 let moveCap = #usedMemory 500_000;
-let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000; maxSubDBsInCreating = 15};
+let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000};
 
 func createCanisters() : async* {index: Index.Index} {
     let index = await Index.Index();
