@@ -31,7 +31,6 @@ module {
 
     public type SubDB = {
         var data: RBT.Tree<SK, AttributeValue>;
-        hardCap: ?Nat; // Remove "looser" items (with least key values) after reaching this count.
         var busy: Bool; // Forbid to move this entry to other canister.
                         // During the move it is true. Deletion in old canister and setting it to false happen in the same atomic action,
                         // so moving is also protected by this flag.
@@ -280,8 +279,8 @@ module {
         };
     };
 
-    func removeLoosers(subDB: SubDB) {
-        switch (subDB.hardCap) {
+    func removeLoosers({subDB: SubDB; dbOptions: DBOptions}) {
+        switch (dbOptions.hardCap) {
             case (?hardCap) {
                 while (RBT.size(subDB.data) > hardCap) {
                     let iter = RBT.entries(subDB.data);
@@ -357,7 +356,7 @@ module {
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
                 subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
-                removeLoosers(subDB);
+                removeLoosers({subDB; dbOptions = options.dbOptions});
 
                 let insertId = SparseQueue.add<InsertingItem>(options.superDB.inserting, {
                     part = options.currentCanister;
