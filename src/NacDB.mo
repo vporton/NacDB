@@ -84,7 +84,6 @@ module {
         rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
         isOverflowed({dbOptions: DBOptions}) : async Bool;
         superDBSize: query () -> async Nat;
-        releaseSubDB(subDBKey: SubDBKey) : async (); // FIXME
         deleteSubDB({subDBKey: SubDBKey}) : async ();
         startInserting({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async SparseQueue.SparseQueueKey;
         finishInserting({dbOptions : DBOptions; index : IndexCanister; insertId : SparseQueue.SparseQueueKey})
@@ -142,15 +141,6 @@ module {
 
     public func getSubDB(superDB: SuperDB, subDBKey: SubDBKey) : ?SubDB {
         BTree.get(superDB.subDBs, Nat.compare, subDBKey);
-    };
-
-    public func releaseSubDB(superDB: SuperDB, subDBKey: SubDBKey) : async* () {
-        switch (getSubDB(superDB, subDBKey)) {
-            case (?item2) {
-                item2.busy := false;
-            };
-            case (null) {};
-        };
     };
 
     /// Moves to the specified `newCanister` or to a newly allocated canister, if null.
