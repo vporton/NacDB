@@ -5,7 +5,7 @@ import StableBuffer "mo:stable-buffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 
-shared actor class Index(moveCapArg: ?Nac.MoveCap, hardCapArg: ?Nat) = this {
+shared actor class Index(moveCapArg: ?Nac.MoveCap, hardCapArg: ?Nat) = this { // TODO: Use `DBOptions` here.
     // TODO: Not good to duplicate in more than two places:
     let moveCap = switch(moveCapArg) {
         case (?c) { c };
