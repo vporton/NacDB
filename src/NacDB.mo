@@ -257,7 +257,7 @@ module {
         options: {indexCanister: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey;
             dbOptions: DBOptions}): async* ()
     {
-        if (await options.oldCanister.isOverflowed({dbOptions = options.dbOptions})) { // TODO: Remove `moveCap`
+        if (await options.oldCanister.isOverflowed({dbOptions = options.dbOptions})) {
             await* startMovingSubDB({
                 dbOptions = options.dbOptions;
                 index = options.indexCanister;
@@ -363,6 +363,7 @@ module {
                     subDBKey = options.subDBKey;
                 });
 
+                // TODO: Check only in the case of memory cap, not number of DBs cap:
                 await* startMovingSubDBIfOverflow({
                     dbOptions = options.dbOptions;
                     indexCanister = options.indexCanister;

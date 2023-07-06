@@ -4,6 +4,7 @@ import Nac "../src/NacDB";
 import Index "../example/src/index/main";
 import Partition "../example/src/partition/main";
 import Principal "mo:base/Principal";
+import Array "mo:base/Array";
 import SparseQueue "../lib/SparseQueue";
 
 type Group = ActorSpec.Group;
@@ -121,6 +122,39 @@ let success = run([
                 ActorSpec.assertAllTrue([
                     counter == 0, // no item was moved
                     part == (await index.getCanisters())[1]
+                ]);
+            }),
+            it("move overflowed DB", do {
+                var counter = 0;
+                shared func movingCallback({
+                    oldCanister: Nac.PartitionCanister;
+                    oldSubDBKey: Nac.SubDBKey;
+                    newCanister: Nac.PartitionCanister;
+                    newSubDBKey: Nac.SubDBKey;
+                }) : async () {
+                    counter += 1;
+                };
+                let index = await Index.Index(?(#usedMemory 50000));
+                await index.init(?movingCallback);
+                var address: ?(Nac.PartitionCanister, Nac.SubDBKey) = null;
+                label cycle loop {
+                    let creatingId = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback; hardCap = ?1000});
+                    address := ?(await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId}));
+                    let ?(part, subDBKey) = address else {
+                        Debug.trap("can't destructure address");
+                    };
+                    let canisters = await index.getCanisters();
+                    if (Array.size(canisters) == 2 and part == canisters[1]) {
+                        break cycle;
+                    };
+                };
+
+                let ?(part, subDBKey) = address else {
+                    Debug.trap("can't destructure address");
+                };
+                ActorSpec.assertAllTrue([
+                    counter == 1,
+                    part == (await index.getCanisters())[1],
                 ]);
             }),
         ]),
