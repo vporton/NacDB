@@ -99,7 +99,7 @@ let success = run([
                     (await part3.superDBSize()) == 3,
                 ]);
             }),
-            it("move to a new partition canister", do {
+            it("create a new partition canister", do {
                 var counter = 0;
                 shared func movingCallback({
                     oldCanister: Nac.PartitionCanister;
