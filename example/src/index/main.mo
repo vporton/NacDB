@@ -5,7 +5,7 @@ import StableBuffer "mo:stable-buffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 
-shared actor class Index(dbOptions: Nac.DBOptions) = this { // TODO: Use `DBOptions` here.
+shared actor class Index(dbOptions: Nac.DBOptions) = this {
     stable var dbIndex: Nac.DBIndex = Nac.createDBIndex(dbOptions);
 
     stable var movingCallbackV: ?Nac.MovingCallback = null; // TODO: Rename.

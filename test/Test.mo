@@ -31,7 +31,6 @@ actor MyTest {
     }
 };
 
-// TODO: Not good to duplicate in more than two places:
 let dbOptions = {moveCap = #usedMemory 500_000; movingCallback = null; hardCap = ?1000};
 
 func createCanisters() : async* {index: Index.Index} {
