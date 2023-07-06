@@ -23,7 +23,7 @@ actor {
 
     public shared func init() : async () {
         Cycles.add(700_000_000_000);
-        let index0 = await Index.Index();
+        let index0 = await Index.Index(dbOptions);
         index := ?index0;
         await index0.init();
     };

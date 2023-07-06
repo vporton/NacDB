@@ -173,6 +173,30 @@ let success = run([
                     await part.has({subDBKey; sk = "C"}),
                 ]);
             }),
+            it("iters", do {
+                let {index} = await* createCanisters();
+                let (part, subDBKey) = await* insertSubDB(index);
+                let insertId1 = await part.startInserting({subDBKey = subDBKey; sk = "A"; value = #text "xxx"});
+                ignore await part.finishInserting({dbOptions; index; insertId = insertId1});
+                let insertId2 = await part.startInserting({subDBKey = subDBKey; sk = "B"; value = #text "yyy"}); // duplicate name
+                ignore await part.finishInserting({dbOptions; index; insertId = insertId2});
+
+                let scan1 = await part.scanLimit({subDBKey; lowerBound = ""; upperBound = "z"; dir = #fwd; limit = 2});
+                let scan2 = await part.scanLimit({subDBKey; lowerBound = ""; upperBound = "z"; dir = #fwd; limit = 3}); // limit above length
+                let scan3 = await part.scanLimit({subDBKey; lowerBound = ""; upperBound = "z"; dir = #fwd; limit = 1}); // partial
+                let ?nextKey = scan3.nextKey else {
+                    Debug.trap("no next key");
+                };
+                let scan4 = await part.scanLimit({subDBKey; lowerBound = nextKey; upperBound = "z"; dir = #fwd; limit = 1});
+                let scan5 = await part.scanLimit({subDBKey; lowerBound = ""; upperBound = "z"; dir = #bwd; limit = 2});
+
+                ActorSpec.assertAllTrue([
+                    scan1.results == [("A", #text "xxx"), ("B", #text "yyy")],
+                    scan2.results == [("A", #text "xxx"), ("B", #text "yyy")],
+                    scan4.results == [("B", #text "yyy")],
+                    scan5.results == [("B", #text "yyy"), ("A", #text "xxx")],
+                ]);
+            }),
         ]),
     ]),
 ]);
