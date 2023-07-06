@@ -35,7 +35,7 @@ let dbOptions = {moveCap = #usedMemory 500_000; movingCallback = null; hardCap =
 
 func createCanisters() : async* {index: Index.Index} {
     let index = await Index.Index(dbOptions);
-    await index.init(); // TODO: `movingCallback`
+    await index.init();
     {index};
 };
 
