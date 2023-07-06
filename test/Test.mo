@@ -168,7 +168,7 @@ let success = run([
                 ignore await part.finishInserting({dbOptions; index; insertId = insertId3});
 
                 ActorSpec.assertAllTrue([
-                    not (await part.has({subDBKey; sk = "A"})), // FIXME
+                    not (await part.has({subDBKey; sk = "A"})),
                     await part.has({subDBKey; sk = "B"}),
                     await part.has({subDBKey; sk = "C"}),
                 ]);

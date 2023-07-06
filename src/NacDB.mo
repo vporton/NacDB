@@ -14,8 +14,6 @@ import Deque "mo:base/Deque";
 import Iter "mo:base/Iter";
 import SparseQueue "../lib/SparseQueue";
 
-// FIXME: After `newCanister()` I don't add the canister to the list of canisters.
-
 module {
     public type SubDBKey = Nat;
 
@@ -249,7 +247,6 @@ module {
                 BTree.size(superDB.subDBs) > num;
             };
             case (#usedMemory mem) {
-                Debug.print(debug_show(Prim.rts_heap_size())); // FIXME: Remove.
                 Prim.rts_heap_size() > mem; // current canister
             };
         };
