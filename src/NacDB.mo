@@ -281,7 +281,6 @@ module {
     func removeLoosers({subDB: SubDB; dbOptions: DBOptions}) {
         switch (dbOptions.hardCap) {
             case (?hardCap) {
-                Debug.print(debug_show([RBT.size(subDB.data), hardCap]));
                 while (RBT.size(subDB.data) > hardCap) {
                     let iter = RBT.entries(subDB.data);
                     switch (iter.next()) {
