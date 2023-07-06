@@ -16,6 +16,21 @@ let skip = ActorSpec.skip;
 let pending = ActorSpec.pending;
 let run = ActorSpec.run;
 
+actor MyTest {
+    var counter = 0;
+    public shared func movingCallback({
+        oldCanister: Nac.PartitionCanister;
+        oldSubDBKey: Nac.SubDBKey;
+        newCanister: Nac.PartitionCanister;
+        newSubDBKey: Nac.SubDBKey;
+    }) : async () {
+        counter += 1;
+    };
+    public shared func getCounter(): async Nat {
+        counter;
+    }
+};
+
 // TODO: Not good to duplicate in more than two places:
 let moveCap = #usedMemory 500_000;
 let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000};
@@ -24,7 +39,7 @@ let moveCap2 = #numDBs 2;
 let dbOptions2 = {moveCap = moveCap2; movingCallback = null; hardCap = ?1000};
 
 func createCanisters() : async* {index: Index.Index} {
-    let index = await Index.Index(null);
+    let index = await Index.Index(null, ?1000);
     await index.init(null); // TODO: `movingCallback`
     {index};
 };
@@ -101,60 +116,64 @@ let success = run([
                 ]);
             }),
             it("create a new partition canister", do {
-                var counter = 0;
-                shared func movingCallback({
-                    oldCanister: Nac.PartitionCanister;
-                    oldSubDBKey: Nac.SubDBKey;
-                    newCanister: Nac.PartitionCanister;
-                    newSubDBKey: Nac.SubDBKey;
-                }) : async () {
-                    counter += 1;
-                };
-                let index = await Index.Index(?(#numDBs 2));
-                await index.init(?movingCallback);
-                let insertId1 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback; hardCap = ?1000});
+                let index = await Index.Index(?(#numDBs 2), ?1000);
+                await index.init(?MyTest.movingCallback);
+                let insertId1 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?1000});
                 ignore await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId1});
-                let insertId2 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback; hardCap = ?1000});
+                let insertId2 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?1000});
                 ignore await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId2});
-                let insertId3 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback; hardCap = ?1000});
+                let insertId3 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?1000});
                 let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId3});
 
                 ActorSpec.assertAllTrue([
-                    counter == 0, // no item was moved
+                    (await MyTest.getCounter()) == 0, // no item was moved
                     part == (await index.getCanisters())[1]
                 ]);
             }),
-            it("move overflowed DB", do {
-                var counter = 0;
-                shared func movingCallback({
-                    oldCanister: Nac.PartitionCanister;
-                    oldSubDBKey: Nac.SubDBKey;
-                    newCanister: Nac.PartitionCanister;
-                    newSubDBKey: Nac.SubDBKey;
-                }) : async () {
-                    counter += 1;
-                };
-                let index = await Index.Index(?(#usedMemory 50000));
-                await index.init(?movingCallback);
-                var address: ?(Nac.PartitionCanister, Nac.SubDBKey) = null;
-                label cycle loop {
-                    let creatingId = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback; hardCap = ?1000});
-                    address := ?(await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId}));
-                    let ?(part, subDBKey) = address else {
-                        Debug.trap("can't destructure address");
-                    };
-                    let canisters = await index.getCanisters();
-                    if (Array.size(canisters) == 2 and part == canisters[1]) {
-                        break cycle;
-                    };
-                };
+            // Cannot test it because without DFX Prim.rts_heap_size() is always zero. Will test it during stress testing.
+            // it("move overflowed DB", do {
+            //     let index = await Index.Index(?(#usedMemory 50000));
+            //     await index.init(?MyTest.movingCallback);
+            //     var address: ?(Nac.PartitionCanister, Nac.SubDBKey) = null;
+            //     let creatingId = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?1000});
+            //     address := ?(await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId}));
+            //     label cycle loop {
+            //         let ?(part, subDBKey) = address else {
+            //             Debug.trap("can't destructure address");
+            //         };
+            //         let canisters = await index.getCanisters();
+            //         Debug.print(debug_show(Array.size(canisters)));
+            //         if (Array.size(canisters) == 2) {
+            //             break cycle;
+            //         };
+            //     };
 
-                let ?(part, subDBKey) = address else {
-                    Debug.trap("can't destructure address");
-                };
+            //     let ?(part, subDBKey) = address else {
+            //         Debug.trap("can't destructure address");
+            //     };
+            //     let canisters = await index.getCanisters();
+            //     ActorSpec.assertAllTrue([
+            //         part == canisters[1],
+            //         (await MyTest.getCounter()) == 1,
+            //         part == (await index.getCanisters())[1],
+            //     ]);
+            // }),
+            it("remove loosers", do {
+                let index = await Index.Index(?(#usedMemory 500_000), ?2);
+                await index.init(null);
+                let creatingId = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?2});
+                let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions = {moveCap; movingCallback = null; hardCap = ?2}; index; creatingId});
+                let insertId1 = await part.startInserting({subDBKey; sk = "A"; value = #text "xxx"});
+                ignore await part.finishInserting({dbOptions; index; insertId = insertId1});
+                let insertId2 = await part.startInserting({subDBKey; sk = "B"; value = #text "xxx"});
+                ignore await part.finishInserting({dbOptions; index; insertId = insertId2});
+                let insertId3 = await part.startInserting({subDBKey; sk = "C"; value = #text "xxx"});
+                ignore await part.finishInserting({dbOptions; index; insertId = insertId3});
+
                 ActorSpec.assertAllTrue([
-                    counter == 1,
-                    part == (await index.getCanisters())[1],
+                    not (await part.has({subDBKey; sk = "A"})), // FIXME
+                    await part.has({subDBKey; sk = "B"}),
+                    await part.has({subDBKey; sk = "C"}),
                 ]);
             }),
         ]),

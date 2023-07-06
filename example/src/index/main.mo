@@ -5,13 +5,13 @@ import StableBuffer "mo:stable-buffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 
-shared actor class Index(moveCapArg: ?Nac.MoveCap) = this {
+shared actor class Index(moveCapArg: ?Nac.MoveCap, hardCapArg: ?Nat) = this {
     // TODO: Not good to duplicate in more than two places:
     let moveCap = switch(moveCapArg) {
         case (?c) { c };
         case (null) { #usedMemory 500_000 };
     };
-    let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000};
+    let dbOptions = {moveCap; movingCallback = null; hardCap = hardCapArg};
 
     stable var dbIndex: Nac.DBIndex = Nac.createDBIndex({moveCap});
 
@@ -30,7 +30,7 @@ shared actor class Index(moveCapArg: ?Nac.MoveCap) = this {
         movingCallbackV := movingCallbackValue;
         Cycles.add(300_000_000_000); // TODO: duplicate line of code
         // TODO: `StableBuffer` is too low level.
-        StableBuffer.add(dbIndex.canisters, await Partition.Partition());
+        StableBuffer.add(dbIndex.canisters, await Partition.Partition(dbOptions));
     };
 
     public query func getCanisters(): async [Nac.PartitionCanister] {
@@ -39,7 +39,7 @@ shared actor class Index(moveCapArg: ?Nac.MoveCap) = this {
 
     public shared func newCanister(): async Nac.PartitionCanister {
         Cycles.add(300_000_000_000); // TODO: duplicate line of code
-        let canister = await Partition.Partition();
+        let canister = await Partition.Partition(dbOptions);
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
         canister;
     };

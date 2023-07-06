@@ -94,6 +94,7 @@ module {
         finishInserting({dbOptions : DBOptions; index : IndexCanister; insertId : SparseQueue.SparseQueueKey})
             : async (PartitionCanister, SubDBKey);
         get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
+        has: query (options: {subDBKey: SubDBKey; sk: SK}) -> async Bool;
     };
 
     public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
@@ -248,6 +249,7 @@ module {
                 BTree.size(superDB.subDBs) > num;
             };
             case (#usedMemory mem) {
+                Debug.print(debug_show(Prim.rts_heap_size())); // FIXME: Remove.
                 Prim.rts_heap_size() > mem; // current canister
             };
         };
@@ -282,6 +284,7 @@ module {
     func removeLoosers({subDB: SubDB; dbOptions: DBOptions}) {
         switch (dbOptions.hardCap) {
             case (?hardCap) {
+                Debug.print(debug_show([RBT.size(subDB.data), hardCap]));
                 while (RBT.size(subDB.data) > hardCap) {
                     let iter = RBT.entries(subDB.data);
                     switch (iter.next()) {

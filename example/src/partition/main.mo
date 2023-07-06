@@ -6,12 +6,10 @@ import Bool "mo:base/Bool";
 import Nat "mo:base/Nat";
 import SparseQueue "../../../lib/SparseQueue";
 
-shared({caller}) actor class Partition() = this {
+shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
     stable let index: Nac.IndexCanister = actor(Principal.toText(caller));
 
-    // TODO: Not good to duplicate in two places:
-    let moveCap = #usedMemory 500_000;
-    let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000; maxSubDBsInCreating = 15};
+    // let dbOptions = dbOptions;
 
     stable let superDB = Nac.createSuperDB();
 
