@@ -19,7 +19,6 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
 
     stable var initialized = false;
 
-    // FIXME: Allow to call it only once.
     public shared func init() : async () {
         if (initialized) {
             Debug.trap("already initialized");
