@@ -8,19 +8,16 @@ import Debug "mo:base/Debug";
 shared actor class Index(dbOptions: Nac.DBOptions) = this {
     stable var dbIndex: Nac.DBIndex = Nac.createDBIndex(dbOptions);
 
-    stable var movingCallbackV: ?Nac.MovingCallback = null; // TODO: Rename.
-
     public shared func movingCallback({
         newCanister : Nac.PartitionCanister;
         newSubDBKey : Nac.SubDBKey;
         oldCanister : Nac.PartitionCanister;
         oldSubDBKey : Nac.SubDBKey
     }): async () {
-        ignore do ? { await movingCallbackV!({newCanister; newSubDBKey; oldCanister; oldSubDBKey}); };
+        ignore do ? { await dbOptions.movingCallback!({newCanister; newSubDBKey; oldCanister; oldSubDBKey}); };
     };
 
-    public shared func init(movingCallbackValue: ?Nac.MovingCallback) : async () {
-        movingCallbackV := movingCallbackValue;
+    public shared func init() : async () {
         Cycles.add(300_000_000_000); // TODO: duplicate line of code
         // TODO: `StableBuffer` is too low level.
         StableBuffer.add(dbIndex.canisters, await Partition.Partition(dbOptions));

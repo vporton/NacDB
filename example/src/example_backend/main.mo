@@ -25,7 +25,7 @@ actor {
         Cycles.add(700_000_000_000);
         let index0 = await Index.Index();
         index := ?index0;
-        await index0.init(?movingCallback);
+        await index0.init();
     };
 
     public shared func greet(name : Text) : async Text {

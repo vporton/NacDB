@@ -35,7 +35,7 @@ let dbOptions = {moveCap = #usedMemory 500_000; movingCallback = null; hardCap =
 
 func createCanisters() : async* {index: Index.Index} {
     let index = await Index.Index(dbOptions);
-    await index.init(null); // TODO: `movingCallback`
+    await index.init(); // TODO: `movingCallback`
     {index};
 };
 
@@ -113,7 +113,7 @@ let success = run([
             it("create a new partition canister", do {
                 let dbOptions2 = {moveCap = #numDBs 2; movingCallback = null; hardCap = ?1000};
                 let index = await Index.Index(dbOptions2);
-                await index.init(?MyTest.movingCallback);
+                await index.init();
                 let insertId1 = await index.startCreatingSubDB({dbOptions = dbOptions2});
                 ignore await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId1});
                 let insertId2 = await index.startCreatingSubDB({dbOptions = dbOptions2});
@@ -129,7 +129,7 @@ let success = run([
             // Cannot test it because without DFX Prim.rts_heap_size() is always zero. Will test it during stress testing.
             // it("move overflowed DB", do {
             //     let index = await Index.Index(?(#usedMemory 50000));
-            //     await index.init(?MyTest.movingCallback);
+            //     await index.init();
             //     var address: ?(Nac.PartitionCanister, Nac.SubDBKey) = null;
             //     let creatingId = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?1000});
             //     address := ?(await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId}));
@@ -157,7 +157,7 @@ let success = run([
             it("remove loosers", do {
                 let dbOptions2 = {moveCap = #numDBs 2; movingCallback = ?MyTest.movingCallback; hardCap = ?2};
                 let index = await Index.Index(dbOptions2);
-                await index.init(null);
+                await index.init();
                 let creatingId = await index.startCreatingSubDB({dbOptions = dbOptions2});
                 let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId});
                 let insertId1 = await part.startInserting({subDBKey; sk = "A"; value = #text "xxx"});
