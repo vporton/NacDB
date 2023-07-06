@@ -17,10 +17,17 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
         ignore do ? { await dbOptions.movingCallback!({newCanister; newSubDBKey; oldCanister; oldSubDBKey}); };
     };
 
+    stable var initialized = false;
+
+    // FIXME: Allow to call it only once.
     public shared func init() : async () {
+        if (initialized) {
+            Debug.trap("already initialized");
+        };
         Cycles.add(300_000_000_000); // TODO: duplicate line of code
         // TODO: `StableBuffer` is too low level.
         StableBuffer.add(dbIndex.canisters, await Partition.Partition(dbOptions));
+        initialized := true;
     };
 
     public query func getCanisters(): async [Nac.PartitionCanister] {
