@@ -5,9 +5,8 @@ import Partition "../partition/main";
 import Debug "mo:base/Debug";
 
 actor {
-    // TODO: Not good to duplicate in more than two places:
     let moveCap = #usedMemory 500_000;
-    let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000; maxSubDBsInCreating = 15};
+    let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000};
 
     stable var index : ?Index.Index = null;
     stable var location: ?(Nac.PartitionCanister, Nac.SubDBKey) = null;

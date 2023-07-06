@@ -5,15 +5,8 @@ import StableBuffer "mo:stable-buffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 
-shared actor class Index(moveCapArg: ?Nac.MoveCap, hardCapArg: ?Nat) = this { // TODO: Use `DBOptions` here.
-    // TODO: Not good to duplicate in more than two places:
-    let moveCap = switch(moveCapArg) {
-        case (?c) { c };
-        case (null) { #usedMemory 500_000 };
-    };
-    let dbOptions = {moveCap; movingCallback = null; hardCap = hardCapArg};
-
-    stable var dbIndex: Nac.DBIndex = Nac.createDBIndex({moveCap});
+shared actor class Index(dbOptions: Nac.DBOptions) = this { // TODO: Use `DBOptions` here.
+    stable var dbIndex: Nac.DBIndex = Nac.createDBIndex(dbOptions);
 
     stable var movingCallbackV: ?Nac.MovingCallback = null; // TODO: Rename.
 
@@ -59,16 +52,5 @@ shared actor class Index(moveCapArg: ?Nac.MoveCap, hardCapArg: ?Nat) = this { //
             dbOptions;
         });
         (part, subDBKey);
-    };
-
-    // Intended for testing only.
-    public shared func startCreatingSubDBDetailed({hardCap: ?Nat}) : async Nat {
-        let creatingId = await* Nac.startCreatingSubDB({dbIndex; dbOptions = {
-            dbOptions;
-            hardCap;
-            moveCap;
-            movingCallback = ?movingCallback;
-            maxSubDBsInCreating = 15;
-        }});
     };
 }

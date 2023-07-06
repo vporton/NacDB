@@ -32,14 +32,10 @@ actor MyTest {
 };
 
 // TODO: Not good to duplicate in more than two places:
-let moveCap = #usedMemory 500_000;
-let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000};
-
-let moveCap2 = #numDBs 2;
-let dbOptions2 = {moveCap = moveCap2; movingCallback = null; hardCap = ?1000};
+let dbOptions = {moveCap = #usedMemory 500_000; movingCallback = null; hardCap = ?1000};
 
 func createCanisters() : async* {index: Index.Index} {
-    let index = await Index.Index(null, ?1000);
+    let index = await Index.Index(dbOptions);
     await index.init(null); // TODO: `movingCallback`
     {index};
 };
@@ -116,13 +112,14 @@ let success = run([
                 ]);
             }),
             it("create a new partition canister", do {
-                let index = await Index.Index(?(#numDBs 2), ?1000);
+                let dbOptions2 = {moveCap = #numDBs 2; movingCallback = null; hardCap = ?1000};
+                let index = await Index.Index(dbOptions2);
                 await index.init(?MyTest.movingCallback);
-                let insertId1 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?1000});
+                let insertId1 = await index.startCreatingSubDB({dbOptions = dbOptions2});
                 ignore await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId1});
-                let insertId2 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?1000});
+                let insertId2 = await index.startCreatingSubDB({dbOptions = dbOptions2});
                 ignore await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId2});
-                let insertId3 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?1000});
+                let insertId3 = await index.startCreatingSubDB({dbOptions = dbOptions2});
                 let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId3});
 
                 ActorSpec.assertAllTrue([
@@ -159,10 +156,11 @@ let success = run([
             //     ]);
             // }),
             it("remove loosers", do {
-                let index = await Index.Index(?(#usedMemory 500_000), ?2);
+                let dbOptions2 = {moveCap = #numDBs 2; movingCallback = ?MyTest.movingCallback; hardCap = ?2};
+                let index = await Index.Index(dbOptions2);
                 await index.init(null);
-                let creatingId = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback = MyTest.movingCallback; hardCap = ?2});
-                let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions = {moveCap; movingCallback = null; hardCap = ?2}; index; creatingId});
+                let creatingId = await index.startCreatingSubDB({dbOptions = dbOptions2});
+                let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId});
                 let insertId1 = await part.startInserting({subDBKey; sk = "A"; value = #text "xxx"});
                 ignore await part.finishInserting({dbOptions; index; insertId = insertId1});
                 let insertId2 = await part.startInserting({subDBKey; sk = "B"; value = #text "xxx"});
