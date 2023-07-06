@@ -19,15 +19,18 @@ let run = ActorSpec.run;
 let moveCap = #usedMemory 500_000;
 let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000};
 
+let moveCap2 = #numDBs 2;
+let dbOptions2 = {moveCap = moveCap2; movingCallback = null; hardCap = ?1000};
+
 func createCanisters() : async* {index: Index.Index} {
-    let index = await Index.Index();
+    let index = await Index.Index(null);
     await index.init(null); // TODO: `movingCallback`
     {index};
 };
 
 func insertSubDB(index: Index.Index) : async* (Partition.Partition, Nac.SubDBKey) {
-    let insertId = await index.startCreatingSubDB({dbOptions});
-    let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId});
+    let creatingId = await index.startCreatingSubDB({dbOptions});
+    let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions; index; creatingId});
     (
         actor(Principal.toText(Principal.fromActor(part))),
         subDBKey,
@@ -106,16 +109,19 @@ let success = run([
                 }) : async () {
                     counter += 1;
                 };
-                let index = await Index.Index();
+                let index = await Index.Index(?(#numDBs 2));
                 await index.init(?movingCallback);
-                let insertId1 = await index.startCreatingSubDBDetailed({hardCap = ?2});
-                ignore await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId1});
-                let insertId2 = await index.startCreatingSubDBDetailed({hardCap = ?2});
-                ignore await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId2});
-                let insertId3 = await index.startCreatingSubDBDetailed({hardCap = ?2});
-                ignore await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId3});
+                let insertId1 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback; hardCap = ?1000});
+                ignore await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId1});
+                let insertId2 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback; hardCap = ?1000});
+                ignore await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId2});
+                let insertId3 = await index.startCreatingSubDBDetailed({moveCap = #numDBs 2; movingCallback; hardCap = ?1000});
+                let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId3});
 
-                ActorSpec.assertAllTrue([counter == 1]);
+                ActorSpec.assertAllTrue([
+                    counter == 0, // no item was moved
+                    part == (await index.getCanisters())[1]
+                ]);
             }),
         ]),
     ]),

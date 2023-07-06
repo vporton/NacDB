@@ -14,6 +14,8 @@ import Deque "mo:base/Deque";
 import Iter "mo:base/Iter";
 import SparseQueue "../lib/SparseQueue";
 
+// FIXME: After `newCanister()` I don't add the canister to the list of canisters.
+
 module {
     public type SubDBKey = Nat;
 
@@ -171,9 +173,6 @@ module {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
                     case (?subDB) {
-                        if (subDB.busy) {
-                            Debug.trap("sub-DB is busy");
-                        };
                         let (canister, newCanister) = switch (moving.newCanister) {
                             case (?newCanister) { (newCanister.canister, newCanister) };
                             case (null) {
@@ -276,9 +275,7 @@ module {
                     Debug.trap("item busy");
                 }
             };
-            case (null) { // TODO: needed?
-                Debug.trap("item busy");
-            };
+            case (null) {};
         };
     };
 
