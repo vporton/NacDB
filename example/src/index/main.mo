@@ -41,7 +41,6 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
     public shared func finishCreatingSubDB({creatingId : Nat; dbOptions : Nac.DBOptions; index : Nac.IndexCanister})
         : async (Nac.PartitionCanister, Nac.SubDBKey)
     {
-        // TODO: React on state update code here.
         let (part, subDBKey) = await* Nac.finishCreatingSubDB({
             creatingId;
             index = this;
