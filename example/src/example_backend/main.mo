@@ -16,6 +16,7 @@ actor {
         oldSubDBKey: Nac.SubDBKey;
         newCanister: Nac.PartitionCanister;
         newSubDBKey: Nac.SubDBKey;
+        userData: Text;
     }) : async ()
     {
         location := ?(newCanister, newSubDBKey);

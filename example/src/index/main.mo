@@ -12,9 +12,10 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
         newCanister : Nac.PartitionCanister;
         newSubDBKey : Nac.SubDBKey;
         oldCanister : Nac.PartitionCanister;
-        oldSubDBKey : Nac.SubDBKey
+        oldSubDBKey : Nac.SubDBKey;
+        userData: Text;
     }): async () {
-        ignore do ? { await dbOptions.movingCallback!({newCanister; newSubDBKey; oldCanister; oldSubDBKey}); };
+        ignore do ? { await dbOptions.movingCallback!({newCanister; newSubDBKey; oldCanister; oldSubDBKey; userData}); };
     };
 
     stable var initialized = false;

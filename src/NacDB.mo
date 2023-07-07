@@ -79,6 +79,7 @@ module {
             oldSubDBKey: SubDBKey;
             newCanister: PartitionCanister;
             newSubDBKey: SubDBKey;
+            userData: Text;
         }) -> async ();
         startCreatingSubDB: shared({dbOptions: DBOptions; userData: Text}) -> async Nat;
         finishCreatingSubDB: shared({index: IndexCanister; dbOptions: DBOptions; creatingId: Nat})
@@ -119,6 +120,7 @@ module {
         oldSubDBKey: SubDBKey;
         newCanister: PartitionCanister;
         newSubDBKey: SubDBKey;
+        userData: Text;
     }) -> async ();
 
     public type DBOptions = {
@@ -200,6 +202,7 @@ module {
                                     oldSubDBKey = moving.oldSubDBKey;
                                     newCanister = canister;
                                     newSubDBKey;
+                                    userData = subDB.userData;
                                 });
                             };
                             case (null) {};

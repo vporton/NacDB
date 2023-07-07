@@ -23,6 +23,7 @@ actor MyTest {
         oldSubDBKey: Nac.SubDBKey;
         newCanister: Nac.PartitionCanister;
         newSubDBKey: Nac.SubDBKey;
+        userData: Text;
     }) : async () {
         counter += 1;
     };
