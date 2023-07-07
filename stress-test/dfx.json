@@ -1,0 +1,17 @@
+{
+    "canisters": {
+      "index": {
+        "main": "../example/src/index/main.mo",
+        "type": "motoko",
+        "cycles": 1000000000
+      }
+    },
+    "defaults": {
+      "build": {
+        "args": "",
+        "packtool": "vessel sources"
+      }
+    },
+    "output_env_file": ".env",
+    "version": 1
+  }
