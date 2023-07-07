@@ -1,7 +1,14 @@
 const { workerData } = require('worker_threads');
 
-async function run(data: {}) {
-    console.log('THREAD')
+class Runner {
+    referenceData: Map<{part: string, key: number}, Map<string, string>>;
+    constructor(data: {}) {
+        this.referenceData = new Map();
+    }
+    async run() {
+        console.log("Running");
+    }
 }
 
-run(workerData);
+const runner = new Runner(workerData);
+runner.run()

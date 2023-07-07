@@ -5,6 +5,7 @@ import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
 import Nat "mo:base/Nat";
 import SparseQueue "../../../lib/SparseQueue";
+import Text "mo:base/Text";
 
 shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
     stable let index: Nac.IndexCanister = actor(Principal.toText(caller));
@@ -15,16 +16,16 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
 
     // Mandatory methods //
 
-    public shared func rawInsertSubDB(data: RBT.Tree<Nac.SK, Nac.AttributeValue>, dbOptions: Nac.DBOptions) : async Nac.SubDBKey {
-        Nac.rawInsertSubDB(superDB, data, dbOptions);
+    public shared func rawInsertSubDB(map: RBT.Tree<Nac.SK, Nac.AttributeValue>, userData: Text, dbOptions: Nac.DBOptions) : async Nac.SubDBKey {
+        Nac.rawInsertSubDB(superDB, map, userData, dbOptions);
     };
 
     public shared func isOverflowed({dbOptions: Nac.DBOptions}) : async Bool {
         Nac.isOverflowed({dbOptions; superDB});
     };
 
-    public shared func createSubDB({dbOptions: Nac.DBOptions}) : async Nat {
-        Nac.rawInsertSubDB(superDB, RBT.init(), dbOptions);
+    public shared func createSubDB({dbOptions: Nac.DBOptions; userData: Text}) : async Nat {
+        Nac.rawInsertSubDB(superDB, RBT.init(), userData, dbOptions);
     };
 
     // Some data access methods //

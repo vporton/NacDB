@@ -40,8 +40,8 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
         canister;
     };
 
-    public shared func startCreatingSubDB({dbOptions : Nac.DBOptions}) : async Nat {
-        await* Nac.startCreatingSubDB({dbIndex; dbOptions});
+    public shared func startCreatingSubDB({dbOptions: Nac.DBOptions; userData: Text}) : async Nat {
+        await* Nac.startCreatingSubDB({dbIndex; dbOptions; userData});
     };
 
     public shared func finishCreatingSubDB({creatingId : Nat; dbOptions : Nac.DBOptions; index : Nac.IndexCanister})

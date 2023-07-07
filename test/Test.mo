@@ -40,7 +40,7 @@ func createCanisters() : async* {index: Index.Index} {
 };
 
 func insertSubDB(index: Index.Index) : async* (Partition.Partition, Nac.SubDBKey) {
-    let creatingId = await index.startCreatingSubDB({dbOptions});
+    let creatingId = await index.startCreatingSubDB({dbOptions; userData = ""});
     let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions; index; creatingId});
     (
         actor(Principal.toText(Principal.fromActor(part))),
@@ -51,7 +51,7 @@ func insertSubDB(index: Index.Index) : async* (Partition.Partition, Nac.SubDBKey
 func createSubDB() : async* {index: Index.Index; part: Partition.Partition; subDBKey: Nac.SubDBKey}
 {
     let {index} = await* createCanisters();
-    let insertId = await index.startCreatingSubDB({dbOptions});
+    let insertId = await index.startCreatingSubDB({dbOptions; userData = ""});
     let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions; index; creatingId = insertId});
     {
         index = actor(Principal.toText(Principal.fromActor(index)));
@@ -60,6 +60,7 @@ func createSubDB() : async* {index: Index.Index; part: Partition.Partition; subD
     }
 };
 
+// TODO: Test passing userData
 let success = run([
     describe("Unit Test of NacDB", [
         describe("Simple DB operations", [
@@ -114,11 +115,11 @@ let success = run([
                 let dbOptions2 = {moveCap = #numDBs 2; movingCallback = null; hardCap = ?1000};
                 let index = await Index.Index(dbOptions2);
                 await index.init();
-                let insertId1 = await index.startCreatingSubDB({dbOptions = dbOptions2});
+                let insertId1 = await index.startCreatingSubDB({dbOptions = dbOptions2; userData = ""});
                 ignore await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId1});
-                let insertId2 = await index.startCreatingSubDB({dbOptions = dbOptions2});
+                let insertId2 = await index.startCreatingSubDB({dbOptions = dbOptions2; userData = ""});
                 ignore await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId2});
-                let insertId3 = await index.startCreatingSubDB({dbOptions = dbOptions2});
+                let insertId3 = await index.startCreatingSubDB({dbOptions = dbOptions2; userData = ""});
                 let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId = insertId3});
 
                 ActorSpec.assertAllTrue([
@@ -158,7 +159,7 @@ let success = run([
                 let dbOptions2 = {moveCap = #numDBs 2; movingCallback = ?MyTest.movingCallback; hardCap = ?2};
                 let index = await Index.Index(dbOptions2);
                 await index.init();
-                let creatingId = await index.startCreatingSubDB({dbOptions = dbOptions2});
+                let creatingId = await index.startCreatingSubDB({dbOptions = dbOptions2; userData = ""});
                 let (part, subDBKey) = await index.finishCreatingSubDB({dbOptions = dbOptions2; index; creatingId});
                 let insertId1 = await part.startInserting({subDBKey; sk = "A"; value = #text "xxx"});
                 ignore await part.finishInserting({dbOptions; index; insertId = insertId1});

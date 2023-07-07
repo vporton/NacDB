@@ -30,7 +30,8 @@ module {
     public type AttributeValue = AttributeValuePrimitive or AttributeValueBlob or AttributeValueTuple or AttributeValueArray or AttributeValueRBTree;
 
     public type SubDB = {
-        var data: RBT.Tree<SK, AttributeValue>;
+        var map: RBT.Tree<SK, AttributeValue>;
+        var userData: Text; // useful to have a back reference to "locator" of our sub-DB in another database
         var busy: Bool; // Forbid to move this entry to other canister.
                         // During the move it is true. Deletion in old canister and setting it to false happen in the same atomic action,
                         // so moving is also protected by this flag.
@@ -40,6 +41,7 @@ module {
 
     public type CreatingSubDB = {
         var canister: ?PartitionCanister;
+        userData: Text;
     };
 
     /// Treat this as an opaque data structure, because this data is ignored if the sub-DB moves during insertion.
@@ -78,13 +80,13 @@ module {
             newCanister: PartitionCanister;
             newSubDBKey: SubDBKey;
         }) -> async ();
-        startCreatingSubDB: shared({dbOptions: DBOptions}) -> async Nat;
+        startCreatingSubDB: shared({dbOptions: DBOptions; userData: Text}) -> async Nat;
         finishCreatingSubDB: shared({index: IndexCanister; dbOptions: DBOptions; creatingId: Nat})
             -> async (PartitionCanister, SubDBKey);
     };
 
     public type PartitionCanister = actor {
-        rawInsertSubDB(data: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions) : async SubDBKey;
+        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions) : async SubDBKey;
         isOverflowed({dbOptions: DBOptions}) : async Bool;
         superDBSize: query () -> async Nat;
         deleteSubDB({subDBKey: SubDBKey}) : async ();
@@ -125,14 +127,15 @@ module {
         movingCallback: ?MovingCallback;
     };
 
-    public func rawInsertSubDB(superDB: SuperDB, subDBData: RBT.Tree<SK, AttributeValue>, dbOptions: DBOptions): SubDBKey {
+    public func rawInsertSubDB(superDB: SuperDB, map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions): SubDBKey {
         switch (superDB.moving) {
             case (?_) { Debug.trap("DB is scaling") };
             case (null) {
                 let key = superDB.nextKey;
                 superDB.nextKey += 1;
                 let subDB : SubDB = {
-                    var data = subDBData;
+                    var map = map;
+                    var userData = userData;
                     hardCap = dbOptions.hardCap;
                     movingCallback = dbOptions.movingCallback;
                     var busy = false;
@@ -184,7 +187,7 @@ module {
                         let newSubDBKey = switch (newCanister.newSubDBKey) {
                             case (?newSubDBKey) { newSubDBKey };
                             case (null) {
-                                let newSubDBKey = await canister.rawInsertSubDB(subDB.data, dbOptions);
+                                let newSubDBKey = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
                                 newCanister.newSubDBKey := ?newSubDBKey;
                                 newSubDBKey;
                             }
@@ -281,11 +284,11 @@ module {
     func removeLoosers({subDB: SubDB; dbOptions: DBOptions}) {
         switch (dbOptions.hardCap) {
             case (?hardCap) {
-                while (RBT.size(subDB.data) > hardCap) {
-                    let iter = RBT.entries(subDB.data);
+                while (RBT.size(subDB.map) > hardCap) {
+                    let iter = RBT.entries(subDB.map);
                     switch (iter.next()) {
                         case (?(k, v)) {
-                            subDB.data := RBT.delete(subDB.data, Text.compare, k);
+                            subDB.map := RBT.delete(subDB.map, Text.compare, k);
                         };
                         case (null) {
                             return;
@@ -306,7 +309,7 @@ module {
 
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
-                RBT.get(subDB.data, Text.compare, options.sk);
+                RBT.get(subDB.map, Text.compare, options.sk);
             };
             case (null) {
                 Debug.trap("missing sub-DB")
@@ -334,7 +337,7 @@ module {
 
     public func subDBSize(options: SubDBSizeOptions): ?Nat {
         switch (getSubDB(options.superDB, options.subDBKey)) {
-            case (?subDB) { ?RBT.size(subDB.data) };
+            case (?subDB) { ?RBT.size(subDB.map) };
             case (null) { null }
         };
     };
@@ -354,7 +357,7 @@ module {
 
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
-                subDB.data := RBT.put(subDB.data, Text.compare, options.sk, options.value);
+                subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
                 removeLoosers({subDB; dbOptions = options.dbOptions});
 
                 let insertId = SparseQueue.add<InsertingItem>(options.superDB.inserting, {
@@ -404,7 +407,7 @@ module {
 
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
-                subDB.data := RBT.delete(subDB.data, Text.compare, options.sk);
+                subDB.map := RBT.delete(subDB.map, Text.compare, options.sk);
             };
             case (null) {};
         };
@@ -421,11 +424,11 @@ module {
     // Creating sub-DB //
 
     // It does not touch old items, so no locking.
-    public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions}): async* Nat {
+    public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions; userData: Text}): async* Nat {
         if (StableBuffer.size(dbIndex.canisters) == 0) {
             Debug.trap("no partition canisters");
         };
-        SparseQueue.add<CreatingSubDB>(dbIndex.creatingSubDB, {var canister = null});
+        SparseQueue.add<CreatingSubDB>(dbIndex.creatingSubDB, {var canister = null; userData});
     };
 
     public func finishCreatingSubDB({index: IndexCanister; dbIndex: DBIndex; dbOptions: DBOptions; creatingId: Nat})
@@ -448,7 +451,7 @@ module {
                             case (#usedMemory m) {
                                 var part = StableBuffer.get(dbIndex.canisters, Int.abs(+StableBuffer.size(dbIndex.canisters) - 1));
                                 // Trial creation...
-                                let subDBKey = await part.rawInsertSubDB(RBT.init(), dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                                let subDBKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                                 creating.canister := ?part;
                                 if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .deleteSubDB into one call?
                                     // ... with possible deletion afterward.
@@ -464,7 +467,7 @@ module {
                         };
                     };
                 };
-                let subDBKey = await part.rawInsertSubDB(RBT.init(), dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                let subDBKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                 SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
                 (part, subDBKey);
             };
@@ -481,7 +484,7 @@ module {
     public func iter(options: IterOptions) : I.Iter<(Text, AttributeValue)> {
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
-                RBT.iter(subDB.data, options.dir);
+                RBT.iter(subDB.map, options.dir);
             };
             case (null) {
                 Debug.trap("missing sub-DB");
@@ -511,7 +514,7 @@ module {
     public func scanLimit(options: ScanLimitOptions): RBT.ScanLimitResult<Text, AttributeValue> {
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
-                RBT.scanLimit(subDB.data, Text.compare, options.lowerBound, options.upperBound, options.dir, options.limit);
+                RBT.scanLimit(subDB.map, Text.compare, options.lowerBound, options.upperBound, options.dir, options.limit);
             };
             case (null) {
                 Debug.trap("missing sub-DB");
