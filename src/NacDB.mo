@@ -334,6 +334,15 @@ module {
         BTree.has(options.superDB.subDBs, Nat.compare, options.subDBKey);
     };
 
+    public type GetUserDataOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+
+    // TODO: Test this function
+    public func getSubDBUserData(options: GetUserDataOptions) : ?Text {
+        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
+
+        do ? { BTree.get(options.superDB.subDBs, Nat.compare, options.subDBKey)!.userData };
+    };
+
     public func superDBSize(superDB: SuperDB): Nat = BTree.size(superDB.subDBs);
 
     public type SubDBSizeOptions = {superDB: SuperDB; subDBKey: SubDBKey};
