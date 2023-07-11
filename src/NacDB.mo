@@ -82,13 +82,6 @@ module {
     public type IndexCanister = actor {
         getCanisters: query () -> async [PartitionCanister];
         newCanister(): async PartitionCanister;
-        movingCallback: shared ({ // TODO: delete?
-            oldCanister: PartitionCanister;
-            oldSubDBKey: SubDBKey;
-            newCanister: PartitionCanister;
-            newSubDBKey: SubDBKey;
-            userData: Text;
-        }) -> async ();
         startCreatingSubDB: shared({dbOptions: DBOptions; userData: Text}) -> async Nat;
         finishCreatingSubDB: shared({index: IndexCanister; dbOptions: DBOptions; creatingId: Nat})
             -> async (PartitionCanister, SubDBKey);
@@ -124,19 +117,9 @@ module {
         }
     };
 
-    // TODO: Delete.
-    public type MovingCallback = shared ({
-        oldCanister: PartitionCanister;
-        oldSubDBKey: SubDBKey;
-        newCanister: PartitionCanister;
-        newSubDBKey: SubDBKey;
-        userData: Text;
-    }) -> async ();
-
     public type DBOptions = {
         hardCap: ?Nat;
         moveCap: MoveCap;
-        movingCallback: ?MovingCallback; // TODO: Delete.
     };
 
     /// The "real" returned value is `outward`, but `inward` can be used for caching
@@ -153,7 +136,6 @@ module {
                     var map = map;
                     var userData = userData;
                     hardCap = dbOptions.hardCap;
-                    movingCallback = dbOptions.movingCallback;
                     var busy = false;
                 };
                 ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
@@ -413,7 +395,6 @@ module {
                     subDBKey = options.subDBKey;
                 });
 
-                // TODO: Check only in the case of memory cap, not number of DBs cap:
                 await* startMovingSubDBIfOverflow({
                     dbOptions = options.dbOptions;
                     indexCanister = options.indexCanister;
@@ -430,22 +411,23 @@ module {
         };
     };
 
-    public func finishInserting({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey}): async* (PartitionCanister, SubDBKey) {
+    public func finishInserting({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey})
+        : async* {inward: (PartitionCanister, InwardSubDBKey); outward: (PartitionCanister, OutwardSubDBKey)}
+    {
         let ?v = SparseQueue.get(oldSuperDB.inserting, insertId) else {
             Debug.trap("not inserting");
         };
         let (part, subDBKey) = switch(await* finishMovingSubDB({index; oldSuperDB; dbOptions})) {
             case (?(part, subDBKey)) { (part, subDBKey) };
             case (null) {
-                let x = SparseQueue.get(oldSuperDB.inserting, insertId);
-                let ?{part; subDBKey} = x else {
+                let ?{part; subDBKey} = SparseQueue.get(oldSuperDB.inserting, insertId) else {
                     Debug.trap("not inserting");
                 };
-                (part, subDBKey)
+                bothKeys(part, subDBKey)
             }
         };
         SparseQueue.delete(oldSuperDB.inserting, insertId);
-        (part, subDBKey);
+        bothKeys(part, subDBKey);
     };
 
     type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
