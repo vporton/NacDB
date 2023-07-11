@@ -493,8 +493,8 @@ module {
 
     /// The "real" returned value is `outward`, but `inward` can be used for caching
     /// (on cache failure retrieve new `inward` using `outward`).
-    // TODO: `PartitionCanister` for inward and outward always the same upon completing this function.
-    //       Return only one?
+    ///
+    /// In this version returned `PartitionCanister` for inward and outward always the same.
     public func finishCreatingSubDB({index: IndexCanister; dbIndex: DBIndex; dbOptions: DBOptions; creatingId: Nat})
         : async* {inward: (PartitionCanister, InwardSubDBKey); outward: (PartitionCanister, OutwardSubDBKey)}
     {
