@@ -161,103 +161,89 @@ module {
     // public func getSubDBByOutward(superDB: SuperDB, subDBKey: OutwardSubDBKey) : ?SubDB {
     // };
 
-    // TODO: remove?
     /// Moves to the specified `newCanister` or to a newly allocated canister, if null.
-    // func startMovingSubDBImpl(options: {oldCanister: PartitionCanister; newCanister: ?PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
-    //     switch (options.superDB.moving) {
-    //         case (?_) { Debug.trap("already moving") };
-    //         case (null) {
-    //             options.superDB.moving := ?{
-    //                 oldCanister = options.oldCanister;
-    //                 oldSuperDB = options.superDB;
-    //                 oldSubDBKey = options.subDBKey;
-    //                 var newCanister = do ? {
-    //                     {
-    //                         canister = options.newCanister!;
-    //                         var newSubDBKey = null;
-    //                     };
-    //                 };
-    //             }
-    //         };
-    //     };
-    // };
+    func startMovingSubDBImpl(options: {oldCanister: PartitionCanister; newCanister: ?PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
+        switch (options.superDB.moving) {
+            case (?_) { Debug.trap("already moving") };
+            case (null) {
+                options.superDB.moving := ?{
+                    oldCanister = options.oldCanister;
+                    oldSuperDB = options.superDB;
+                    oldSubDBKey = options.subDBKey;
+                    var newCanister = do ? {
+                        {
+                            canister = options.newCanister!;
+                            var newSubDBKey = null;
+                        };
+                    };
+                }
+            };
+        };
+    };
 
-    // TODO: remove?
-    // public func finishMovingSubDB({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions}) : async* ?(PartitionCanister, SubDBKey) {
-    //     switch (oldSuperDB.moving) {
-    //         case (?moving) {
-    //             switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
-    //                 case (?subDB) {
-    //                     let (canister, newCanister) = switch (moving.newCanister) {
-    //                         case (?newCanister) { (newCanister.canister, newCanister) };
-    //                         case (null) {
-    //                             let newCanister = await index.newCanister();
-    //                             let s = {canister = newCanister; var newSubDBKey: ?SubDBKey = null};
-    //                             moving.newCanister := ?s;
-    //                             (newCanister, s);
-    //                         };
-    //                     };
-    //                     let newSubDBKey = switch (newCanister.newSubDBKey) {
-    //                         case (?newSubDBKey) { newSubDBKey };
-    //                         case (null) {
-    //                             let newSubDBKey = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
-    //                             newCanister.newSubDBKey := ?newSubDBKey;
-    //                             newSubDBKey;
-    //                         }
-    //                     };                        
-    //                     ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey); // FIXME: idempotent?
-    //                     switch (dbOptions.movingCallback) {
-    //                         case (?movingCallback) {
-    //                             await movingCallback({
-    //                                 oldCanister = moving.oldCanister;
-    //                                 oldSubDBKey = moving.oldSubDBKey;
-    //                                 newCanister = canister;
-    //                                 newSubDBKey;
-    //                                 userData = subDB.userData;
-    //                             });
-    //                         };
-    //                         case (null) {};
-    //                     };
-    //                     subDB.busy := false;
-    //                     oldSuperDB.moving := null;
-    //                     return ?(canister, newSubDBKey);
-    //                 };
-    //                 case (null) {
-    //                     return ?(moving.oldCanister, moving.oldSubDBKey);
-    //                 };
-    //             };
-    //         };
-    //         case (null) { null }; // may be called from `finishInserting`, so should not trap.
-    //     };
-    // };
+    public func finishMovingSubDB({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions}) : async* ?(PartitionCanister, SubDBKey) {
+        switch (oldSuperDB.moving) {
+            case (?moving) {
+                switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
+                    case (?subDB) {
+                        let (canister, newCanister) = switch (moving.newCanister) {
+                            case (?newCanister) { (newCanister.canister, newCanister) };
+                            case (null) {
+                                let newCanister = await index.newCanister();
+                                let s = {canister = newCanister; var newSubDBKey: ?SubDBKey = null};
+                                moving.newCanister := ?s;
+                                (newCanister, s);
+                            };
+                        };
+                        let newSubDBKey = switch (newCanister.newSubDBKey) {
+                            case (?newSubDBKey) { newSubDBKey };
+                            case (null) {
+                                let newSubDBKey = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
+                                newCanister.newSubDBKey := ?newSubDBKey;
+                                newSubDBKey;
+                            }
+                        };                        
+                        ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey); // FIXME: idempotent?
+                        // FIXME: Update outward "link" here.
+                        subDB.busy := false;
+                        oldSuperDB.moving := null;
+                        return ?(canister, newSubDBKey);
+                    };
+                    case (null) {
+                        return ?(moving.oldCanister, moving.oldSubDBKey);
+                    };
+                };
+            };
+            case (null) { null }; // may be called from `finishInserting`, so should not trap.
+        };
+    };
 
-    // TODO: remove?
-    // func startMovingSubDB(options: {dbOptions: DBOptions; index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
-    //     let ?item = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
-    //         Debug.trap("item must exist");
-    //     };
-    //     if (item.busy) {
-    //         Debug.trap("is moving");
-    //     };
-    //     item.busy := true;
-    //     let pks = await options.index.getCanisters();
-    //     let lastCanister = pks[pks.size()-1];
-    //     if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed({dbOptions = options.dbOptions}))) {
-    //         startMovingSubDBImpl({
-    //             oldCanister = options.oldCanister;
-    //             superDB = options.oldSuperDB;
-    //             subDBKey = options.oldSubDBKey;
-    //             newCanister = null;
-    //         });
-    //     } else {
-    //         startMovingSubDBImpl({
-    //             oldCanister = options.oldCanister;
-    //             superDB = options.oldSuperDB;
-    //             subDBKey = options.oldSubDBKey;
-    //             newCanister = ?lastCanister;
-    //         });
-    //     };
-    // };
+    func startMovingSubDB(options: {dbOptions: DBOptions; index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
+        let ?item = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
+            Debug.trap("item must exist");
+        };
+        if (item.busy) {
+            Debug.trap("is moving");
+        };
+        item.busy := true; // TODO: seems superfluous
+        let pks = await options.index.getCanisters();
+        let lastCanister = pks[pks.size()-1];
+        if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed({dbOptions = options.dbOptions}))) {
+            startMovingSubDBImpl({
+                oldCanister = options.oldCanister;
+                superDB = options.oldSuperDB;
+                subDBKey = options.oldSubDBKey;
+                newCanister = null;
+            });
+        } else {
+            startMovingSubDBImpl({
+                oldCanister = options.oldCanister;
+                superDB = options.oldSuperDB;
+                subDBKey = options.oldSubDBKey;
+                newCanister = ?lastCanister;
+            });
+        };
+    };
 
     public func isOverflowed({dbOptions: DBOptions; superDB: SuperDB}) : Bool {
         switch (dbOptions.moveCap) {
