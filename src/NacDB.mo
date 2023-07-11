@@ -473,9 +473,6 @@ module {
 
     // It does not touch old items, so no locking.
     public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions; userData: Text}): async* Nat {
-        if (StableBuffer.size(dbIndex.canisters) == 0) {
-            Debug.trap("no partition canisters");
-        };
         SparseQueue.add<CreatingSubDB>(dbIndex.creatingSubDB, {var canister = null; userData});
     };
 
@@ -503,7 +500,7 @@ module {
                 let part: PartitionCanister = switch (creating.canister) {
                     case (?part) { part };
                     case (null) {
-                        if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .deleteSubDB into one call?
+                        if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
                             part := await index.newCanister();
                             creating.canister := ?part;
                         } else {
