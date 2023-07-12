@@ -114,8 +114,9 @@ module {
 
     public func createSuperDB() : SuperDB {
         {
-            var nextKey = 0;
-            subDBs = BTree.init<SubDBKey, SubDB>(null);
+            var nextInnerKey = 0;
+            var nextOuterKey = 0;
+            subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
             var locations = RBT.init();
             var moving = null;
             var inserting = SparseQueue.init(100);
