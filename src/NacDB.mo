@@ -154,7 +154,7 @@ module {
         superDB.nextOuterKey += 1;
     };
 
-    public func getInner(superDB: SuperDB, outerKey: InnerSubDBKey) : ?InnerSubDBKey {
+    public func getInner(superDB: SuperDB, outerKey: InnerSubDBKey) : ?(PartitionCanister, InnerSubDBKey) {
         RBT.get(superDB.locations, Nat.compare, outerKey);
     };
 
@@ -566,7 +566,7 @@ module {
 
     type EntriesInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
     
-    public func entriesInner(options: EntriesOptions) : I.Iter<(Text, AttributeValue)> {
+    public func entriesInner(options: EntriesInnerOptions) : I.Iter<(Text, AttributeValue)> {
         iter({innerSuperDB = options.innerSuperDB; innerKey = options.innerKey; dir = #fwd});
     };
 
@@ -578,7 +578,7 @@ module {
 
     type EntriesRevInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
     
-    public func entriesRev(options: EntriesOptions) : I.Iter<(Text, AttributeValue)> {
+    public func entriesRev(options: EntriesRevInnerOptions) : I.Iter<(Text, AttributeValue)> {
         iter({innerSuperDB = options.innerSuperDB; innerKey = options.innerKey; dir = #bwd});
     };
 
@@ -595,7 +595,7 @@ module {
 
     type ScanLimitInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
-    public func scanLimit(options: ScanLimitOptions): RBT.ScanLimitResult<Text, AttributeValue> {
+    public func scanLimitInner(options: ScanLimitInnerOptions): RBT.ScanLimitResult<Text, AttributeValue> {
         switch (getSubDB(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
                 RBT.scanLimit(subDB.map, Text.compare, options.lowerBound, options.upperBound, options.dir, options.limit);
@@ -604,5 +604,14 @@ module {
                 Debug.trap("missing sub-DB");
             };
         };
+    };
+
+    type ScanLimitOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
+    
+    public func scanLimitOuter(options: ScanLimitOuterOptions): RBT.ScanLimitResult<Text, AttributeValue> {
+        let ?(part, innerKey) = getInner(outerSuperDB, outerKey) else {
+            Debug.trap("no sub-DB");
+        };
+        part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
     };
 };
