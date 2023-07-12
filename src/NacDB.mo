@@ -51,24 +51,27 @@ module {
     /// Treat this as an opaque data structure, because this data is ignored if the sub-DB moves during insertion.
     public type InsertingItem = {
         part: PartitionCanister; // TODO: Can we remove this?
-        subDBKey: SubDBKey;
+        subDBKey: OutwardSubDBKey;
     };
 
     public type SuperDB = {
         var nextInwardKey: Nat;
         var nextOutwardKey: Nat;
-        subDBs: BTree.BTree<SubDBKey, SubDB>;
+        subDBs: BTree.BTree<InwardSubDBKey, SubDB>;
         /// The canister and the `SubDBKey` of this `RBT.Tree` is constant,
         /// even when the sub-DB to which it points moves to a different canister.
-        var locations: RBT.Tree<SubDBKey, (PartitionCanister, SubDBKey)>;
+        var locations: RBT.Tree<OutwardSubDBKey, (PartitionCanister, InwardSubDBKey)>;
 
-        var moving: ?{ // TODO: delete?
-            oldCanister: PartitionCanister;
-            oldSuperDB: SuperDB;
-            oldSubDBKey: SubDBKey;
-            var newCanister: ?{ // null - not yet determined
+        var moving: ?{
+            // outwardSuperDB: SuperDB; // cannot be passed together with `oldInwardSuperDB`...
+            outwardCanister: PartitionCanister; // ... so, this instead.
+            outwardKey: OutwardSubDBKey;
+            oldInwardCanister: PartitionCanister;
+            oldInwardSuperDB: SuperDB;
+            oldInwardSubDBKey: InwardSubDBKey;
+            var newInwardCanister: ?{ // null - not yet determined
                 canister: PartitionCanister;
-                var newSubDBKey: ?SubDBKey; // null - not yet determined
+                var newSubDBKey: ?InwardSubDBKey; // null - not yet determined
             };
         };
         var inserting: SparseQueue.SparseQueue<InsertingItem>;
@@ -84,19 +87,21 @@ module {
         newCanister(): async PartitionCanister;
         startCreatingSubDB: shared({dbOptions: DBOptions; userData: Text}) -> async Nat;
         finishCreatingSubDB: shared({index: IndexCanister; dbOptions: DBOptions; creatingId: Nat})
-            -> async (PartitionCanister, SubDBKey);
+            -> async {inward: (PartitionCanister, InwardSubDBKey); outward: (PartitionCanister, OutwardSubDBKey)};
     };
 
     public type PartitionCanister = actor {
-        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions) : async SubDBKey;
+        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions) : async InwardSubDBKey;
         isOverflowed({dbOptions: DBOptions}) : async Bool;
         superDBSize: query () -> async Nat;
-        deleteSubDB({subDBKey: SubDBKey}) : async ();
-        startInserting({subDBKey: SubDBKey; sk: SK; value: AttributeValue}) : async SparseQueue.SparseQueueKey;
+        deleteSubDB({subDBKey: OutwardSubDBKey}) : async ();
+        startInserting({subDBKey: OutwardSubDBKey; sk: SK; value: AttributeValue}) : async SparseQueue.SparseQueueKey;
         finishInserting({dbOptions : DBOptions; index : IndexCanister; insertId : SparseQueue.SparseQueueKey})
-            : async (PartitionCanister, SubDBKey);
-        get: query (options: {subDBKey: SubDBKey; sk: SK}) -> async ?AttributeValue;
-        has: query (options: {subDBKey: SubDBKey; sk: SK}) -> async Bool;
+            : async {inward: (PartitionCanister, InwardSubDBKey); outward: (PartitionCanister, OutwardSubDBKey)};
+        getByInward: query (options: {subDBKey: InwardSubDBKey; sk: SK}) -> async ?AttributeValue;
+        hasByInward: query (options: {subDBKey: InwardSubDBKey; sk: SK}) -> async Bool;
+        getByOutward: query (options: {subDBKey: OutwardSubDBKey; sk: SK}) -> async ?AttributeValue;
+        hasByOutward: query (options: {subDBKey: OutwardSubDBKey; sk: SK}) -> async Bool;
     };
 
     public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
@@ -128,7 +133,7 @@ module {
         : {outward: OutwardSubDBKey; inward: InwardSubDBKey}
     {
         let inward = switch (superDB.moving) {
-            case (?_) { Debug.trap("DB is scaling") };
+            case (?_) { Debug.trap("DB is scaling") }; // TODO: needed?
             case (null) {
                 let key = superDB.nextInwardKey;
                 superDB.nextInwardKey += 1;
@@ -157,31 +162,46 @@ module {
         BTree.get(superDB.subDBs, Nat.compare, subDBKey);
     };
 
+    public func putLocation(outwardSuperDB: SuperDB, outwardKey: OutwardSubDBKey, inwardCanister: PartitionCanister, inwardKey: InwardSubDBKey) {
+        outwardSuperDB.locations := RBT.put(outwardSuperDB.locations, Nat.compare, outwardKey, (inwardCanister, inwardKey));
+    };
+
     /// This function makes no sense, because it would return the entire sub-DB from another canister.
     // public func getSubDBByOutward(superDB: SuperDB, subDBKey: OutwardSubDBKey) : ?SubDB {
     // };
 
     /// Moves to the specified `newCanister` or to a newly allocated canister, if null.
-    func startMovingSubDBImpl(options: {oldCanister: PartitionCanister; newCanister: ?PartitionCanister; superDB: SuperDB; subDBKey: SubDBKey}) {
+    func startMovingSubDBImpl({
+        outwardCanister: PartitionCanister; // ... so, this instead.
+        outwardKey: OutwardSubDBKey;
+        oldInwardCanister: PartitionCanister;
+        oldInwardSuperDB: SuperDB;
+        oldInwardSubDBKey: InwardSubDBKey;
+        newCanister: ?PartitionCanister;
+    }) {
         switch (options.superDB.moving) {
             case (?_) { Debug.trap("already moving") };
             case (null) {
                 options.superDB.moving := ?{
-                    oldCanister = options.oldCanister;
-                    oldSuperDB = options.superDB;
-                    oldSubDBKey = options.subDBKey;
-                    var newCanister = do ? {
+                    outwardCanister;
+                    outwardKey;
+                    oldInwardCanister;
+                    oldInwardSuperDB;
+                    oldInwardSubDBKey;
+                    var newInwardCanister = do ? {
                         {
                             canister = options.newCanister!;
                             var newSubDBKey = null;
                         };
                     };
-                }
+                };
             };
         };
     };
 
-    public func finishMovingSubDB({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions}) : async* ?(PartitionCanister, SubDBKey) {
+    // FIXME: arguments for inward/outward
+    // FIXME: What to do with the case if the new sub-DB is already created and the old is not yet deleted? (Needs cleanup)
+    public func finishMovingSubDB({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions}) : async* ?(PartitionCanister, InwardSubDBKey) {
         switch (oldSuperDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
@@ -195,7 +215,7 @@ module {
                                 (newCanister, s);
                             };
                         };
-                        let newSubDBKey = switch (newCanister.newSubDBKey) {
+                        let newInwardSubDBKey = switch (newCanister.newSubDBKey) {
                             case (?newSubDBKey) { newSubDBKey };
                             case (null) {
                                 let newSubDBKey = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
@@ -204,10 +224,10 @@ module {
                             }
                         };                        
                         ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey); // FIXME: idempotent?
-                        // FIXME: Update outward "link" here.
+                        await outwardCanister.putLocation(outwardKey, moving.newInwardSubDBKey);
                         subDB.busy := false;
                         oldSuperDB.moving := null;
-                        return ?(canister, newSubDBKey);
+                        return ?(canister, newInwardSubDBKey); // TODO: need to return inward key?
                     };
                     case (null) {
                         return ?(moving.oldCanister, moving.oldSubDBKey);
@@ -218,7 +238,13 @@ module {
         };
     };
 
-    func startMovingSubDB(options: {dbOptions: DBOptions; index: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey}) : async* () {
+    func startMovingSubDB(options: {
+        dbOptions: DBOptions;
+        index: IndexCanister;
+        oldCanister: PartitionCanister;
+        oldSuperDB: SuperDB;
+        oldSubDBKey: InwardSubDBKey;
+    }) : async* () {
         let ?item = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
             Debug.trap("item must exist");
         };
@@ -253,10 +279,14 @@ module {
         };
     };
 
-    // TODO?
     func startMovingSubDBIfOverflow(
-        options: {indexCanister: IndexCanister; oldCanister: PartitionCanister; oldSuperDB: SuperDB; oldSubDBKey: SubDBKey;
-            dbOptions: DBOptions}): async* ()
+        options: {
+            dbOptions: DBOptions;
+            index: IndexCanister;
+            oldCanister: PartitionCanister;
+            oldSuperDB: SuperDB;
+            oldSubDBKey: InwardSubDBKey;
+        }): async* ()
     {
         if (await options.oldCanister.isOverflowed({dbOptions = options.dbOptions})) {
             await* startMovingSubDB({
@@ -270,16 +300,16 @@ module {
     };
 
     // TODO?
-    func trapMoving({superDB: SuperDB; subDBKey: SubDBKey}) {
-        switch (BTree.get(superDB.subDBs, Nat.compare, subDBKey)) {
-            case (?item) {
-                if (item.busy) {
-                    Debug.trap("item busy");
-                }
-            };
-            case (null) {};
-        };
-    };
+    // func trapMoving({superDB: SuperDB; subDBKey: SubDBKey}) {
+    //     switch (BTree.get(superDB.subDBs, Nat.compare, subDBKey)) {
+    //         case (?item) {
+    //             if (item.busy) {
+    //                 Debug.trap("item busy");
+    //             }
+    //         };
+    //         case (null) {};
+    //     };
+    // };
 
     func removeLoosers({subDB: SubDB; dbOptions: DBOptions}) {
         switch (dbOptions.hardCap) {
@@ -302,11 +332,9 @@ module {
 
     // DB operations //
 
-    public type GetOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
+    public type GetByInwardOptions = {superDB: SuperDB; subDBKey: InwardSubDBKey; sk: SK};
 
-    public func getByInward(options: GetOptions) : ?AttributeValue {
-        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey}); // TODO: here and in other places
-
+    public func getByInward(options: GetByInwardOptions) : ?AttributeValue {
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
                 RBT.get(subDB.map, Text.compare, options.sk);
@@ -317,76 +345,98 @@ module {
         }
     };
 
-    public func getByOutward(options: GetOptions) : async* ?AttributeValue {
-        let ?(part, inward) = getInward(superDB: SuperDB, outwardKey) else {
+    public type GetByOutwardOptions = {outwardSuperDB: SuperDB; subDBKey: OutwardSubDBKey; sk: SK};
+
+    public func getByOutward(options: GetByOutwardOptions) : async* ?AttributeValue {
+        let ?(part, inward) = getInward(outwardSuperDB, outwardKey) else {
             Debug.trap("no entry");
         };
         await part.getByInward(inward);
     };
 
-    public type ExistsOptions = GetOptions;
+    public type ExistsByInwardOptions = GetByInwardOptions;
 
-    public func has(options: ExistsOptions) : Bool {
-        get(options) != null;
+    public func hasByInward(options: ExistsByInwardOptions) : Bool {
+        getByInward(options) != null;
     };
 
-    public type HasDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    public type ExistsByOutwardOptions = GetByOutwardOptions;
 
-    public func hasSubDB(options: HasDBOptions) : Bool {
-        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
-
-        BTree.has(options.superDB.subDBs, Nat.compare, options.subDBKey);
+    public func hasByOutward(options: ExistsByOutwardOptions) : Bool {
+        getByOutward(options) != null;
     };
 
-    public type GetUserDataOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    public type HasDBByInwardOptions = {inwardSuperDB: SuperDB; inwardKey: InwardSubDBKey};
 
-    // TODO: Test this function
-    public func getSubDBUserData(options: GetUserDataOptions) : ?Text {
-        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
-
-        do ? { BTree.get(options.superDB.subDBs, Nat.compare, options.subDBKey)!.userData };
+    public func hasSubDBByInward(options: HasDBByInwardOptions) : Bool {
+        BTree.has(options.inwardSuperDB.subDBs, Nat.compare, options.subDBKey);
     };
+
+    public type HasDBByOutwardOptions = {outwardSuperDB: SuperDB; outwardKey: OutwardSubDBKey};
+
+    public func hasSubDBByOutward(options: HasDBByOutwardOptions) : Bool {
+        let subDB = RBT.get(options.outwardSuperDB, options.outwardKey, Nat.compare);
+        subDB != null and (do ? {
+            BTree.has(subDB!, Nat.compare, options.subDBKey);
+        });
+    };
+
+    // TODO: This inward and outward.
+    // public type GetUserDataOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+
+    // // TODO: Test this function
+    // public func getSubDBUserData(options: GetUserDataOptions) : ?Text {
+    //     do ? { BTree.get(options.superDB.subDBs, Nat.compare, options.subDBKey)!.userData };
+    // };
 
     public func superDBSize(superDB: SuperDB): Nat = BTree.size(superDB.subDBs);
 
-    public type SubDBSizeOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    public type SubDBSizeByInwardOptions = {superDB: SuperDB; subDBKey: InwardSubDBKey};
 
-    public func subDBSize(options: SubDBSizeOptions): ?Nat {
-        switch (getSubDB(options.superDB, options.subDBKey)) {
-            case (?subDB) { ?RBT.size(subDB.map) };
-            case (null) { null }
+    public func subDBSizeByInward(options: SubDBSizeByInwardOptions): ?Nat {
+        do ? {
+            ?RBT.size(getSubDB(options.superDB, options.subDBKey)!.map);
+        }
+    };
+
+    public type SubDBSizeByOutwardOptions = {superDB: SuperDB; subDBKey: OutwardSubDBKey};
+
+    public func subDBSizeByOutward(options: SubDBSizeByOutwardOptions): ?Nat {
+        let ?(part, inwardKey) = RBT.get(options.outwardSuperDB, options.outwardKey, Nat.compare) else {
+            Debug.trap("no sub-DB");
+        };
+        do ? {
+            subDBSizeByInward(part, inwardKey);
         };
     };
 
     public type InsertOptions = {
         dbOptions: DBOptions;
         indexCanister: IndexCanister;
-        currentCanister: PartitionCanister;
-        superDB: SuperDB;
-        subDBKey: SubDBKey;
+        outwardCanister: PartitionCanister;
+        outwardSuperDB: SuperDB;
+        outwardKey: OutwardSubDBKey;
         sk: SK;
         value: AttributeValue;
     };
 
     public func startInserting(options: InsertOptions) : async* Nat {
-        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
-
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
                 subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
                 removeLoosers({subDB; dbOptions = options.dbOptions});
 
                 let insertId = SparseQueue.add<InsertingItem>(options.superDB.inserting, {
-                    part = options.currentCanister;
-                    subDBKey = options.subDBKey;
+                    part = options.outwardCanister;
+                    subDBKey = options.outwardKey;
                 });
 
                 await* startMovingSubDBIfOverflow({
                     dbOptions = options.dbOptions;
                     indexCanister = options.indexCanister;
-                    oldCanister = options.currentCanister;
-                    oldSuperDB = options.superDB;
-                    oldSubDBKey = options.subDBKey
+                    oldCanister = options.outwardCanister;
+                    oldSuperDB = options.outwardSuperDB;
+                    oldSubDBKey = options.subDBKey; // FIXME
                 });
 
                 insertId;
@@ -416,25 +466,29 @@ module {
         bothKeys(part, subDBKey);
     };
 
-    type DeleteOptions = {superDB: SuperDB; subDBKey: SubDBKey; sk: SK};
+    type DeleteOptions = {outwardSuperDB: SuperDB; outwardKey: OutwardSubDBKey; sk: SK};
     
+    /// idempotent
     public func delete(options: DeleteOptions) {
-        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
-
-        switch (getSubDB(options.superDB, options.subDBKey)) {
-            case (?subDB) {
-                subDB.map := RBT.delete(subDB.map, Text.compare, options.sk);
+        switch(getInward({outwardSuperDB; outwardKey})) {
+            case (?(inwardCanister, inwardKey)) {
+                inwardCanister.deleteInward(inwardKey, options.sk);
             };
             case (null) {};
         };
+        options.outwardSuperDB.locations := BTree.delete(options.outwardSuperDB.locations, Nat.compare, outwardKey);
     };
 
-    type DeleteDBOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    type DeleteDBOptions = {superDB: SuperDB; outwardKey: OutwardSubDBKey};
     
     public func deleteSubDB(options: DeleteDBOptions) {
-        trapMoving({superDB = options.superDB; subDBKey = options.subDBKey});
-
-        ignore BTree.delete(options.superDB.subDBs, Nat.compare, options.subDBKey);
+        switch(getInward({outwardSuperDB; outwardKey})) {
+            case (?(inwardCanister, inwardKey)) {
+                inwardCanister.deleteSubDBInward(inwardKey);
+            };
+            case (null) {};
+        };
+        options.outwardSuperDB.locations := BTree.delete(options.outwardSuperDB.locations, Nat.compare, outwardKey);
     };
 
     // Creating sub-DB //
@@ -490,10 +544,11 @@ module {
 
     // Scanning/enumerating //
 
-    type IterOptions = {superDB: SuperDB; subDBKey: SubDBKey; dir : RBT.Direction};
+    // TODO: here and in other places `inward` -> `inner` and `outward` -> `outer`
+    type IterInwardOptions = {inwardSuperDB: SuperDB; inwardSubDBKey: InwardSubDBKey; dir: RBT.Direction};
     
-    public func iter(options: IterOptions) : I.Iter<(Text, AttributeValue)> {
-        switch (getSubDB(options.superDB, options.subDBKey)) {
+    public func iterByInward(options: IterInwardOptions) : I.Iter<(Text, AttributeValue)> {
+        switch (getSubDB(options.inwardSuperDB, options.inwardSubDBKey)) {
             case (?subDB) {
                 RBT.iter(subDB.map, options.dir);
             };
@@ -503,27 +558,45 @@ module {
         };
     };
 
-    type EntriesOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    // Impossible to implement.
+    // type IterOutwardOptions = {outwardSuperDB: SuperDB; outwardSubDBKey: InwardSubDBKey; dir: RBT.Direction};
     
-    public func entries(options: EntriesOptions) : I.Iter<(Text, AttributeValue)> {
-        iter({superDB = options.superDB; subDBKey = options.subDBKey; dir = #fwd});
+    // public func iterByOutward(options: IterOptions) : I.Iter<(Text, AttributeValue)> {
+    // };
+
+    type EntriesInwardOptions = {inwardSuperDB: SuperDB; inwardKey: InwardSubDBKey};
+    
+    public func entriesInward(options: EntriesOptions) : I.Iter<(Text, AttributeValue)> {
+        iter({inwardSuperDB = options.inwardSuperDB; inwardKey = options.inwardKey; dir = #fwd});
     };
 
-    type EntriesRevOptions = EntriesOptions;
+    // Impossible to implement.
+    // type EntriesOutwardOptions = {outwardSuperDB: SuperDB; outwardKey: OutwardSubDBKey};
     
-    public func entriesRev(options: EntriesRevOptions) : I.Iter<(Text, AttributeValue)> {
-        iter({superDB = options.superDB; subDBKey = options.subDBKey; dir = #bwd});
+    // public func entriesOutward(options: EntriesOptions) : I.Iter<(Text, AttributeValue)> {
+    // };
+
+    type EntriesRevInwardOptions = {inwardSuperDB: SuperDB; inwardKey: InwardSubDBKey};
+    
+    public func entriesRev(options: EntriesOptions) : I.Iter<(Text, AttributeValue)> {
+        iter({inwardSuperDB = options.inwardSuperDB; inwardKey = options.inwardKey; dir = #bwd});
     };
+
+    // Impossible to implement.
+    // type EntriesRevOutwardOptions = {outwardSuperDB: SuperDB; outwardKey: OutwardSubDBKey};
+    
+    // public func entriesRevOutward(options: EntriesOptions) : I.Iter<(Text, AttributeValue)> {
+    // };
 
     public type ScanLimitResult = {
         results: [(Text, AttributeValue)];
         nextKey: ?Text;
     };
 
-    type ScanLimitOptions = {superDB: SuperDB; subDBKey: SubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
+    type ScanLimitInwardOptions = {inwardSuperDB: SuperDB; inwardKey: InwardSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
     public func scanLimit(options: ScanLimitOptions): RBT.ScanLimitResult<Text, AttributeValue> {
-        switch (getSubDB(options.superDB, options.subDBKey)) {
+        switch (getSubDB(options.inwardSuperDB, options.inwardKey)) {
             case (?subDB) {
                 RBT.scanLimit(subDB.map, Text.compare, options.lowerBound, options.upperBound, options.dir, options.limit);
             };
