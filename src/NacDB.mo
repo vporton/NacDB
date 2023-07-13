@@ -90,7 +90,8 @@ module {
             -> async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
     };
 
-    // TODO: Can we have separate type for inner and outer?
+    // TODO: Can we have separate type for inner and outer canisters?
+    // TODO: arguments as {...}, not (...).
     public type PartitionCanister = actor {
         // TODO: Remove superfluous, if any.
         rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions) : async InnerSubDBKey;
