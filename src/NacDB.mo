@@ -150,9 +150,10 @@ module {
         };
         // We always insert the location to the same canister as the sub-DB.
         // (Later sub-DB may be moved to another canister.)
-        superDB.locations := RBT.insert(superDB.locations, superDB.nextOuterKey, Nat.compare, (part, inner));
-        let result = {outer: superDB.nextOuterKey; inner};
+        superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (part, inner));
+        let result = {outer = superDB.nextOuterKey; inner};
         superDB.nextOuterKey += 1;
+        result;
     };
 
     public func getInner(superDB: SuperDB, outerKey: InnerSubDBKey) : ?(PartitionCanister, InnerSubDBKey) {
@@ -171,6 +172,8 @@ module {
     // public func getSubDBByOuter(superDB: SuperDB, subDBKey: OuterSubDBKey) : ?SubDB {
     // };
 
+    // FIXME: Linearize moving sub-DBs, with anybody having the right to finish a move.
+    //        (Queue for index or for partition?)
     /// Moves to the specified `newCanister` or to a newly allocated canister, if null.
     func startMovingSubDBImpl({
         outerCanister: PartitionCanister; // ... so, this instead.
@@ -284,9 +287,9 @@ module {
         options: {
             dbOptions: DBOptions;
             index: IndexCanister;
-            oldCanister: PartitionCanister;
-            oldSuperDB: SuperDB;
-            oldSubDBKey: InnerSubDBKey;
+            oldInnerCanister: PartitionCanister;
+            oldInnerSuperDB: SuperDB;
+            oldInnerKey: InnerSubDBKey;
         }): async* ()
     {
         if (await options.oldCanister.isOverflowed({dbOptions = options.dbOptions})) {
@@ -421,6 +424,7 @@ module {
         value: AttributeValue;
     };
 
+    /// There is no `startInsertingByInner`, because inserting may need to move the sub-DB.
     public func startInserting(options: InsertOptions) : async* Nat {
         switch (getSubDB(options.superDB, options.subDBKey)) {
             case (?subDB) {
@@ -435,9 +439,9 @@ module {
                 await* startMovingSubDBIfOverflow({
                     dbOptions = options.dbOptions;
                     indexCanister = options.indexCanister;
-                    oldCanister = options.outerCanister;
-                    oldSuperDB = options.outerSuperDB;
-                    oldSubDBKey = options.subDBKey; // FIXME
+                    oldInnerCanister = options.outerCanister;
+                    oldInnerSuperDB = options.outerSuperDB;
+                    oldInnerKey = options.subDBKey; // FIXME
                 });
 
                 insertId;
