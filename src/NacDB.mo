@@ -547,8 +547,8 @@ module {
     func bothKeys(superDB: SuperDB, part: PartitionCanister, innerKey: InnerSubDBKey)
         : {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
-        superDB.locations := RBT.insert(superDB.locations, superDB.nextOuterKey, Nat.compare, (part, inner));
-        let result = {inner: (part, inner); outer: (part, superDB.nextOuterKey)};
+        superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (part, innerKey));
+        let result = {inner = (part, innerKey); outer = (part, superDB.nextOuterKey)};
         superDB.nextOuterKey += 1;
         result;
     };
@@ -565,9 +565,10 @@ module {
                 let part: PartitionCanister = switch (creating.canister) {
                     case (?part) { part };
                     case (null) {
-                        if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
-                            part := await index.newCanister();
+                        let part = if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
+                            let part2 = await index.newCanister();
                             creating.canister := ?part;
+                            part2;
                         } else {
                             SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
                             return bothKeys(part, subDBKey);
