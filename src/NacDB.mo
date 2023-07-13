@@ -414,6 +414,44 @@ module {
         };
     };
 
+    /// To be called in a partition where `innerSuperDB` resides.
+    public func startInsertingImpl(options: {
+        dbOptions: DBOptions;
+        indexCanister: IndexCanister;
+        outerCanister: PartitionCanister;
+        outerSuperDB: SuperDB;
+        outerKey: OuterSubDBKey;
+        sk: SK;
+        value: AttributeValue;
+        innerSuperDB: SuperDB;
+        innerKey: InnerSubDBKey;
+    }) : async* Nat {
+        switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
+            case (?subDB) {
+                subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
+                removeLoosers({subDB; dbOptions = options.dbOptions});
+
+                let insertId = SparseQueue.add<InsertingItem>(options.innerSuperDB.inserting, { // FIXME: Is `inserting` at correct place?
+                    part = options.outerCanister;
+                    subDBKey = options.outerKey;
+                });
+
+                await* startMovingSubDBIfOverflow({
+                    dbOptions = options.dbOptions;
+                    indexCanister = options.indexCanister;
+                    oldInnerCanister = options.outerCanister;
+                    oldInnerSuperDB = options.outerSuperDB;
+                    oldInnerKey = options.innerKey;
+                });
+
+                insertId;
+            };
+            case (null) {
+                Debug.trap("missing sub-DB");
+            };
+        };
+    };
+
     public type InsertOptions = {
         dbOptions: DBOptions;
         indexCanister: IndexCanister;
@@ -426,30 +464,7 @@ module {
 
     /// There is no `startInsertingByInner`, because inserting may need to move the sub-DB.
     public func startInserting(options: InsertOptions) : async* Nat {
-        switch (getSubDB(options.superDB, options.subDBKey)) {
-            case (?subDB) {
-                subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
-                removeLoosers({subDB; dbOptions = options.dbOptions});
 
-                let insertId = SparseQueue.add<InsertingItem>(options.superDB.inserting, {
-                    part = options.outerCanister;
-                    subDBKey = options.outerKey;
-                });
-
-                await* startMovingSubDBIfOverflow({
-                    dbOptions = options.dbOptions;
-                    indexCanister = options.indexCanister;
-                    oldInnerCanister = options.outerCanister;
-                    oldInnerSuperDB = options.outerSuperDB;
-                    oldInnerKey = options.subDBKey; // FIXME
-                });
-
-                insertId;
-            };
-            case (null) {
-                Debug.trap("missing sub-DB");
-            };
-        };
     };
 
     public func finishInserting({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey})
