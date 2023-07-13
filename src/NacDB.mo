@@ -183,10 +183,10 @@ module {
         oldInnerSubDBKey: InnerSubDBKey;
         newCanister: ?PartitionCanister;
     }) {
-        switch (options.superDB.moving) {
+        switch (oldInnerSuperDB.moving) { // FIXME: Should `moving` be here?
             case (?_) { Debug.trap("already moving") };
             case (null) {
-                options.superDB.moving := ?{
+                oldInnerSuperDB.moving := ?{
                     outerCanister;
                     outerKey;
                     oldInnerCanister;
@@ -194,7 +194,7 @@ module {
                     oldInnerSubDBKey;
                     var newInnerCanister = do ? {
                         {
-                            canister = options.newCanister!;
+                            canister = newCanister!;
                             var newSubDBKey = null;
                         };
                     };
@@ -208,14 +208,14 @@ module {
     public func finishMovingSubDB({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions}) : async* ?(PartitionCanister, InnerSubDBKey) {
         switch (oldSuperDB.moving) {
             case (?moving) {
-                switch (BTree.get(moving.oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey)) {
+                switch (BTree.get(moving.oldInnerSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey)) {
                     case (?subDB) {
-                        let (canister, newCanister) = switch (moving.newCanister) {
+                        let (canister, newCanister) = switch (moving.newInnerCanister) {
                             case (?newCanister) { (newCanister.canister, newCanister) };
                             case (null) {
                                 let newCanister = await index.newCanister();
-                                let s = {canister = newCanister; var newSubDBKey: ?SubDBKey = null};
-                                moving.newCanister := ?s;
+                                let s = {canister = newCanister; var newSubDBKey: ?InnerSubDBKey = null};
+                                moving.newInnerCanister := ?s;
                                 (newCanister, s);
                             };
                         };
@@ -227,14 +227,14 @@ module {
                                 newSubDBKey;
                             }
                         };                        
-                        ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldSubDBKey); // FIXME: idempotent?
+                        ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey); // FIXME: idempotent?
                         await outerCanister.putLocation(outerKey, moving.newInnerSubDBKey);
                         subDB.busy := false;
                         oldSuperDB.moving := null;
                         return ?(canister, newInnerSubDBKey); // TODO: need to return inner key?
                     };
                     case (null) {
-                        return ?(moving.oldCanister, moving.oldSubDBKey);
+                        return ?(moving.oldInnerCanister, moving.oldInnerSubDBKey);
                     };
                 };
             };
