@@ -245,9 +245,11 @@ module {
     func startMovingSubDB(options: {
         dbOptions: DBOptions;
         index: IndexCanister;
+        outerCanister: PartitionCanister;
+        outerKey: OuterSubDBKey;
         oldCanister: PartitionCanister;
         oldInnerSuperDB: SuperDB;
-        oldInnerSubDBKey: InnerSubDBKey;
+        oldInnerSubDBKey: InnerSubDBKey; // TODO: redundant (or preserve for efficiency?)
     }) : async* () {
         let ?item = BTree.get(options.oldInnerSuperDB.subDBs, Nat.compare, options.oldInnerSubDBKey) else {
             Debug.trap("item must exist");
@@ -260,6 +262,8 @@ module {
         let lastCanister = pks[pks.size()-1];
         if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed({dbOptions = options.dbOptions}))) {
             startMovingSubDBImpl({
+                outerCanister = options.outerCanister;
+                outerKey = options.outerKey;
                 oldInnerCanister = options.oldCanister;
                 oldInnerSuperDB = options.oldInnerSuperDB;
                 oldInnerSubDBKey = options.oldInnerSubDBKey;
@@ -267,9 +271,10 @@ module {
             });
         } else {
             startMovingSubDBImpl({
-                oldCanister = options.oldCanister;
-                superDB = options.oldSuperDB;
-                oldInnerSubDBKey = options.oldInnerSubDBKey;
+                outerCanister = options.outerCanister;
+                outerKey = options.outerKey;
+                oldInnerCanister = options.oldCanister;
+                oldInnerSuperDB = options.oldInnerSuperDB;
                 oldInnerSubDBKey = options.oldInnerSubDBKey;
                 newCanister = ?lastCanister;
             });
@@ -288,18 +293,22 @@ module {
         options: {
             dbOptions: DBOptions;
             index: IndexCanister;
+            outerCanister: PartitionCanister;
+            outerKey: OuterSubDBKey;
             oldInnerCanister: PartitionCanister;
             oldInnerSuperDB: SuperDB;
             oldInnerKey: InnerSubDBKey;
         }): async* ()
     {
-        if (await options.oldCanister.isOverflowed({dbOptions = options.dbOptions})) {
+        if (await options.oldInnerCanister.isOverflowed({dbOptions = options.dbOptions})) {
             await* startMovingSubDB({
                 dbOptions = options.dbOptions;
-                index = options.indexCanister;
-                oldCanister = options.oldCanister;
-                oldSuperDB = options.oldSuperDB;
-                oldSubDBKey = options.oldSubDBKey;
+                index = options.index;
+                outerCanister = options.outerCanister;
+                outerKey = options.outerKey;
+                oldCanister = options.oldInnerCanister;
+                oldInnerSuperDB = options.oldInnerSuperDB;
+                oldInnerSubDBKey = options.oldInnerKey;
             });
         }
     };
@@ -340,7 +349,7 @@ module {
     public type GetByInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey; sk: SK};
 
     public func getByInner(options: GetByInnerOptions) : ?AttributeValue {
-        switch (getSubDB(options.superDB, options.subDBKey)) {
+        switch (getSubDBByInner(options.superDB, options.subDBKey)) {
             case (?subDB) {
                 RBT.get(subDB.map, Text.compare, options.sk);
             };
@@ -350,13 +359,13 @@ module {
         }
     };
 
-    public type GetByOuterOptions = {outerSuperDB: SuperDB; subDBKey: OuterSubDBKey; sk: SK};
+    public type GetByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
 
     public func getByOuter(options: GetByOuterOptions) : async* ?AttributeValue {
-        let ?(part, inner) = getInner(outerSuperDB, outerKey) else {
+        let ?(part, inner) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no entry");
         };
-        await part.getByInner(inner);
+        await part.getByInner({subDBKey = inner; sk = options.sk});
     };
 
     public type ExistsByInnerOptions = GetByInnerOptions;
@@ -367,23 +376,23 @@ module {
 
     public type ExistsByOuterOptions = GetByOuterOptions;
 
-    public func hasByOuter(options: ExistsByOuterOptions) : Bool {
-        getByOuter(options) != null;
+    public func hasByOuter(options: ExistsByOuterOptions) : async* Bool {
+        (await* getByOuter(options)) != null;
     };
 
     public type HasDBByInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
 
     public func hasSubDBByInner(options: HasDBByInnerOptions) : Bool {
-        BTree.has(options.innerSuperDB.subDBs, Nat.compare, options.subDBKey);
+        BTree.has(options.innerSuperDB.subDBs, Nat.compare, options.innerKey);
     };
 
     public type HasDBByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
-    public func hasSubDBByOuter(options: HasDBByOuterOptions) : Bool {
-        let subDB = RBT.get(options.outerSuperDB, options.outerKey, Nat.compare);
-        subDB != null and (do ? {
-            BTree.has(subDB!, Nat.compare, options.subDBKey);
-        });
+    public func hasSubDBByOuter(options: HasDBByOuterOptions) : async* Bool {
+        let ?(part, inner) = getInner(options.outerSuperDB, options.outerKey) else {
+            Debug.trap("no entry");
+        };
+        await part.hasSubDBByInner({subDBKey = inner});
     };
 
     // TODO: This inner and outer.
@@ -400,19 +409,17 @@ module {
 
     public func subDBSizeByInner(options: SubDBSizeByInnerOptions): ?Nat {
         do ? {
-            ?RBT.size(getSubDB(options.superDB, options.subDBKey)!.map);
+            RBT.size(getSubDBByInner(options.superDB, options.subDBKey)!.map);
         }
     };
 
-    public type SubDBSizeByOuterOptions = {superDB: SuperDB; subDBKey: OuterSubDBKey};
+    public type SubDBSizeByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
     public func subDBSizeByOuter(options: SubDBSizeByOuterOptions): ?Nat {
-        let ?(part, innerKey) = RBT.get(options.outerSuperDB, options.outerKey, Nat.compare) else {
+        let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
-        do ? {
-            subDBSizeByInner(part, innerKey);
-        };
+        part.subDBSizeByInner(innerKey);
     };
 
     /// To be called in a partition where `innerSuperDB` resides.
@@ -440,6 +447,8 @@ module {
                 await* startMovingSubDBIfOverflow({
                     dbOptions = options.dbOptions;
                     index = options.indexCanister;
+                    outerCanister = options.outerCanister;
+                    outerKey = options.outerKey;
                     indexCanister = options.indexCanister;
                     oldInnerCanister = options.outerCanister;
                     oldInnerSuperDB = options.outerSuperDB;
@@ -493,7 +502,7 @@ module {
                 let ?{part; subDBKey} = SparseQueue.get(oldSuperDB.inserting, insertId) else {
                     Debug.trap("not inserting");
                 };
-                bothKeys(part, subDBKey)
+                (part, subDBKey);
             }
         };
         SparseQueue.delete(oldSuperDB.inserting, insertId);
