@@ -438,6 +438,7 @@ module {
 
                 await* startMovingSubDBIfOverflow({
                     dbOptions = options.dbOptions;
+                    index = options.indexCanister;
                     indexCanister = options.indexCanister;
                     oldInnerCanister = options.outerCanister;
                     oldInnerSuperDB = options.outerSuperDB;
@@ -464,7 +465,19 @@ module {
 
     /// There is no `startInsertingByInner`, because inserting may need to move the sub-DB.
     public func startInserting(options: InsertOptions) : async* Nat {
-
+        let ?(innerCanister, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
+            Debug.trap("missing sub-DB");
+        };
+        await innerCanister.startInsertingImpl({
+            dbOptions = options.dbOptions;
+            indexCanister = options.indexCanister;
+            outerCanister = options.outerCanister;
+            outerSuperDB = options.outerSuperDB;
+            outerKey = options.outerKey;
+            sk = options.sk;
+            value = options.value;
+            innerKey;
+        });
     };
 
     public func finishInserting({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey})
