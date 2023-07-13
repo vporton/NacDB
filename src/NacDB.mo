@@ -90,18 +90,36 @@ module {
             -> async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
     };
 
+    // TODO: Can we have separate type for inner and outer?
     public type PartitionCanister = actor {
+        // TODO: Remove superfluous, if any.
         rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions) : async InnerSubDBKey;
         isOverflowed({dbOptions: DBOptions}) : async Bool;
         superDBSize: query () -> async Nat;
         deleteSubDB({subDBKey: OuterSubDBKey}) : async ();
+        deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
         startInserting({subDBKey: OuterSubDBKey; sk: SK; value: AttributeValue}) : async SparseQueue.SparseQueueKey;
         finishInserting({dbOptions : DBOptions; index : IndexCanister; insertId : SparseQueue.SparseQueueKey})
             : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
+        putLocation(outerKey: OuterSubDBKey, newInnerSubDBKey: InnerSubDBKey) : async ();
+        bothKeys(part: PartitionCanister, innerKey: InnerSubDBKey)
+            : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
+        deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
         getByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async Bool;
         getByOuter: query (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByOuter: query (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async Bool;
+        hasSubDBByInner: query (options: {subDBKey: InnerSubDBKey}) -> async Bool;
+        subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
+        startInsertingImpl: query (options: {
+            dbOptions: DBOptions;
+            indexCanister: IndexCanister;
+            outerCanister: PartitionCanister;
+            outerKey: OuterSubDBKey;
+            sk: SK;
+            value: AttributeValue;
+            innerKey: InnerSubDBKey;
+        }) -> async Nat;
     };
 
     public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
@@ -228,7 +246,7 @@ module {
                             }
                         };                        
                         ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey); // FIXME: idempotent?
-                        await moving.outerCanister.putLocation(outerKey, moving.newInnerSubDBKey);
+                        await moving.outerCanister.putLocation(moving.outerKey, newInnerSubDBKey);
                         subDB.busy := false;
                         oldSuperDB.moving := null;
                         return ?(canister, newInnerSubDBKey); // TODO: need to return inner key?
@@ -415,11 +433,11 @@ module {
 
     public type SubDBSizeByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
-    public func subDBSizeByOuter(options: SubDBSizeByOuterOptions): ?Nat {
+    public func subDBSizeByOuter(options: SubDBSizeByOuterOptions): async ?Nat {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
-        part.subDBSizeByInner(innerKey);
+        await part.subDBSizeByInner({subDBKey = innerKey});
     };
 
     /// To be called in a partition where `innerSuperDB` resides.
@@ -506,32 +524,32 @@ module {
             }
         };
         SparseQueue.delete(oldSuperDB.inserting, insertId);
-        bothKeys(part, subDBKey);
+        await part.bothKeys(part, subDBKey); // TODO: Can avoid external call?
     };
 
     type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
     
     /// idempotent
-    public func delete(options: DeleteOptions) {
-        switch(getInner({outerSuperDB; outerKey})) {
+    public func delete(options: DeleteOptions): async () {
+        switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
-                innerCanister.deleteInner(innerKey, options.sk);
+                await innerCanister.deleteInner(innerKey, options.sk);
             };
             case (null) {};
         };
-        options.outerSuperDB.locations := BTree.delete(options.outerSuperDB.locations, Nat.compare, outerKey);
+        options.outerSuperDB.locations := RBT.delete(options.outerSuperDB.locations, Nat.compare, options.outerKey);
     };
 
-    type DeleteDBOptions = {superDB: SuperDB; outerKey: OuterSubDBKey};
+    type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
     
-    public func deleteSubDB(options: DeleteDBOptions) {
-        switch(getInner({outerSuperDB; outerKey})) {
+    public func deleteSubDB(options: DeleteDBOptions): async* () {
+        switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
-                innerCanister.deleteSubDBInner(innerKey);
+                await innerCanister.deleteSubDBInner(innerKey);
             };
             case (null) {};
         };
-        options.outerSuperDB.locations := BTree.delete(options.outerSuperDB.locations, Nat.compare, outerKey);
+        options.outerSuperDB.locations := RBT.delete(options.outerSuperDB.locations, Nat.compare, options.outerKey);
     };
 
     // Creating sub-DB //
@@ -544,12 +562,12 @@ module {
     /// In the current version two partition canister are always the same.
     ///
     /// `superDB` should reside in `part`.
-    func bothKeys(superDB: SuperDB, part: PartitionCanister, innerKey: InnerSubDBKey)
+    func bothKeys(outerSuperDB: SuperDB, part: PartitionCanister, innerKey: InnerSubDBKey)
         : {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
-        superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (part, innerKey));
-        let result = {inner = (part, innerKey); outer = (part, superDB.nextOuterKey)};
-        superDB.nextOuterKey += 1;
+        outerSuperDB.locations := RBT.put(outerSuperDB.locations, Nat.compare, outerSuperDB.nextOuterKey, (part, innerKey));
+        let result = {inner = (part, innerKey); outer = (part, outerSuperDB.nextOuterKey)};
+        outerSuperDB.nextOuterKey += 1;
         result;
     };
 
@@ -571,14 +589,14 @@ module {
                             part2;
                         } else {
                             SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
-                            return bothKeys(part, subDBKey);
+                            return part.bothKeys(subDBKey);
                         };
                         part;
                     };
                 };
                 let innerKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                 SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
-                bothKeys(part, innerKey);
+                part.bothKeys(subDBKey);
             };
             case (null) {
                 Debug.trap("not creating");
