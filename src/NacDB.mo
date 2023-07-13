@@ -105,6 +105,8 @@ module {
         bothKeys(part: PartitionCanister, innerKey: InnerSubDBKey)
             : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
         deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
+        scanLimitInner({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
+            : async RBT.ScanLimitResult<Text, AttributeValue>;
         getByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async Bool;
         getByOuter: query (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
@@ -578,25 +580,29 @@ module {
     public func finishCreatingSubDB({index: IndexCanister; dbIndex: DBIndex; dbOptions: DBOptions; creatingId: Nat})
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
+        // TODO: Can be simplified?
         switch (SparseQueue.get(dbIndex.creatingSubDB, creatingId)) {
             case (?creating) {
-                let part: PartitionCanister = switch (creating.canister) {
+                let part3: PartitionCanister = switch (creating.canister) {
                     case (?part) { part };
                     case (null) {
-                        let part = if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
+                        let canisters = await index.getCanisters();
+                        let part = canisters[canisters.size() - 1];
+                        let part2 = if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
                             let part2 = await index.newCanister();
                             creating.canister := ?part;
                             part2;
                         } else {
+                            let innerKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                             SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
-                            return part.bothKeys(subDBKey);
+                            return await part.bothKeys(part, innerKey);
                         };
-                        part;
+                        part2;
                     };
                 };
-                let innerKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                let innerKey = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                 SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
-                part.bothKeys(subDBKey);
+                await part3.bothKeys(part3, innerKey);
             };
             case (null) {
                 Debug.trap("not creating");
@@ -607,10 +613,10 @@ module {
     // Scanning/enumerating //
 
     // TODO: here and in other places `inner` -> `inner` and `outer` -> `outer`
-    type IterInnerOptions = {innerSuperDB: SuperDB; innerSubDBKey: InnerSubDBKey; dir: RBT.Direction};
+    type IterInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey; dir: RBT.Direction};
     
     public func iterByInner(options: IterInnerOptions) : I.Iter<(Text, AttributeValue)> {
-        switch (getSubDB(options.innerSuperDB, options.innerSubDBKey)) {
+        switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
                 RBT.iter(subDB.map, options.dir);
             };
@@ -629,7 +635,7 @@ module {
     type EntriesInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
     
     public func entriesInner(options: EntriesInnerOptions) : I.Iter<(Text, AttributeValue)> {
-        iter({innerSuperDB = options.innerSuperDB; innerKey = options.innerKey; dir = #fwd});
+        iterByInner({innerSuperDB = options.innerSuperDB; innerKey = options.innerKey; dir = #fwd});
     };
 
     // Impossible to implement.
@@ -641,7 +647,7 @@ module {
     type EntriesRevInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
     
     public func entriesRev(options: EntriesRevInnerOptions) : I.Iter<(Text, AttributeValue)> {
-        iter({innerSuperDB = options.innerSuperDB; innerKey = options.innerKey; dir = #bwd});
+        iterByInner({innerSuperDB = options.innerSuperDB; innerKey = options.innerKey; dir = #bwd});
     };
 
     // Impossible to implement.
@@ -658,7 +664,7 @@ module {
     type ScanLimitInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
     public func scanLimitInner(options: ScanLimitInnerOptions): RBT.ScanLimitResult<Text, AttributeValue> {
-        switch (getSubDB(options.innerSuperDB, options.innerKey)) {
+        switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
                 RBT.scanLimit(subDB.map, Text.compare, options.lowerBound, options.upperBound, options.dir, options.limit);
             };
@@ -670,10 +676,10 @@ module {
 
     type ScanLimitOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
-    public func scanLimitOuter(options: ScanLimitOuterOptions): RBT.ScanLimitResult<Text, AttributeValue> {
-        let ?(part, innerKey) = getInner(outerSuperDB, outerKey) else {
+    public func scanLimitOuter(options: ScanLimitOuterOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
+        let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
-        part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
+        await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
     };
 };
