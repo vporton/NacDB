@@ -228,7 +228,7 @@ module {
                             }
                         };                        
                         ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey); // FIXME: idempotent?
-                        await outerCanister.putLocation(outerKey, moving.newInnerSubDBKey);
+                        await moving.outerCanister.putLocation(outerKey, moving.newInnerSubDBKey);
                         subDB.busy := false;
                         oldSuperDB.moving := null;
                         return ?(canister, newInnerSubDBKey); // TODO: need to return inner key?
@@ -246,10 +246,10 @@ module {
         dbOptions: DBOptions;
         index: IndexCanister;
         oldCanister: PartitionCanister;
-        oldSuperDB: SuperDB;
-        oldSubDBKey: InnerSubDBKey;
+        oldInnerSuperDB: SuperDB;
+        oldInnerSubDBKey: InnerSubDBKey;
     }) : async* () {
-        let ?item = BTree.get(options.oldSuperDB.subDBs, Nat.compare, options.oldSubDBKey) else {
+        let ?item = BTree.get(options.oldInnerSuperDB.subDBs, Nat.compare, options.oldInnerSubDBKey) else {
             Debug.trap("item must exist");
         };
         if (item.busy) {
@@ -260,16 +260,17 @@ module {
         let lastCanister = pks[pks.size()-1];
         if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed({dbOptions = options.dbOptions}))) {
             startMovingSubDBImpl({
-                oldCanister = options.oldCanister;
-                superDB = options.oldSuperDB;
-                subDBKey = options.oldSubDBKey;
+                oldInnerCanister = options.oldCanister;
+                oldInnerSuperDB = options.oldInnerSuperDB;
+                oldInnerSubDBKey = options.oldInnerSubDBKey;
                 newCanister = null;
             });
         } else {
             startMovingSubDBImpl({
                 oldCanister = options.oldCanister;
                 superDB = options.oldSuperDB;
-                subDBKey = options.oldSubDBKey;
+                oldInnerSubDBKey = options.oldInnerSubDBKey;
+                oldInnerSubDBKey = options.oldInnerSubDBKey;
                 newCanister = ?lastCanister;
             });
         };
