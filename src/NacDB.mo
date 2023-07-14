@@ -528,6 +528,7 @@ module {
         });
     };
 
+    // FIXME: Actual inserting is missing.
     // FIXME: How to ensure no races/blocks?
     public func finishInserting({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey})
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
