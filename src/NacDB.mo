@@ -99,6 +99,7 @@ module {
         superDBSize: query () -> async Nat;
         deleteSubDB({subDBKey: OuterSubDBKey}) : async ();
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
+        finishMovingSubDBImpl({index: IndexCanister; dbOptions: DBOptions}) : async ();
         startInserting({subDBKey: OuterSubDBKey; sk: SK; value: AttributeValue}) : async SparseQueue.SparseQueueKey;
         finishInserting({dbOptions : DBOptions; index : IndexCanister; insertId : SparseQueue.SparseQueueKey})
             : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
@@ -224,38 +225,42 @@ module {
         };
     };
 
+    func finishMovingSubDBImpl({index: IndexCanister; oldInnerSuperDB: SuperDB; dbOptions: DBOptions}) : async* () {
+        switch (BTree.get(oldInnerSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey)) {
+            case (?subDB) {
+                let (canister, newCanister) = switch (moving.newInnerCanister) {
+                    case (?newCanister) { (newCanister.canister, newCanister) };
+                    case (null) {
+                        let newCanister = await index.newCanister();
+                        let s = {canister = newCanister; var newSubDBKey: ?InnerSubDBKey = null};
+                        moving.newInnerCanister := ?s;
+                        (newCanister, s);
+                    };
+                };
+                let newInnerSubDBKey = switch (newCanister.newSubDBKey) {
+                    case (?newSubDBKey) { newSubDBKey };
+                    case (null) {
+                        let newSubDBKey = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
+                        newCanister.newSubDBKey := ?newSubDBKey;
+                        newSubDBKey;
+                    }
+                };                        
+                await moving.outerCanister.putLocation(moving.outerKey, newInnerSubDBKey);
+                ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey); // FIXME: idempotent?
+                subDB.busy := false; // FIXME
+                return;
+            };
+            case (null) {};
+        };
+    };
+
     // FIXME: arguments for inner/outer
     /// This is meant to be called without checking user identity.
-    public func finishMovingSubDB({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions}) : async* () {
-        switch (oldSuperDB.moving) {
+    public func finishMovingSubDB({index: IndexCanister; outerSuperDB: SuperDB; dbOptions: DBOptions}) : async* () {
+        switch (outerSuperDB.moving) { // FIXME: `moving` belongs to outer super-DB (here an in other places).
             case (?moving) {
-                switch (BTree.get(moving.oldInnerSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey)) {
-                    case (?subDB) {
-                        let (canister, newCanister) = switch (moving.newInnerCanister) {
-                            case (?newCanister) { (newCanister.canister, newCanister) };
-                            case (null) {
-                                let newCanister = await index.newCanister();
-                                let s = {canister = newCanister; var newSubDBKey: ?InnerSubDBKey = null};
-                                moving.newInnerCanister := ?s;
-                                (newCanister, s);
-                            };
-                        };
-                        let newInnerSubDBKey = switch (newCanister.newSubDBKey) {
-                            case (?newSubDBKey) { newSubDBKey };
-                            case (null) {
-                                let newSubDBKey = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
-                                newCanister.newSubDBKey := ?newSubDBKey;
-                                newSubDBKey;
-                            }
-                        };                        
-                        ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey); // FIXME: idempotent?
-                        await moving.outerCanister.putLocation(moving.outerKey, newInnerSubDBKey);
-                        subDB.busy := false; // FIXME
-                        return;
-                    };
-                    case (null) {};
-                };
-                oldSuperDB.moving := null;
+                await moving.oldInnerCanister.finishMovingSubDBImpl({index; dbOptions; oldInnerSubDBKey = moving.oldInnerSubDBKey});
+                outerSuperDB.moving := null;
             };
             case (null) { () }; // may be called from `finishInserting`, so should not trap.
         };
