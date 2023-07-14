@@ -1,45 +1,57 @@
 import RBT "mo:stable-rbtree/StableRBTree";
 import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
+import Blob "mo:base/Blob";
 
 /// The intended use is a queue of operations on a canister.
 /// `maxSize` protects against memory overflow.
 module {
-    public type SparseQueueKey = Nat;
+    public type GUID = Blob;
 
     public type SparseQueue<T> = {
-        var tree: RBT.Tree<SparseQueueKey, T>;
+        var tree: RBT.Tree<GUID, T>;
+        var order: RBT.Tree<Nat, GUID>;
         maxSize: Nat;
-        var next: SparseQueueKey;
+        var next: Nat;
     };
 
     public func init<T>(maxSize: Nat): SparseQueue<T> {
         {
             var tree = RBT.init();
+            var order = RBT.init();
             maxSize;
             var next = 0;
         }
     };
 
-    public func add<T>(queue: SparseQueue<T>, value: T): SparseQueueKey {
-        if (RBT.size(queue.tree) >= queue.maxSize) {
-            let i = RBT.iter(queue.tree, #fwd);
-            let ?(key, _) = i.next() else {
+    public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T) {
+        switch (RBT.get(queue.tree, Blob.compare, guid)) {
+            case (?_) return; // already there is
+            case (null) {};
+        };
+        if (RBT.size(queue.order) >= queue.maxSize) {
+            let i = RBT.iter(queue.order, #fwd);
+            let ?(number, _) = i.next() else {
                 Debug.trap("empty queue");
             };
-            queue.tree := RBT.delete(queue.tree, Nat.compare, key);
+            let ?guid2 = RBT.get(queue.order, Nat.compare, number) else {
+                Debug.trap("programming error")
+            };
+            queue.order := RBT.delete(queue.order, Nat.compare, number);
+            queue.tree := RBT.delete<Blob, T>(queue.tree, Blob.compare, guid2);
         };
-        queue.tree := RBT.put(queue.tree, Nat.compare, queue.next, value);
+        queue.tree := RBT.put(queue.tree, Blob.compare, guid, value);
         let k = queue.next;
+        queue.order := RBT.put(queue.order, Nat.compare, k, guid);
         queue.next += 1;
-        k;
     };
 
-    public func delete<T>(queue: SparseQueue<T>, key: SparseQueueKey) {
-        queue.tree := RBT.delete(queue.tree, Nat.compare, key);
-    };
+    // We don't really need this.
+    // public func delete<T>(queue: SparseQueue<T>, key: GUID) {
+    //     queue.tree := RBT.delete(queue.tree, Nat.compare, key);
+    // };
 
-    public func get<T>(queue: SparseQueue<T>, key: SparseQueueKey): ?T {
-        RBT.get(queue.tree, Nat.compare, key);
+    public func get<T>(queue: SparseQueue<T>, key: GUID): ?T {
+        RBT.get(queue.tree, Blob.compare, key);
     };
 }
