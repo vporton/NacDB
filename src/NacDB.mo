@@ -525,7 +525,7 @@ module {
     };
 
     public type InsertOptions = {
-        guid: GUID;
+        guid: GUID; // FIXME: Use it.
         dbOptions: DBOptions;
         indexCanister: IndexCanister;
         outerCanister: PartitionCanister;
@@ -555,7 +555,11 @@ module {
             innerKey;
         });
 
-        let (part, subDBKey) = switch(await* finishMovingSubDB({index; oldSuperDB; dbOptions})) {
+        let (part, subDBKey) = switch(await* finishMovingSubDB({
+            index = options.indexCanister;
+            outerSuperDB = options.outerSuperDB;
+            dbOptions = options.dbOptions;
+        })) {
             case ((part, subDBKey)) { (part, subDBKey) };
             case (null) {
                 let ?{part; subDBKey} = SparseQueue.get(oldSuperDB.inserting, insertId) else {
