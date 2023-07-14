@@ -109,9 +109,15 @@ module {
         deleteSubDB({subDBKey: OuterSubDBKey}) : async ();
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
         finishMovingSubDBImpl({index: IndexCanister; dbOptions: DBOptions}) : async ();
-        startInserting({subDBKey: OuterSubDBKey; sk: SK; value: AttributeValue}) : async SparseQueue.SparseQueueKey;
-        finishInserting({dbOptions : DBOptions; index : IndexCanister; insertId : SparseQueue.SparseQueueKey})
-            : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
+        insert({
+            guid: GUID;
+            dbOptions: DBOptions;
+            indexCanister: IndexCanister;
+            outerCanister: PartitionCanister;
+            outerKey: OuterSubDBKey;
+            sk: SK;
+            value: AttributeValue;
+        }) : async ();
         putLocation(outerKey: OuterSubDBKey, newInnerSubDBKey: InnerSubDBKey) : async ();
         bothKeys(part: PartitionCanister, innerKey: InnerSubDBKey)
             : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
@@ -271,7 +277,6 @@ module {
     };
 
     // FIXME: arguments for inner/outer
-    /// This is meant to be called without checking user identity.
     public func finishMovingSubDB({index: IndexCanister; outerSuperDB: SuperDB; dbOptions: DBOptions}) : async* () {
         switch (outerSuperDB.moving) { // FIXME: `moving` belongs to outer super-DB (here an in other places).
             case (?moving) {
@@ -464,6 +469,7 @@ module {
 
     /// To be called in a partition where `innerSuperDB` resides.
     public func startInsertingImpl(options: {
+        guid: GUID;
         dbOptions: DBOptions;
         indexCanister: IndexCanister;
         outerCanister: PartitionCanister;
@@ -473,13 +479,13 @@ module {
         value: AttributeValue;
         innerSuperDB: SuperDB;
         innerKey: InnerSubDBKey;
-    }) : async* Nat {
+    }) : async* InsertingItem {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
                 subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
                 removeLoosers({subDB; dbOptions = options.dbOptions});
 
-                let insertId = SparseQueue.add<InsertingItem>(options.innerSuperDB.inserting, { // FIXME: Is `inserting` at correct place?
+                let inserting = SparseQueue.add<InsertingItem>(options.innerSuperDB.inserting, options.guid, { // FIXME: Is `inserting` at correct place?
                     part = options.outerCanister;
                     subDBKey = options.outerKey;
                 });
@@ -495,7 +501,7 @@ module {
                     oldInnerKey = options.innerKey;
                 });
 
-                insertId;
+                inserting;
             };
             case (null) {
                 Debug.trap("missing sub-DB");
@@ -504,6 +510,7 @@ module {
     };
 
     public type InsertOptions = {
+        guid: GUID;
         dbOptions: DBOptions;
         indexCanister: IndexCanister;
         outerCanister: PartitionCanister;
@@ -513,12 +520,16 @@ module {
         value: AttributeValue;
     };
 
-    /// There is no `startInsertingByInner`, because inserting may need to move the sub-DB.
-    public func startInserting(options: InsertOptions) : async* Nat {
+    /// There is no `insertByInner`, because inserting may need to move the sub-DB.
+    public func insert(options: InsertOptions)
+        : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
+    {
         let ?(innerCanister, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("missing sub-DB");
         };
-        await innerCanister.startInsertingImpl({
+
+        // TODO: variable not used
+        let inserting = await innerCanister.startInsertingImpl({
             dbOptions = options.dbOptions;
             indexCanister = options.indexCanister;
             outerCanister = options.outerCanister;
@@ -528,16 +539,7 @@ module {
             value = options.value;
             innerKey;
         });
-    };
 
-    // FIXME: Actual inserting is missing.
-    // FIXME: How to ensure no races/blocks?
-    public func finishInserting({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey})
-        : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
-    {
-        let ?v = SparseQueue.get(oldSuperDB.inserting, insertId) else {
-            Debug.trap("not inserting");
-        };
         let (part, subDBKey) = switch(await* finishMovingSubDB({index; oldSuperDB; dbOptions})) {
             case (?(part, subDBKey)) { (part, subDBKey) };
             case (null) {
