@@ -588,10 +588,9 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
-    public func createSubDB({guid: GUID; dbIndex: DBIndex; dbOptions: DBOptions; userData: Text})
-    {
+    public func createSubDB({guid: GUID; dbIndex: DBIndex; dbOptions: DBOptions; userData: Text}) : async* () {
         let creating0: CreatingSubDB = {var canister = null; userData};
-        let creating = SparseQueue.add(dbIndex.creatingSubDB, creating0);
+        let creating = SparseQueue.add(dbIndex.creatingSubDB, guid, creating0);
         let part3: PartitionCanister = switch (creating.canister) {
             case (?part) { part };
             case (null) {
