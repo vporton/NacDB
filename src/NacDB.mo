@@ -193,18 +193,18 @@ module {
     // public func getSubDBByOuter(superDB: SuperDB, subDBKey: OuterSubDBKey) : ?SubDB {
     // };
 
-    // FIXME: Linearize moving sub-DBs, with anybody having the right to finish a move.
-    //        (Queue for index or for partition?)
     /// Moves to the specified `newCanister` or to a newly allocated canister, if null.
+    ///
+    /// This is meant to be called without checking user identity.
     func startMovingSubDBImpl({
-        outerCanister: PartitionCanister; // ... so, this instead.
+        outerCanister: PartitionCanister;
         outerKey: OuterSubDBKey;
         oldInnerCanister: PartitionCanister;
         oldInnerSuperDB: SuperDB;
         oldInnerSubDBKey: InnerSubDBKey;
         newCanister: ?PartitionCanister;
     }) {
-        switch (oldInnerSuperDB.moving) { // FIXME: Should `moving` be here?
+        switch (oldInnerSuperDB.moving) { // FIXME: `moving` belongs to outer super-DB (here an in other places).
             case (?_) { Debug.trap("already moving") };
             case (null) {
                 oldInnerSuperDB.moving := ?{
@@ -225,8 +225,8 @@ module {
     };
 
     // FIXME: arguments for inner/outer
-    // FIXME: What to do with the case if the new sub-DB is already created and the old is not yet deleted? (Needs cleanup)
-    public func finishMovingSubDB({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions}) : async* ?(PartitionCanister, InnerSubDBKey) {
+    /// This is meant to be called without checking user identity.
+    public func finishMovingSubDB({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions}) : async* () {
         switch (oldSuperDB.moving) {
             case (?moving) {
                 switch (BTree.get(moving.oldInnerSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey)) {
@@ -250,16 +250,14 @@ module {
                         };                        
                         ignore BTree.delete(oldSuperDB.subDBs, Nat.compare, moving.oldInnerSubDBKey); // FIXME: idempotent?
                         await moving.outerCanister.putLocation(moving.outerKey, newInnerSubDBKey);
-                        subDB.busy := false;
-                        oldSuperDB.moving := null;
-                        return ?(canister, newInnerSubDBKey); // TODO: need to return inner key?
+                        subDB.busy := false; // FIXME
+                        return;
                     };
-                    case (null) {
-                        return ?(moving.oldInnerCanister, moving.oldInnerSubDBKey);
-                    };
+                    case (null) {};
                 };
+                oldSuperDB.moving := null;
             };
-            case (null) { null }; // may be called from `finishInserting`, so should not trap.
+            case (null) { () }; // may be called from `finishInserting`, so should not trap.
         };
     };
 
