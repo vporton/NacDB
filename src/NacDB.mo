@@ -221,7 +221,7 @@ module {
         oldInnerSubDBKey: InnerSubDBKey;
         newCanister: ?PartitionCanister;
     }) {
-        switch (oldInnerSuperDB.moving) { // FIXME: `moving` belongs to outer super-DB (here an in other places).
+        switch (oldInnerSuperDB.moving) { // FIXME: `moving` belongs to outer super-DB (here and in other places).
             case (?_) { Debug.trap("already moving") };
             case (null) {
                 oldInnerSuperDB.moving := ?{
@@ -594,7 +594,7 @@ module {
         let part3: PartitionCanister = switch (creating.canister) {
             case (?part) { part };
             case (null) {
-                let canisters = await index.getCanisters();
+                let canisters = await index.getCanisters(); // TODO: Use `dbIndex` directly.
                 let part = canisters[canisters.size() - 1];
                 let part2 = if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
                     let part2 = await index.newCanister();
