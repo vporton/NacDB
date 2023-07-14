@@ -528,6 +528,7 @@ module {
         });
     };
 
+    // FIXME: How to ensure no races/blocks?
     public func finishInserting({index: IndexCanister; oldSuperDB: SuperDB; dbOptions: DBOptions; insertId: SparseQueue.SparseQueueKey})
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
@@ -574,7 +575,7 @@ module {
 
     // Creating sub-DB //
 
-    // It does not touch old items, so no locking.
+    /// It does not touch old items, so no locking.
     public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions; userData: Text}): async* Nat {
         SparseQueue.add<CreatingSubDB>(dbIndex.creatingSubDB, {var canister = null; userData});
     };
@@ -595,6 +596,9 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
+    ///
+    /// This function is intended to be called by the same user role as `startCreatingSubDB`.
+    /// This does not create blockings, because all insertions are independent.
     public func finishCreatingSubDB({index: IndexCanister; dbIndex: DBIndex; dbOptions: DBOptions; creatingId: Nat})
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
