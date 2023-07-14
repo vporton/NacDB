@@ -13,8 +13,11 @@ import Bool "mo:base/Bool";
 import Deque "mo:base/Deque";
 import Iter "mo:base/Iter";
 import SparseQueue "../lib/SparseQueue";
+import Blob "mo:base/Blob";
 
 module {
+    public type GUID = Blob;
+
     /// The key under which a sub-DB stored in a canister.
     public type InnerSubDBKey = Nat;
 
@@ -92,8 +95,7 @@ module {
     public type IndexCanister = actor {
         getCanisters: query () -> async [PartitionCanister];
         newCanister(): async PartitionCanister;
-        startCreatingSubDB: shared({dbOptions: DBOptions; userData: Text}) -> async Nat;
-        finishCreatingSubDB: shared({index: IndexCanister; dbOptions: DBOptions; creatingId: Nat})
+        createSubDB: shared({dbOptions: DBOptions; userData: Text})
             -> async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
     };
 
@@ -577,8 +579,37 @@ module {
     // Creating sub-DB //
 
     /// It does not touch old items, so no locking.
-    public func startCreatingSubDB({dbIndex: DBIndex; dbOptions: DBOptions; userData: Text}): async* Nat {
-        SparseQueue.add<CreatingSubDB>(dbIndex.creatingSubDB, {var canister = null; userData});
+    ///
+    /// Pass a random GUID. Repeat the call with the same GUID, if the previous call failed.
+    ///
+    /// The "real" returned value is `outer`, but `inner` can be used for caching
+    /// (on cache failure retrieve new `inner` using `outer`).
+    ///
+    /// In this version returned `PartitionCanister` for inner and outer always the same.
+    public func createSubDB({guid: GUID; dbIndex: DBIndex; dbOptions: DBOptions; userData: Text})
+    {
+        let creating0: CreatingSubDB = {var canister = null; userData};
+        let creating = SparseQueue.add(dbIndex.creatingSubDB, creating0);
+        let part3: PartitionCanister = switch (creating.canister) {
+            case (?part) { part };
+            case (null) {
+                let canisters = await index.getCanisters();
+                let part = canisters[canisters.size() - 1];
+                let part2 = if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
+                    let part2 = await index.newCanister();
+                    creating.canister := ?part;
+                    part2;
+                } else {
+                    let innerKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                    SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
+                    return await part.bothKeys(part, innerKey);
+                };
+                part2;
+            };
+        };
+        let innerKey = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+        SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
+        await part3.bothKeys(part3, innerKey);
     };
 
     /// In the current version two partition canister are always the same.
@@ -591,46 +622,6 @@ module {
         let result = {inner = (part, innerKey); outer = (part, outerSuperDB.nextOuterKey)};
         outerSuperDB.nextOuterKey += 1;
         result;
-    };
-
-    /// The "real" returned value is `outer`, but `inner` can be used for caching
-    /// (on cache failure retrieve new `inner` using `outer`).
-    ///
-    /// In this version returned `PartitionCanister` for inner and outer always the same.
-    ///
-    /// This function is intended to be called by the same user role as `startCreatingSubDB`.
-    /// This does not create blockings, because all insertions are independent.
-    public func finishCreatingSubDB({index: IndexCanister; dbIndex: DBIndex; dbOptions: DBOptions; creatingId: Nat})
-        : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
-    {
-        // TODO: Can be simplified?
-        switch (SparseQueue.get(dbIndex.creatingSubDB, creatingId)) {
-            case (?creating) {
-                let part3: PartitionCanister = switch (creating.canister) {
-                    case (?part) { part };
-                    case (null) {
-                        let canisters = await index.getCanisters();
-                        let part = canisters[canisters.size() - 1];
-                        let part2 = if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
-                            let part2 = await index.newCanister();
-                            creating.canister := ?part;
-                            part2;
-                        } else {
-                            let innerKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
-                            SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
-                            return await part.bothKeys(part, innerKey);
-                        };
-                        part2;
-                    };
-                };
-                let innerKey = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
-                SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
-                await part3.bothKeys(part3, innerKey);
-            };
-            case (null) {
-                Debug.trap("not creating");
-            };
-        };
     };
 
     // Scanning/enumerating //

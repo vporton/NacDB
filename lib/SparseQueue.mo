@@ -2,6 +2,7 @@ import RBT "mo:stable-rbtree/StableRBTree";
 import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
 import Blob "mo:base/Blob";
+import Bool "mo:base/Bool";
 
 /// The intended use is a queue of operations on a canister.
 /// `maxSize` protects against memory overflow.
@@ -24,9 +25,10 @@ module {
         }
     };
 
-    public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T) {
+    /// It returns `value` or an old value. TODO: It is error prone.
+    public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T): T {
         switch (RBT.get(queue.tree, Blob.compare, guid)) {
-            case (?_) return; // already there is
+            case (?v) return v; // already there is
             case (null) {};
         };
         if (RBT.size(queue.order) >= queue.maxSize) {
@@ -44,6 +46,7 @@ module {
         let k = queue.next;
         queue.order := RBT.put(queue.order, Nat.compare, k, guid);
         queue.next += 1;
+        value;
     };
 
     // We don't really need this.
