@@ -108,7 +108,7 @@ module {
         superDBSize: query () -> async Nat;
         deleteSubDB({subDBKey: OuterSubDBKey}) : async ();
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
-        finishMovingSubDBImpl({index: IndexCanister; dbOptions: DBOptions}) : async ();
+        finishMovingSubDBImpl({index: IndexCanister; dbOptions: DBOptions}) : async (PartitionCanister, InnerSubDBKey);
         insert({
             guid: GUID;
             dbOptions: DBOptions;
@@ -539,32 +539,22 @@ module {
             innerKey;
         });
 
-        switch (outerSuperDB.moving) {
+        let (part, subDBKey) = switch (options.outerSuperDB.moving) {
             case (?moving) {
-                await moving.oldInnerCanister.finishMovingSubDBImpl({index; dbOptions; oldInnerSubDBKey = moving.oldInnerSubDBKey});
+                let (part, innerKey) = await* oldInnerCanister.finishMovingSubDBImpl({index; dbOptions; oldInnerSubDBKey = moving.oldInnerSubDBKey});
                 outerSuperDB.moving := null;
+                (part, innerKey)
             };
-            case (null) { () }; // FIXME: ?
+            case (null) { (innerCanister, innerKey) };
         };
 
-
-        let (part, subDBKey) = switch(TODO)) {
-            case ((part, subDBKey)) { (part, subDBKey) };
-            case (null) {
-                let ?{part; subDBKey} = SparseQueue.get(oldSuperDB.inserting, insertId) else {
-                    Debug.trap("not inserting");
-                };
-                (part, subDBKey);
-            }
-        };
-        SparseQueue.delete(oldSuperDB.inserting, insertId);
         await part.bothKeys(part, subDBKey); // TODO: Can avoid external call?
     };
 
     type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
     
     /// idempotent
-    public func delete(options: DeleteOptions): async () {
+    public func delete(options: DeleteOptions): async* () {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 await innerCanister.deleteInner(innerKey, options.sk);
