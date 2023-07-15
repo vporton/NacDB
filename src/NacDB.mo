@@ -289,19 +289,6 @@ module {
         };
     };
 
-    // FIXME: arguments for inner/outer
-    public func finishMovingSubDB({index: IndexCanister; outerSuperDB: SuperDB; dbOptions: DBOptions})
-        : async* (PartitionCanister, InnerSubDBKey)
-    {
-        switch (outerSuperDB.moving) { // FIXME: `moving` belongs to outer super-DB (here an in other places).
-            case (?moving) {
-                await moving.oldInnerCanister.finishMovingSubDBImpl({index; dbOptions; oldInnerSubDBKey = moving.oldInnerSubDBKey});
-                outerSuperDB.moving := null;
-            };
-            case (null) { () }; // may be called from `finishInserting`, so should not trap.
-        };
-    };
-
     func startMovingSubDB(options: {
         dbOptions: DBOptions;
         index: IndexCanister;
@@ -552,11 +539,16 @@ module {
             innerKey;
         });
 
-        let (part, subDBKey) = switch(await* finishMovingSubDB({
-            index = options.indexCanister;
-            outerSuperDB = options.outerSuperDB;
-            dbOptions = options.dbOptions;
-        })) {
+        switch (outerSuperDB.moving) {
+            case (?moving) {
+                await moving.oldInnerCanister.finishMovingSubDBImpl({index; dbOptions; oldInnerSubDBKey = moving.oldInnerSubDBKey});
+                outerSuperDB.moving := null;
+            };
+            case (null) { () }; // FIXME: ?
+        };
+
+
+        let (part, subDBKey) = switch(TODO)) {
             case ((part, subDBKey)) { (part, subDBKey) };
             case (null) {
                 let ?{part; subDBKey} = SparseQueue.get(oldSuperDB.inserting, insertId) else {
