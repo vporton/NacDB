@@ -138,7 +138,7 @@ module {
             sk: SK;
             value: AttributeValue;
             innerKey: InnerSubDBKey;
-        }) -> async Nat;
+        }) -> async ();
     };
 
     public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
@@ -494,16 +494,11 @@ module {
         value: AttributeValue;
         innerSuperDB: SuperDB;
         innerKey: InnerSubDBKey;
-    }) : async* InsertingItem {
+    }) : async () {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
                 subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
                 removeLoosers({subDB; dbOptions = options.dbOptions});
-
-                let inserting = SparseQueue.add<InsertingItem>(options.innerSuperDB.inserting, options.guid, { // FIXME: Is `inserting` at correct place?
-                    part = options.outerCanister;
-                    subDBKey = options.outerKey;
-                });
 
                 await* startMovingSubDBIfOverflow({
                     dbOptions = options.dbOptions;
@@ -515,8 +510,6 @@ module {
                     oldInnerSuperDB = options.outerSuperDB;
                     oldInnerKey = options.innerKey;
                 });
-
-                inserting;
             };
             case (null) {
                 Debug.trap("missing sub-DB");
@@ -525,7 +518,7 @@ module {
     };
 
     public type InsertOptions = {
-        guid: GUID; // FIXME: Use it.
+        guid: GUID;
         dbOptions: DBOptions;
         indexCanister: IndexCanister;
         outerCanister: PartitionCanister;
@@ -543,12 +536,16 @@ module {
             Debug.trap("missing sub-DB");
         };
 
-        // TODO: variable not used
-        let inserting = await innerCanister.startInsertingImpl({
+        let inserting = SparseQueue.add<InsertingItem>(options.innerSuperDB.inserting, options.guid, { // FIXME: Is `inserting` at correct place?
+            part = options.outerCanister;
+            subDBKey = options.outerKey;
+        });
+
+        await innerCanister.startInsertingImpl({
+            guid = options.guid;
             dbOptions = options.dbOptions;
             indexCanister = options.indexCanister;
             outerCanister = options.outerCanister;
-            outerSuperDB = options.outerSuperDB;
             outerKey = options.outerKey;
             sk = options.sk;
             value = options.value;
