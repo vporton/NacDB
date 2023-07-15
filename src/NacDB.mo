@@ -523,7 +523,7 @@ module {
             Debug.trap("missing sub-DB");
         };
 
-        let inserting = SparseQueue.add<InsertingItem>(options.innerSuperDB.inserting, options.guid, { // FIXME: Is `inserting` at correct place?
+        let inserting = SparseQueue.add<InsertingItem>(options.outerSuperDB.inserting, options.guid, {
             part = options.outerCanister;
             subDBKey = options.outerKey;
         });
@@ -548,7 +548,7 @@ module {
             case (null) { (innerCanister, innerKey) };
         };
 
-        await part.bothKeys(part, subDBKey); // TODO: Can avoid external call?
+        bothKeys(options.outerSuperDB, part, subDBKey);
     };
 
     type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
@@ -608,7 +608,7 @@ module {
         };
         let innerKey = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
         SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
-        await part3.bothKeys(part3, innerKey);
+        await part3.bothKeys(part3, innerKey); // FIXME: outer part vs inner part? (and need to do external call of this function here and in other places?)
     };
 
     /// In the current version two partition canister are always the same.
