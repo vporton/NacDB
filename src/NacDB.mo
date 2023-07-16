@@ -128,7 +128,14 @@ module {
         superDBSize: query () -> async Nat;
         deleteSubDB({subDBKey: OuterSubDBKey}) : async ();
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
-        finishMovingSubDBImpl({index: IndexCanister; dbOptions: DBOptions}) : async (PartitionCanister, InnerSubDBKey);
+        finishMovingSubDBImpl({
+            guid: GUID;
+            index: IndexCanister;
+            outerCanister: PartitionCanister;
+            outerKey: OuterSubDBKey;
+            oldInnerKey: InnerSubDBKey;
+            dbOptions: DBOptions;
+        }) : async (PartitionCanister, InnerSubDBKey);
         insert({
             guid: GUID;
             dbOptions: DBOptions;
@@ -139,7 +146,7 @@ module {
             value: AttributeValue;
         }) : async ();
         putLocation(outerKey: OuterSubDBKey, innerCanister: PartitionCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
-        bothKeys(part: PartitionCanister, innerKey: InnerSubDBKey)
+        createOuter(part: PartitionCanister, innerKey: InnerSubDBKey)
             : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
         deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
         scanLimitInner({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
@@ -579,7 +586,7 @@ module {
             innerKey = newInnerKey;
         };
 
-        bothKeys(options.outerSuperDB, newInnerPartition, innerKey); // FIXME: It's wrong here to create a new outer key!
+        createOuter(options.outerSuperDB, newInnerPartition, innerKey); // FIXME: It's wrong here to create a new outer key!
     };
 
     type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
@@ -634,20 +641,20 @@ module {
                 } else {
                     let innerKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                     // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Avoid calling `rawInsertSubDB` repeatedly (idempotency).
-                    return await part.bothKeys(part, innerKey);
+                    return await part.createOuter(part, innerKey);
                 };
                 part2;
             };
         };
         let innerKey = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
         // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
-        await part3.bothKeys(part3, innerKey); // FIXME: outer part vs inner part? (and need to do external call of this function here and in other places?)
+        await part3.createOuter(part3, innerKey); // FIXME: outer part vs inner part? (and need to do external call of this function here and in other places?)
     };
 
     /// In the current version two partition canister are always the same.
     ///
     /// `superDB` should reside in `part`.
-    func bothKeys(outerSuperDB: SuperDB, part: PartitionCanister, innerKey: InnerSubDBKey)
+    func createOuter(outerSuperDB: SuperDB, part: PartitionCanister, innerKey: InnerSubDBKey)
         : {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
         outerSuperDB.locations := RBT.put(outerSuperDB.locations, Nat.compare, outerSuperDB.nextOuterKey, (part, innerKey));

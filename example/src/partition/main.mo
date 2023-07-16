@@ -24,6 +24,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.isOverflowed({dbOptions; superDB});
     };
 
+    // TODO
     public shared func createSubDB({dbOptions: Nac.DBOptions; userData: Text}) : async Nat {
         Nac.rawInsertSubDB(superDB, RBT.init(), userData, dbOptions);
     };
@@ -50,27 +51,64 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.subDBSize({superDB; subDBKey});
     };
 
-    public shared func startInserting({subDBKey: Nac.SubDBKey; sk: Nac.SK; value: Nac.AttributeValue}) : async Nat {
-        await* Nac.startInserting({
+    public shared func finishMovingSubDBImpl({
+        guid: GUID;
+        index: IndexCanister;
+        outerCanister: PartitionCanister;
+        outerKey: OuterSubDBKey;
+        oldInnerKey: InnerSubDBKey;
+        dbOptions: DBOptions;
+    }) : async (PartitionCanister, InnerSubDBKey) {
+        Nac.finishMovingSubDBImpl({
+            oldInnerSuperDB = superDB;
+            guid;
+            index;
+            outerCanister;
+            outerKey;
+            oldInnerKey;
             dbOptions;
-            indexCanister = index;
-            currentCanister = this;
-            superDB = superDB;
-            subDBKey;
-            sk;
-            value;
         })
     };
 
-    public shared func finishInserting({index: Nac.IndexCanister; dbOptions: Nac.DBOptions; insertId: SparseQueue.SparseQueueKey}): async (Nac.PartitionCanister, Nac.SubDBKey) {
-        await* Nac.finishInserting({index; oldSuperDB = superDB; dbOptions; insertId});
+    public shared func insert({
+        guid: GUID;
+        dbOptions: DBOptions;
+        indexCanister: IndexCanister;
+        outerCanister: PartitionCanister;
+        outerKey: OuterSubDBKey;
+        sk: SK;
+        value: AttributeValue;
+    }) : async () {
+        Nac.insert({
+            guid;
+            dbOptions;
+            indexCanister;
+            outerCanister;
+            outerSuperDB = superDB;
+            outerKey;
+            sk;
+            value;
+        });
+    };
+
+    public shared func putLocation(outerKey: OuterSubDBKey, innerCanister: PartitionCanister, newInnerSubDBKey: InnerSubDBKey) : async () {
+        Nac.putLocation({
+            outerSuperDB = superDB;
+            outerKey;
+            innerCanister;
+            newInnerSubDBKey;
+        });
     };
 
     public shared func delete({subDBKey: Nac.SubDBKey; sk: Nac.SK}) : async () {
         Nac.delete({superDB; subDBKey; sk});
     };
 
-    public shared func deleteSubDB({subDBKey: Nac.SubDBKey}) : async () {
+    public shared func deleteSubDB({subDBKey: Nac.OuterSubDBKey}) : async () {
+        Nac.deleteSubDB({superDB; subDBKey});
+    };
+
+    public shared func deleteSubDBInner(subDBKey: Nac.InnerSubDBKey) : async () {
         Nac.deleteSubDB({superDB; subDBKey});
     };
 
