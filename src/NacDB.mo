@@ -124,7 +124,7 @@ module {
     public type PartitionCanister = actor {
         // TODO: Remove superfluous, if any.
         rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions) : async InnerSubDBKey;
-        isOverflowed({dbOptions: DBOptions}) : async Bool;
+        isOverflowed: query ({dbOptions: DBOptions}) -> async Bool;
         superDBSize: query () -> async Nat;
         deleteSubDB({outerKey: OuterSubDBKey}) : async ();
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
@@ -503,13 +503,12 @@ module {
         dbOptions: DBOptions;
         indexCanister: IndexCanister;
         outerCanister: PartitionCanister;
-        outerSuperDB: SuperDB;
         outerKey: OuterSubDBKey;
         sk: SK;
         value: AttributeValue;
         innerSuperDB: SuperDB;
         innerKey: InnerSubDBKey;
-    }) : async () {
+    }) : async* () {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
                 subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
@@ -522,7 +521,7 @@ module {
                     outerKey = options.outerKey;
                     indexCanister = options.indexCanister;
                     oldInnerCanister = options.outerCanister;
-                    oldInnerSuperDB = options.outerSuperDB;
+                    oldInnerSuperDB = options.innerSuperDB;
                     oldInnerKey = options.innerKey;
                 });
             };
@@ -674,7 +673,7 @@ module {
     /// In the current version two partition canister are always the same.
     ///
     /// `superDB` should reside in `part`.
-    func createOuter(outerSuperDB: SuperDB, part: PartitionCanister, innerKey: InnerSubDBKey)
+    public func createOuter(outerSuperDB: SuperDB, part: PartitionCanister, innerKey: InnerSubDBKey)
         : {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
         outerSuperDB.locations := RBT.put(outerSuperDB.locations, Nat.compare, outerSuperDB.nextOuterKey, (part, innerKey));
