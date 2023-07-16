@@ -126,7 +126,7 @@ module {
         rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions) : async InnerSubDBKey;
         isOverflowed({dbOptions: DBOptions}) : async Bool;
         superDBSize: query () -> async Nat;
-        deleteSubDB({subDBKey: OuterSubDBKey}) : async ();
+        deleteSubDB({outerKey: OuterSubDBKey}) : async ();
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
         finishMovingSubDBImpl({
             guid: GUID;
@@ -144,20 +144,22 @@ module {
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
-        }) : async ();
+        }) : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
         putLocation(outerKey: OuterSubDBKey, innerCanister: PartitionCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
         createOuter(part: PartitionCanister, innerKey: InnerSubDBKey)
             : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
+        delete({outerKey: OuterSubDBKey; sk: SK}): async ();
         deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
-        scanLimitInner({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
-            : async RBT.ScanLimitResult<Text, AttributeValue>;
+        scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
+            -> async RBT.ScanLimitResult<Text, AttributeValue>;
         getByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async Bool;
         getByOuter: query (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByOuter: query (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async Bool;
         hasSubDBByInner: query (options: {subDBKey: InnerSubDBKey}) -> async Bool;
         subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
-        startInsertingImpl: query (options: {
+        startInsertingImpl(options: {
+            guid: GUID;
             dbOptions: DBOptions;
             indexCanister: IndexCanister;
             outerCanister: PartitionCanister;
@@ -165,7 +167,7 @@ module {
             sk: SK;
             value: AttributeValue;
             innerKey: InnerSubDBKey;
-        }) -> async ();
+        }): async ();
     };
 
     public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
@@ -198,7 +200,7 @@ module {
 
     /// The "real" returned value is `outer`, but `inner` can be used for caching
     /// (on cache failure retrieve new `inner` using `outer`).
-    public func rawInsertSubDB(part: PartitionCanister, superDB: SuperDB, map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions)
+    public func rawInsertSubDB(innerCanister: PartitionCanister, superDB: SuperDB, map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions)
         : {outer: OuterSubDBKey; inner: InnerSubDBKey}
     {
         let inner = switch (superDB.moving) {
@@ -218,7 +220,7 @@ module {
         };
         // We always insert the location to the same canister as the sub-DB.
         // (Later sub-DB may be moved to another canister.)
-        superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (part, inner));
+        superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (innerCanister, inner));
         let result = {outer = superDB.nextOuterKey; inner};
         superDB.nextOuterKey += 1;
         result;
@@ -271,7 +273,7 @@ module {
         };
     };
 
-    func finishMovingSubDBImpl({
+    public func finishMovingSubDBImpl({
         guid: GUID;
         index: IndexCanister;
         outerCanister: PartitionCanister;
@@ -543,7 +545,7 @@ module {
 
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
     public func insert(options: InsertOptions)
-        : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
+        : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
         let ?(oldInnerCanister, oldInnerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("missing sub-DB");
@@ -592,6 +594,17 @@ module {
         {inner = (newInnerPartition, newInnerKey); outer = (options.outerCanister, options.outerKey)};
     };
 
+    public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: SK}): async* () {
+        switch (BTree.get(innerSuperDB.subDBs, Nat.compare, innerKey)) {
+            case (?subDB) {
+                subDB.map := RBT.delete<Text, AttributeValue>(subDB.map, Text.compare, sk);
+            };
+            case (null) {
+                Debug.trap("no sub-DB")
+            }
+        }
+    };
+
     type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
     
     /// idempotent
@@ -615,6 +628,10 @@ module {
             case (null) {};
         };
         options.outerSuperDB.locations := RBT.delete(options.outerSuperDB.locations, Nat.compare, options.outerKey);
+    };
+
+    public func deleteSubDBInner(superDB: SuperDB, innerKey: InnerSubDBKey) : async* () {
+        BTree.delete(superDB.subDBs, Nat.compare, innerKey);
     };
 
     // Creating sub-DB //
