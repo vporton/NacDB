@@ -31,14 +31,11 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
     };
 
     public query func getCanisters(): async [Nac.PartitionCanister] {
-        StableBuffer.toArray(dbIndex.canisters);
+        Nac.getCanisters()
     };
 
     public shared func newCanister(): async Nac.PartitionCanister {
-        Cycles.add(300_000_000_000); // TODO: duplicate line of code
-        let canister = await Partition.Partition(dbOptions);
-        StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
-        canister;
+        Nac.newCanister(dbOptions, Partition.Partition);
     };
 
     public shared func startCreatingSubDB({dbOptions: Nac.DBOptions; userData: Text}) : async Nat {

@@ -6,7 +6,7 @@ import Debug "mo:base/Debug";
 
 actor {
     let moveCap = #usedMemory 500_000;
-    let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000};
+    let dbOptions = {moveCap; movingCallback = null; hardCap = ?1000; newPartitionCycles = 300_000_000_000};
 
     stable var index : ?Index.Index = null;
     stable var location: ?(Nac.PartitionCanister, Nac.SubDBKey) = null;

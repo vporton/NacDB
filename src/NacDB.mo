@@ -1,3 +1,4 @@
+import Cycles "mo:base/ExperimentalCycles";
 import I "mo:base/Iter";
 import Principal "mo:base/Principal";
 import BTree "mo:btree/BTree";
@@ -184,6 +185,8 @@ module {
     public type DBOptions = {
         hardCap: ?Nat;
         moveCap: MoveCap;
+        constructor: shared(dbOptions: DBOptions) -> async PartitionCanister;
+        newPartitionCycles: Nat;
     };
 
     /// The "real" returned value is `outer`, but `inner` can be used for caching
@@ -564,7 +567,9 @@ module {
         let (newInnerPartition, newInnerKey) = switch (inserting.finishMovingSubDBDone) {
             case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
             case (null) {
-                let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({index; dbOptions; innerKey}); // FIXME: inserting...done
+                let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
+                    index = options.indexCanister; dbOptions = options.dbOptions; innerKey;
+                });
                 options.outerSuperDB.moving := null; // FIXME
                 (innerPartition, innerKey)
             };
@@ -618,15 +623,15 @@ module {
         let part3: PartitionCanister = switch (creating.canister) {
             case (?part) { part };
             case (null) {
-                let canisters = await index.getCanisters(); // TODO: Use `dbIndex` directly.
+                let canisters = StableBuffer.toArray(dbIndex.canisters); // TODO: a special function for this
                 let part = canisters[canisters.size() - 1];
                 let part2 = if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
-                    let part2 = await index.newCanister();
+                    let part2 = await* newCanister(dbOptions, dbIndex);
                     creating.canister := ?part;
                     part2;
                 } else {
                     let innerKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
-                    SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
+                    // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Avoid calling `rawInsertSubDB` repeatedly (idempotency).
                     return await part.bothKeys(part, innerKey);
                 };
                 part2;
@@ -721,4 +726,19 @@ module {
         };
         await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
     };
+
+    /// Canisters
+
+    public func getCanisters(dbIndex: DBIndex): [PartitionCanister] {
+        StableBuffer.toArray(dbIndex.canisters);
+    };
+
+    public func newCanister(dbOptions: DBOptions, dbIndex: DBIndex): async* PartitionCanister {
+        Cycles.add(dbOptions.dbIndex);
+        let canister = await dbOptions.constructor(dbOptions);
+        StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
+        canister;
+    };
+
+
 };

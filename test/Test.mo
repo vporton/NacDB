@@ -32,7 +32,7 @@ actor MyTest {
     }
 };
 
-let dbOptions = {moveCap = #usedMemory 500_000; movingCallback = null; hardCap = ?1000};
+let dbOptions = {moveCap = #usedMemory 500_000; movingCallback = null; hardCap = ?1000; newPartitionCycles = 300_000_000_000};
 
 func createCanisters() : async* {index: Index.Index} {
     let index = await Index.Index(dbOptions);
