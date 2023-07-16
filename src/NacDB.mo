@@ -55,6 +55,24 @@ module {
     public type InsertingItem = {
         part: PartitionCanister; // TODO: Can we remove this?
         subDBKey: OuterSubDBKey;
+        // TODO: Express dependencies not as Bools but as enums.
+        var insertingImplDone: Bool;
+        var finishMovingSubDBDone: ?{
+            // new ones (TODO: name with the word "new")
+            innerPartition: PartitionCanister;
+            innerKey: OuterSubDBKey;
+        };
+        // old: ?{
+        //     partitionCanister: PartitionCanister;
+        //     innerKey: OuterSubDBKey;
+        // };
+    };
+
+    public type InsertingItem2 = {
+        var newInnerCanister: ?{
+            canister: PartitionCanister;
+            var innerKey: ?InnerSubDBKey;
+        };
     };
 
     public type SuperDB = {
@@ -84,7 +102,8 @@ module {
                 var newInnerKey: ?InnerSubDBKey; // null - not yet determined
             };
         };
-        var inserting: SparseQueue.SparseQueue<InsertingItem>;
+        var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
+        var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
     };
 
     public type DBIndex = {
@@ -158,6 +177,7 @@ module {
             var moving = null;
             var moving2 = null;
             var inserting = SparseQueue.init(100);
+            var inserting2 = SparseQueue.init(100);
         }
     };
 
@@ -241,45 +261,41 @@ module {
         };
     };
 
-    func finishMovingSubDBImpl({index: IndexCanister; oldInnerSuperDB: SuperDB; dbOptions: DBOptions})
-        : async* (PartitionCanister, InnerSubDBKey)
+    func finishMovingSubDBImpl({
+        guid: GUID;
+        index: IndexCanister;
+        outerCanister: PartitionCanister;
+        outerKey: OuterSubDBKey;
+        oldInnerSuperDB: SuperDB;
+        oldInnerKey: InnerSubDBKey;
+        dbOptions: DBOptions
+    }) : async* (PartitionCanister, InnerSubDBKey)
     {
-        // FIXME: On `moving2` should trap?
-        let moving2 = switch (oldInnerSuperDB.moving2) {
-            case (?moving2) { moving2 };
-            case (null) {
-                TODO
-                // {
-                //     outerCanister: PartitionCanister;
-                //     outerKey: OuterSubDBKey;
-                //     oldSuperDB: SuperDB;
-                //     oldInnerKey: InnerSubDBKey;
-                // }
-            };
-        };
+        let inserting2 = SparseQueue.add<InsertingItem2>(oldInnerSuperDB.inserting2, guid, {
+            var newInnerCanister = null;
+        });
         
-        switch (BTree.get(oldInnerSuperDB.subDBs, Nat.compare, moving2.oldInnerKey)) {
+        switch (BTree.get(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey)) {
             case (?subDB) {
-                let (canister, newCanister) = switch (moving2.newInnerCanister) {
-                    case (?newCanister) { (newCanister.newInnerCanister, newCanister) };
+                let (canister, newCanister) = switch (inserting2.newInnerCanister) {
+                    case (?newCanister) { (newCanister.canister, newCanister) };
                     case (null) {
                         let newCanister = await index.newCanister();
-                        // TODO: `newInnerCanister` doesn't need to be `var`?
-                        let s = {var newInnerCanister = newCanister; var newInnerKey: ?InnerSubDBKey = null};
-                        moving2.newInnerCanister := ?s;
+                        let s = {canister = newCanister; var innerKey: ?InnerSubDBKey = null};
+                        inserting2.newInnerCanister := ?s;
                         (newCanister, s);
                     };
                 };
-                let newInnerSubDBKey = switch (newCanister.newInnerKey) {
+                let newInnerSubDBKey = switch (newCanister.innerKey) {
                     case (?newSubDBKey) { newSubDBKey };
                     case (null) {
                         let newSubDBKey = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
-                        newCanister.newInnerKey := ?newSubDBKey;
+                        newCanister.innerKey := ?newSubDBKey;
                         newSubDBKey;
                     }
                 };                        
-                await moving2.outerCanister.putLocation(moving2.outerKey, canister, newInnerSubDBKey);
-                ignore BTree.delete(moving2.oldSuperDB.subDBs, Nat.compare, moving2.oldInnerKey); // FIXME: idempotent?
+                await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
+                ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey); // FIXME: idempotent?
                 subDB.busy := false; // FIXME
                 (canister, newInnerSubDBKey);
             };
@@ -519,36 +535,46 @@ module {
     public func insert(options: InsertOptions)
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
-        let ?(innerCanister, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
+        let ?(oldInnerCanister, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("missing sub-DB");
         };
 
         let inserting = SparseQueue.add<InsertingItem>(options.outerSuperDB.inserting, options.guid, {
             part = options.outerCanister;
             subDBKey = options.outerKey;
+            var insertingImplDone = false;
+            var finishMovingSubDBDone = null;
         });
 
-        await innerCanister.startInsertingImpl({
-            guid = options.guid;
-            dbOptions = options.dbOptions;
-            indexCanister = options.indexCanister;
-            outerCanister = options.outerCanister;
-            outerKey = options.outerKey;
-            sk = options.sk;
-            value = options.value;
-            innerKey;
-        });
-
-        let (part, subDBKey) = switch (options.outerSuperDB.moving) {
-            case (?moving) {
-                let (part, innerKey) = await* oldInnerCanister.finishMovingSubDBImpl({index; dbOptions; oldInnerSubDBKey = moving.oldInnerSubDBKey});
-                outerSuperDB.moving := null;
-                (part, innerKey)
-            };
-            case (null) { (innerCanister, innerKey) };
+        if (not inserting.insertingImplDone) {
+            await oldInnerCanister.startInsertingImpl({
+                guid = options.guid;
+                dbOptions = options.dbOptions;
+                indexCanister = options.indexCanister;
+                outerCanister = options.outerCanister;
+                outerKey = options.outerKey;
+                sk = options.sk;
+                value = options.value;
+                innerKey;
+            });
+            inserting.insertingImplDone := true;
         };
 
-        bothKeys(options.outerSuperDB, part, subDBKey);
+        // TODO: check `.moving`
+        let (newInnerPartition, newInnerKey) = switch (inserting.finishMovingSubDBDone) {
+            case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
+            case (null) {
+                let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({index; dbOptions; innerKey}); // FIXME: inserting...done
+                options.outerSuperDB.moving := null; // FIXME
+                (innerPartition, innerKey)
+            };
+        };
+        inserting.finishMovingSubDBDone := ?{
+            innerPartition = newInnerPartition;
+            innerKey = newInnerKey;
+        };
+
+        bothKeys(options.outerSuperDB, newInnerPartition, innerKey); // FIXME: It's wrong here to create a new outer key!
     };
 
     type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
