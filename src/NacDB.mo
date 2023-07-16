@@ -545,7 +545,7 @@ module {
     public func insert(options: InsertOptions)
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
-        let ?(oldInnerCanister, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
+        let ?(oldInnerCanister, oldInnerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("missing sub-DB");
         };
 
@@ -565,7 +565,7 @@ module {
                 outerKey = options.outerKey;
                 sk = options.sk;
                 value = options.value;
-                innerKey;
+                innerKey = oldInnerKey;
             });
             inserting.insertingImplDone := true;
         };
@@ -575,7 +575,10 @@ module {
             case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
             case (null) {
                 let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
-                    index = options.indexCanister; dbOptions = options.dbOptions;
+                    guid = options.guid; index = options.indexCanister; dbOptions = options.dbOptions;
+                    oldInnerKey;
+                    outerCanister = options.outerCanister;
+                    outerKey = options.outerKey;
                 });
                 options.outerSuperDB.moving := null; // FIXME
                 (innerPartition, innerKey)
@@ -586,7 +589,7 @@ module {
             innerKey = newInnerKey;
         };
 
-        createOuter(options.outerSuperDB, newInnerPartition, innerKey); // FIXME: It's wrong here to create a new outer key!
+        {inner = (newInnerPartition, newInnerKey); outer = (options.outerCanister, options.outerKey)};
     };
 
     type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
