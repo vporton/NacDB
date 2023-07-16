@@ -123,8 +123,9 @@ module {
     // TODO: arguments as {...}, not (...).
     public type PartitionCanister = actor {
         // TODO: Remove superfluous, if any.
-        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions) : async InnerSubDBKey;
-        isOverflowed: query ({dbOptions: DBOptions}) -> async Bool;
+        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions)
+            : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
+        isOverflowed: shared ({dbOptions: DBOptions}) -> async Bool;
         superDBSize: query () -> async Nat;
         deleteSubDB({outerKey: OuterSubDBKey}) : async ();
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
@@ -154,8 +155,8 @@ module {
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
         getByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async Bool;
-        getByOuter: query (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
-        hasByOuter: query (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async Bool;
+        getByOuter: shared (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
+        hasByOuter: shared (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async Bool;
         hasSubDBByInner: query (options: {subDBKey: InnerSubDBKey}) -> async Bool;
         subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
         startInsertingImpl(options: {
@@ -302,8 +303,8 @@ module {
                     case (?newSubDBKey) { newSubDBKey };
                     case (null) {
                         let newSubDBKey = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
-                        newCanister.innerKey := ?newSubDBKey;
-                        newSubDBKey;
+                        newCanister.innerKey := ?newSubDBKey.inner;
+                        newSubDBKey.inner;
                     }
                 };                        
                 await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
@@ -658,16 +659,16 @@ module {
                     creating.canister := ?part;
                     part2;
                 } else {
-                    let innerKey = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                    let {inner} = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                     // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Avoid calling `rawInsertSubDB` repeatedly (idempotency).
-                    return await part.createOuter(part, innerKey);
+                    return await part.createOuter(part, inner);
                 };
                 part2;
             };
         };
-        let innerKey = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+        let {inner} = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
         // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
-        await part3.createOuter(part3, innerKey); // FIXME: outer part vs inner part? (and need to do external call of this function here and in other places?)
+        await part3.createOuter(part3, inner); // FIXME: outer part vs inner part? (and need to do external call of this function here and in other places?)
     };
 
     /// In the current version two partition canister are always the same.
