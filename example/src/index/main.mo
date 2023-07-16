@@ -8,16 +8,6 @@ import Debug "mo:base/Debug";
 shared actor class Index(dbOptions: Nac.DBOptions) = this {
     stable var dbIndex: Nac.DBIndex = Nac.createDBIndex(dbOptions);
 
-    public shared func movingCallback({
-        newCanister : Nac.PartitionCanister;
-        newSubDBKey : Nac.SubDBKey;
-        oldCanister : Nac.PartitionCanister;
-        oldSubDBKey : Nac.SubDBKey;
-        userData: Text;
-    }): async () {
-        ignore do ? { await dbOptions.movingCallback!({newCanister; newSubDBKey; oldCanister; oldSubDBKey; userData}); };
-    };
-
     stable var initialized = false;
 
     public shared func init() : async () {
