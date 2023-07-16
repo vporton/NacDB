@@ -631,7 +631,7 @@ module {
     };
 
     public func deleteSubDBInner(superDB: SuperDB, innerKey: InnerSubDBKey) : async* () {
-        BTree.delete(superDB.subDBs, Nat.compare, innerKey);
+        ignore BTree.delete(superDB.subDBs, Nat.compare, innerKey);
     };
 
     // Creating sub-DB //
