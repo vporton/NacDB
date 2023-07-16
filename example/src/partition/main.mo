@@ -40,7 +40,6 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.deleteSubDBInner(superDB, innerKey);
     };
 
-
     public shared func finishMovingSubDBImpl({
         guid: Nac.GUID;
         index: Nac.IndexCanister;
