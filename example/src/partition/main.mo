@@ -105,7 +105,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.scanLimitInner({innerSuperDB = superDB; innerKey; lowerBound; upperBound; dir; limit});
     };
 
-    public query func scanLimitOuter({outerSuperDB: Nac.SuperDB; outerKey: Nac.OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat})
+    public shared func scanLimitOuter({outerKey: Nac.OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat})
         : async RBT.ScanLimitResult<Text, Nac.AttributeValue>
     {
         await* Nac.scanLimitOuter({outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
@@ -119,20 +119,20 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.hasByInner({superDB; subDBKey; sk});
     };
 
-    public query func getByOuter({subDBKey: Nac.OuterSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
-        await* Nac.getByOuter({superDB; subDBKey; sk});
+    public shared func getByOuter({subDBKey: Nac.OuterSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
+        await* Nac.getByOuter({outerSuperDB = superDB; outerKey = subDBKey; sk});
     };
 
-    public query func hasByOuter({subDBKey: Nac.OuterSubDBKey; sk: Nac.SK}): async Bool {
-        await* Nac.hasByOuter({superDB; subDBKey; sk});
+    public shared func hasByOuter({subDBKey: Nac.OuterSubDBKey; sk: Nac.SK}): async Bool {
+        await* Nac.hasByOuter({outerSuperDB = superDB; outerKey = subDBKey; sk});
     };
 
     public query func hasSubDBByInner(options: {subDBKey: Nac.InnerSubDBKey}): async Bool {
-        Nac.hasSubDBByInner({innerSuperDB = superDB; innerKey: subDBKey});
+        Nac.hasSubDBByInner({innerSuperDB = superDB; innerKey = options.subDBKey});
     };
 
-    public query func subDBSizeByInner({subDBKey: Nac.InnerSubDBKey}): async Bool {
-        Nac.subDBSizeByInner({innerSuperDB = superDB; innerKey: subDBKey});
+    public query func subDBSizeByInner({subDBKey: Nac.InnerSubDBKey}): async ?Nat {
+        Nac.subDBSizeByInner({superDB; subDBKey});
     };
 
     public shared func startInsertingImpl({
