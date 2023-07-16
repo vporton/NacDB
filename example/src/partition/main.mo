@@ -33,7 +33,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
     };
 
     public shared func deleteSubDB({outerKey: Nac.OuterSubDBKey}) : async () {
-        Nac.deleteSubDB({subDBKey; outerKey});
+        Nac.deleteSubDB({superDB; outerKey});
     };
 
     public shared func deleteSubDBInner(innerKey: Nac.InnerSubDBKey) : async () {
@@ -85,66 +85,66 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.putLocation(superDB, outerKey, innerCanister, newInnerSubDBKey);
     };
 
-    public shared func createOuter(part: PartitionCanister, innerKey: InnerSubDBKey)
-        : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
+    public shared func createOuter(part: Nac.PartitionCanister, innerKey: Nac.InnerSubDBKey)
+        : async {inner: (Nac.PartitionCanister, Nac.InnerSubDBKey); outer: (Nac.PartitionCanister, Nac.OuterSubDBKey)}
     {
         createOuter(superDB, part, innerKey);
     };
 
-    public shared func delete({outerKey: OuterSubDBKey; sk: SK}): async () {
+    public shared func delete({outerKey: Nac.OuterSubDBKey; sk: Nac.SK}): async () {
         Nac.delete({outerSuperDB = superDB; outerKey; sk});
     };
 
-    public shared func deleteInner(innerKey: InnerSubDBKey, sk: SK): async () {
+    public shared func deleteInner(innerKey: Nac.InnerSubDBKey, sk: Nac.SK): async () {
         Nac.deleteInner({innerSuperDB = superDB; innerKey; sk});
     };
 
-    public query func scanLimitInner({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
-        : async RBT.ScanLimitResult<Text, AttributeValue>
+    public query func scanLimitInner({innerKey: Nac.InnerSubDBKey; lowerBound: Nac.SK; upperBound: Nac.SK; dir: RBT.Direction; limit: Nat})
+        : async RBT.ScanLimitResult<Text, Nac.AttributeValue>
     {
         Nac.scanLimitInner({innerSuperDB = superDB; innerKey; lowerBound; upperBound; dir; limit});
     };
 
-    public query func scanLimitOuter({outerSuperDB: SuperDB; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat})
-        : async* RBT.ScanLimitResult<Text, AttributeValue>
+    public query func scanLimitOuter({outerSuperDB: Nac.SuperDB; outerKey: Nac.OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat})
+        : async RBT.ScanLimitResult<Text, Nac.AttributeValue>
     {
         Nac.scanLimitOuter({outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
     };
 
-    public query func getByInner(options: {subDBKey: InnerSubDBKey; sk: SK}): async ?AttributeValue {
+    public query func getByInner(options: {subDBKey: Nac.InnerSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
         Nac.getByInner({superDB; subDBKey; sk});
     };
 
-    public query func hasByInner(options: {subDBKey: InnerSubDBKey; sk: SK}): async Bool {
+    public query func hasByInner(options: {subDBKey: Nac.InnerSubDBKey; sk: Nac.SK}): async Bool {
         Nac.hasByInner({superDB; subDBKey; sk});
     };
 
-    public query func getByOuter(options: {subDBKey: OuterSubDBKey; sk: SK}): async ?AttributeValue {
+    public query func getByOuter(options: {subDBKey: Nac.OuterSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
         Nac.getByOuter({superDB; subDBKey; sk});
     };
 
-    public query func hasByOuter(options: {subDBKey: OuterSubDBKey; sk: SK}): async Bool {
+    public query func hasByOuter(options: {subDBKey: Nac.OuterSubDBKey; sk: Nac.SK}): async Bool {
         Nac.hasByOuter({superDB; subDBKey; sk});
     };
 
-    public query func hasSubDBByInner(options: {subDBKey: InnerSubDBKey}): async Bool {
+    public query func hasSubDBByInner(options: {subDBKey: Nac.InnerSubDBKey}): async Bool {
         hasSubDBByInner({innerSuperDB = superDB; innerKey: subDBKey});
     };
 
-    public query func subDBSizeByInner(options: {subDBKey: InnerSubDBKey}): async Bool {
+    public query func subDBSizeByInner(options: {subDBKey: Nac.InnerSubDBKey}): async Bool {
         subDBSizeByInner({innerSuperDB = superDB; innerKey: subDBKey});
     };
 
     public shared func startInsertingImpl(options: {
-        guid: GUID;
-        dbOptions: DBOptions;
-        indexCanister: IndexCanister;
-        outerCanister: PartitionCanister;
-        outerKey: OuterSubDBKey;
-        sk: SK;
-        value: AttributeValue;
-        innerSuperDB: SuperDB;
-        innerKey: InnerSubDBKey;
+        guid: Nac.GUID;
+        dbOptions: Nac.DBOptions;
+        indexCanister: Nac.IndexCanister;
+        outerCanister: Nac.PartitionCanister;
+        outerKey: Nac.OuterSubDBKey;
+        sk: Nac.SK;
+        value: Nac.AttributeValue;
+        innerSuperDB: Nac.SuperDB;
+        innerKey: Nac.InnerSubDBKey;
     }): async () {
         startInsertingImpl({
             guid;
