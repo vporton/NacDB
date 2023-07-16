@@ -568,7 +568,7 @@ module {
             case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
             case (null) {
                 let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
-                    index = options.indexCanister; dbOptions = options.dbOptions; innerKey;
+                    index = options.indexCanister; dbOptions = options.dbOptions;
                 });
                 options.outerSuperDB.moving := null; // FIXME
                 (innerPartition, innerKey)
@@ -617,7 +617,9 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
-    public func createSubDB({guid: GUID; dbIndex: DBIndex; dbOptions: DBOptions; userData: Text}) : async* () {
+    public func createSubDB({guid: GUID; dbIndex: DBIndex; dbOptions: DBOptions; userData: Text})
+        : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
+    {
         let creating0: CreatingSubDB = {var canister = null; userData};
         let creating = SparseQueue.add(dbIndex.creatingSubDB, guid, creating0);
         let part3: PartitionCanister = switch (creating.canister) {
@@ -638,7 +640,7 @@ module {
             };
         };
         let innerKey = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
-        SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
+        // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
         await part3.bothKeys(part3, innerKey); // FIXME: outer part vs inner part? (and need to do external call of this function here and in other places?)
     };
 
@@ -734,7 +736,7 @@ module {
     };
 
     public func newCanister(dbOptions: DBOptions, dbIndex: DBIndex): async* PartitionCanister {
-        Cycles.add(dbOptions.dbIndex);
+        Cycles.add(dbOptions.newPartitionCycles);
         let canister = await dbOptions.constructor(dbOptions);
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
         canister;
