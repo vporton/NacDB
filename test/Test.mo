@@ -16,23 +16,7 @@ let skip = ActorSpec.skip;
 let pending = ActorSpec.pending;
 let run = ActorSpec.run;
 
-actor MyTest {
-    var counter = 0;
-    public shared func movingCallback({
-        oldCanister: Nac.PartitionCanister;
-        oldSubDBKey: Nac.SubDBKey;
-        newCanister: Nac.PartitionCanister;
-        newSubDBKey: Nac.SubDBKey;
-        userData: Text;
-    }) : async () {
-        counter += 1;
-    };
-    public shared func getCounter(): async Nat {
-        counter;
-    }
-};
-
-let dbOptions = {moveCap = #usedMemory 500_000; movingCallback = null; hardCap = ?1000; newPartitionCycles = 300_000_000_000};
+let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; newPartitionCycles = 300_000_000_000; constructor = Partition.Partition};
 
 func createCanisters() : async* {index: Index.Index} {
     let index = await Index.Index(dbOptions);

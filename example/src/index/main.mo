@@ -21,26 +21,16 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
     };
 
     public query func getCanisters(): async [Nac.PartitionCanister] {
-        Nac.getCanisters()
+        Nac.getCanisters(dbIndex);
     };
 
     public shared func newCanister(): async Nac.PartitionCanister {
-        Nac.newCanister(dbOptions, Partition.Partition);
+        await* Nac.newCanister(dbOptions, dbIndex);
     };
 
-    public shared func startCreatingSubDB({dbOptions: Nac.DBOptions; userData: Text}) : async Nat {
-        await* Nac.startCreatingSubDB({dbIndex; dbOptions; userData});
-    };
-
-    public shared func finishCreatingSubDB({creatingId : Nat; dbOptions : Nac.DBOptions; index : Nac.IndexCanister})
-        : async (Nac.PartitionCanister, Nac.SubDBKey)
+    public shared func createSubDB({guid: Nac.GUID; dbOptions: Nac.DBOptions; userData: Text})
+        : async {inner: (Nac.PartitionCanister, Nac.InnerSubDBKey); outer: (Nac.PartitionCanister, Nac.OuterSubDBKey)}
     {
-        let (part, subDBKey) = await* Nac.finishCreatingSubDB({
-            creatingId;
-            index = this;
-            dbIndex;
-            dbOptions;
-        });
-        (part, subDBKey);
+        await* Nac.createSubDB({guid; dbIndex; dbOptions; userData});
     };
 }

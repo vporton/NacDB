@@ -115,7 +115,7 @@ module {
     public type IndexCanister = actor {
         getCanisters: query () -> async [PartitionCanister];
         newCanister(): async PartitionCanister;
-        createSubDB: shared({dbOptions: DBOptions; userData: Text})
+        createSubDB: shared({guid: GUID; dbOptions: DBOptions; userData: Text})
             -> async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
     };
 
