@@ -105,9 +105,6 @@ let success = run([
                 let (part1, subDBKey1) = await* insertSubDB(index);
                 let (part2, subDBKey2) = await* insertSubDB(index);
                 let (part3, subDBKey3) = await* insertSubDB(index);
-                Debug.print(debug_show((
-                    (await part3.superDBSize()),
-                )));
                 ignore await part3.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions;
@@ -135,11 +132,6 @@ let success = run([
                     sk = "name2";
                     value = #text "yyy";
                 });
-                Debug.print(debug_show((
-                    part1 == part2,
-                    part1 == part3,
-                    (await part3.superDBSize()),
-                )));
                 ActorSpec.assertAllTrue([
                     (await part3.subDBSizeByOuter({subDBKey = subDBKey3})) == ?2,
                     (await part3.superDBSize()) == 3,
