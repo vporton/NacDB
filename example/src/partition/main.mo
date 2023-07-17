@@ -126,8 +126,16 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.hasByOuter({outerSuperDB = superDB; outerKey = subDBKey; sk});
     };
 
+    public shared func hasSubDBByOuter(options: {subDBKey: Nac.OuterSubDBKey}): async Bool {
+        await* Nac.hasSubDBByOuter({outerSuperDB = superDB; outerKey = options.subDBKey});
+    };
+
     public query func hasSubDBByInner(options: {subDBKey: Nac.InnerSubDBKey}): async Bool {
         Nac.hasSubDBByInner({innerSuperDB = superDB; innerKey = options.subDBKey});
+    };
+
+    public shared func subDBSizeByOuter({subDBKey: Nac.OuterSubDBKey}): async ?Nat {
+        await* Nac.subDBSizeByOuter({outerSuperDB = superDB; outerKey = subDBKey});
     };
 
     public query func subDBSizeByInner({subDBKey: Nac.InnerSubDBKey}): async ?Nat {

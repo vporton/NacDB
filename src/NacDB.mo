@@ -153,12 +153,16 @@ module {
         deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
+        scanLimitOuter: shared({outerKey: OuterSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
+            -> async RBT.ScanLimitResult<Text, AttributeValue>;
         getByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async Bool;
         getByOuter: shared (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByOuter: shared (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async Bool;
         hasSubDBByInner: query (options: {subDBKey: InnerSubDBKey}) -> async Bool;
+        hasSubDBByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async Bool;
         subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
+        subDBSizeByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Nat;
         startInsertingImpl(options: {
             guid: GUID;
             dbOptions: DBOptions;
@@ -491,7 +495,7 @@ module {
 
     public type SubDBSizeByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
-    public func subDBSizeByOuter(options: SubDBSizeByOuterOptions): async ?Nat {
+    public func subDBSizeByOuter(options: SubDBSizeByOuterOptions): async* ?Nat {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
