@@ -340,7 +340,7 @@ module {
         item.busy := true; // TODO: seems superfluous
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
-        if (lastCanister == options.oldCanister or (await lastCanister.isOverflowed({dbOptions = options.dbOptions}))) {
+        if (lastCanister == options.oldCanister and (await lastCanister.isOverflowed({dbOptions = options.dbOptions}))) {
             startMovingSubDBImpl({
                 outerCanister = options.outerCanister;
                 outerKey = options.outerKey;
@@ -580,7 +580,7 @@ module {
         let (newInnerPartition, newInnerKey) = switch (inserting.finishMovingSubDBDone) {
             case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
             case (null) {
-                let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
+                let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({ // FIXME: Don't call it if not overflowed.
                     guid = options.guid; index = options.indexCanister; dbOptions = options.dbOptions;
                     oldInnerKey;
                     outerCanister = options.outerCanister;
