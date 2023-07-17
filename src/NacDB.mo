@@ -580,17 +580,22 @@ module {
         let (newInnerPartition, newInnerKey) = switch (inserting.finishMovingSubDBDone) {
             case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
             case (null) {
-                let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({ // FIXME: Don't call it if not overflowed.
-                    guid = options.guid; index = options.indexCanister; dbOptions = options.dbOptions;
-                    oldInnerKey;
-                    outerCanister = options.outerCanister;
-                    outerKey = options.outerKey;
-                });
-                options.outerSuperDB.moving := null; // FIXME
-                (innerPartition, innerKey)
+                // FIXME: I call `isOverflowed` second time, what is: 1. inefficience; 2. (?) inconsistent.
+                if (await oldInnerCanister.isOverflowed({dbOptions = options.dbOptions})) {
+                    let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({ // FIXME: Don't call it if not overflowed.
+                        guid = options.guid; index = options.indexCanister; dbOptions = options.dbOptions;
+                        oldInnerKey;
+                        outerCanister = options.outerCanister;
+                        outerKey = options.outerKey;
+                    });
+                    options.outerSuperDB.moving := null; // FIXME
+                    (innerPartition, innerKey);
+                } else {
+                    (oldInnerCanister, oldInnerKey);
+                }
             };
         };
-        inserting.finishMovingSubDBDone := ?{
+        inserting.finishMovingSubDBDone := ?{ // TODO: seems unnecessary
             innerPartition = newInnerPartition;
             innerKey = newInnerKey;
         };
