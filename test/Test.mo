@@ -210,6 +210,9 @@ let success = run([
                     value = #text "xxx";
                 });
 
+                Debug.print(debug_show([
+                    await part.getByOuter({subDBKey; sk = "A"})
+                ]));
                 ActorSpec.assertAllTrue([
                     not (await part.hasByOuter({subDBKey; sk = "A"})),
                     await part.hasByOuter({subDBKey; sk = "B"}),

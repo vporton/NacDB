@@ -17,7 +17,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
     // Mandatory methods //
 
     public shared func rawInsertSubDB(map: RBT.Tree<Nac.SK, Nac.AttributeValue>, userData: Text, dbOptions: Nac.DBOptions)
-        : async {inner: Nac.InnerSubDBKey; outer: Nac.OuterSubDBKey}
+        : async {inner: Nac.InnerSubDBKey; outer: Nac.OuterSubDBKey; wasOld: Bool}
     {
         Nac.rawInsertSubDB(this, superDB, map, userData, dbOptions);
     };
