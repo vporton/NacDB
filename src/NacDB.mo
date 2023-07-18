@@ -183,7 +183,7 @@ module {
             var canisters = StableBuffer.init<PartitionCanister>();
             var creatingSubDB = SparseQueue.init(100); // TODO
             moveCap = options.moveCap;
-        }
+        };
     };
 
     public func createSuperDB() : SuperDB {
@@ -196,7 +196,7 @@ module {
             var moving2 = null;
             var inserting = SparseQueue.init(100);
             var inserting2 = SparseQueue.init(100);
-        }
+        };
     };
 
     public type DBOptions = {
