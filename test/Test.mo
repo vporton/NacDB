@@ -100,6 +100,12 @@ let success = run([
                 let has2 = await part.hasByOuter({subDBKey; sk = "name"});
                 ActorSpec.assertTrue(not has2);
             }),
+            it("delete sub-DB", do {
+                let {index; part; subDBKey} = await* createSubDB();
+                await part.deleteSubDB({outerKey = subDBKey});
+                let has2 = await part.hasSubDBByOuter({subDBKey});
+                ActorSpec.assertTrue(not has2);
+            }),
             it("elements count", do {
                 let {index} = await* createCanisters();
                 let (part1, subDBKey1) = await* insertSubDB(index);

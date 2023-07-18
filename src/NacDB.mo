@@ -478,9 +478,9 @@ module {
 
     public func hasSubDBByOuter(options: HasDBByOuterOptions) : async* Bool {
         let ?(part, inner) = getInner(options.outerSuperDB, options.outerKey) else {
-            Debug.trap("no entry");
+            return false;
         };
-        await part.hasSubDBByInner({subDBKey = inner});
+        return true;
     };
 
     // TODO: This inner and outer.
