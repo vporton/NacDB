@@ -588,9 +588,9 @@ module {
         let (newInnerPartition, newInnerKey) = switch (inserting.finishMovingSubDBDone) {
             case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
             case (null) {
-                // FIXME: I call `isOverflowed` second time, what is: 1. inefficience; 2. (?) inconsistent.
+                // FIXME: I call `isOverflowed` second time, what is: 1. inefficient; 2. (?) inconsistent.
                 if (await oldInnerCanister.isOverflowed({dbOptions = options.dbOptions})) {
-                    let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({ // FIXME: Don't call it if not overflowed.
+                    let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
                         guid = options.guid; index = options.indexCanister; dbOptions = options.dbOptions;
                         oldInnerKey;
                         outerCanister = options.outerCanister;
