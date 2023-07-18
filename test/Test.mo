@@ -184,7 +184,7 @@ let success = run([
                 let {outer = (part, subDBKey)} = await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions = dbOptions2; userData = ""});
                 ignore await part.insert({
                     guid = GUID.nextGuid(guidGen);
-                    dbOptions;
+                    dbOptions = dbOptions2;
                     indexCanister = index;
                     outerCanister = part;
                     outerKey = subDBKey;
@@ -193,7 +193,7 @@ let success = run([
                 });
                 ignore await part.insert({
                     guid = GUID.nextGuid(guidGen);
-                    dbOptions;
+                    dbOptions = dbOptions2;
                     indexCanister = index;
                     outerCanister = part;
                     outerKey = subDBKey;
@@ -202,7 +202,7 @@ let success = run([
                 });
                 ignore await part.insert({
                     guid = GUID.nextGuid(guidGen);
-                    dbOptions;
+                    dbOptions = dbOptions2;
                     indexCanister = index;
                     outerCanister = part;
                     outerKey = subDBKey;
