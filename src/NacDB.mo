@@ -72,7 +72,10 @@ module {
     public type InsertingItem2 = {
         var newInnerCanister: ?{
             canister: PartitionCanister;
-            var innerKey: ?InnerSubDBKey;
+            var innerKey: ?{
+                key: InnerSubDBKey;
+                wasOld: Bool;
+            }
         };
     };
 
@@ -124,7 +127,7 @@ module {
     public type PartitionCanister = actor {
         // TODO: Remove superfluous, if any.
         rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions)
-            : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
+            : async {inner: InnerSubDBKey; outer: OuterSubDBKey; wasOld: Bool};
         isOverflowed: shared ({dbOptions: DBOptions}) -> async Bool;
         superDBSize: query () -> async Nat;
         deleteSubDB({outerKey: OuterSubDBKey}) : async ();
@@ -206,9 +209,9 @@ module {
     /// The "real" returned value is `outer`, but `inner` can be used for caching
     /// (on cache failure retrieve new `inner` using `outer`).
     public func rawInsertSubDB(innerCanister: PartitionCanister, superDB: SuperDB, map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions)
-        : {outer: OuterSubDBKey; inner: InnerSubDBKey}
+        : {outer: OuterSubDBKey; inner: InnerSubDBKey; wasOld: Bool}
     {
-        let inner = switch (superDB.moving) {
+        let (inner, wasOld) = switch (superDB.moving) {
             case (?_) { Debug.trap("DB is scaling") }; // TODO: needed?
             case (null) {
                 let key = superDB.nextInnerKey;
@@ -219,14 +222,17 @@ module {
                     hardCap = dbOptions.hardCap;
                     var busy = false;
                 };
-                ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
-                key;
+                let wasOld = switch (BTree.insert(superDB.subDBs, Nat.compare, key, subDB)) {
+                    case (?_) { true };
+                    case (null) { false };
+                };
+                (key, wasOld);
             };
         };
         // We always insert the location to the same canister as the sub-DB.
         // (Later sub-DB may be moved to another canister.)
         superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (innerCanister, inner));
-        let result = {outer = superDB.nextOuterKey; inner};
+        let result = {outer = superDB.nextOuterKey; inner; wasOld};
         superDB.nextOuterKey += 1;
         result;
     };
@@ -298,20 +304,22 @@ module {
                     case (?newCanister) { (newCanister.canister, newCanister) };
                     case (null) {
                         let newCanister = await index.newCanister();
-                        let s = {canister = newCanister; var innerKey: ?InnerSubDBKey = null};
+                        let s = {canister = newCanister; var innerKey: ?{key: InnerSubDBKey; wasOld: Bool} = null};
                         inserting2.newInnerCanister := ?s;
                         (newCanister, s);
                     };
                 };
-                let newInnerSubDBKey = switch (newCanister.innerKey) {
-                    case (?newSubDBKey) { newSubDBKey };
+                let (newInnerSubDBKey, wasOld) = switch (newCanister.innerKey) {
+                    case (?{key = newSubDBKey; wasOld}) { (newSubDBKey, wasOld) };
                     case (null) {
-                        let newSubDBKey = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
-                        newCanister.innerKey := ?newSubDBKey.inner;
-                        newSubDBKey.inner;
+                        let {inner; wasOld} = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
+                        newCanister.innerKey := ?{key = inner; wasOld};
+                        (inner, wasOld);
                     }
-                };                        
-                await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
+                };
+                if (wasOld) {
+                    await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
+                };
                 ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey); // FIXME: idempotent?
                 subDB.busy := false; // FIXME
                 (canister, newInnerSubDBKey);
