@@ -16,6 +16,14 @@
         "dist/example_frontend/"
       ],
       "type": "assets"
+    },
+    "index": {
+      "main": "src/index/main.mo",
+      "type": "motoko"
+    },
+    "partition": {
+      "main": "src/partition/main.mo",
+      "type": "motoko"
     }
   },
   "defaults": {
