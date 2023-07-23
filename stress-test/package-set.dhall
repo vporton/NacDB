@@ -21,7 +21,7 @@ let
       , version = "v0.6.1"
       , dependencies = [ "base" ]
       },
-      { name = "candb"
+      { name = "candb" -- TODO: Remove.
       , repo = "https://github.com/ORIGYN-SA/CanDB"
       , version = "beta"
       , dependencies = [ "base" ]
