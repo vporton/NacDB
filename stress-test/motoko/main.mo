@@ -8,11 +8,13 @@ actor StressTest {
         let nThreads = 3;
         let threads : [var ?(async())] = Array.init(nThreads, null);
         for (i in threads.keys()) {
-          threads[i] := ?runThread();
+            threads[i] := ?runThread();
         };     
         for (topt in threads.vals()) {
-           let ?t = topt;
-           await t;
+            let ?t = topt else {
+                Debug.trap("programming error");
+            };
+            await t;
         }
     };
 
