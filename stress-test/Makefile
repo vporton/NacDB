@@ -6,4 +6,4 @@ stress-test: deploy
 
 .PHONY: deploy
 deploy:
-	dfx deploy stresser
+	dfx deploy stresser --with-cycles 99000000000000000

@@ -6,7 +6,7 @@ import { idlFactory } from '../../example/src/declarations/index';
 const dbOptions: DBOptions = {
   moveCap: {'usedMemory': BigInt(500_000)},
   hardCap: [BigInt(1000)],
-  newPartitionCycles: BigInt(300_000_000_000),
+  partitionCycles: BigInt(300_000_000_000),
   constructor: async opts => await idlFactory(opts),
 };
 const indexCanister = Index(dbOptions);

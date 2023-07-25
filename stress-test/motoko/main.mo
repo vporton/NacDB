@@ -19,7 +19,7 @@ actor StressTest {
         await Partition.Partition(dbOptions);
     };
 
-    let dbOptions = {moveCap = #usedMemory 10_000; hardCap = null; newPartitionCycles = 300_000_000_000; constructor = constructor};
+    let dbOptions = {moveCap = #usedMemory 10_000; hardCap = null; partitionCycles = 1_000_000_000_000_000; constructor = constructor};
 
     /// The tree considered already debugged for comparison to the being debugged one.
     type ReferenceTree = BTree.BTree<(Principal, Nat), BTree.BTree<Text, Nat>>;
@@ -44,14 +44,14 @@ actor StressTest {
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
-        let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; newPartitionCycles = 300_000_000_000; constructor = constructor};
+        let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 1_000_000_000_000_000; constructor = constructor};
 
         Cycles.add(700_000_000_000);
         let index = await Index.Index(dbOptions);
         await index.init();
 
         let nThreads = 3;
-        let threads : [var ?(async())] = Array.init(nThreads, null);
+        let threads : [var ?(async*())] = Array.init(nThreads, null);
         for (i in threads.keys()) {
             threads[i] := ?runThread({var referenceTree; var rng; index; guidGen});
         };     
@@ -59,11 +59,11 @@ actor StressTest {
             let ?t = topt else {
                 Debug.trap("programming error");
             };
-            await t;
+            await* t;
         }
     };
 
-    func runThread(options: ThreadArguments) : async () {
+    func runThread(options: ThreadArguments) : async* () {
         // for (_ in Iter.range(0, 333_333)) {
         for (stepN in Iter.range(0, 10)) {
             Debug.print("Step " # Nat.toText(stepN));
@@ -79,9 +79,10 @@ actor StressTest {
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
                 let {outer = (part, outerKey)} = try {
+                    Cycles.add(1_000_000_000_000);
                     await options.index.createSubDB({guid; dbOptions; userData = ""});
                 } catch(e) {
-                    Debug.print("repeat createSubDB" # Error.message(e));
+                    Debug.print("repeat createSubDB: " # Error.message(e));
                     continue R;
                 };
                 v := ?(Principal.fromActor(part), outerKey);
@@ -99,9 +100,10 @@ actor StressTest {
                     let partAct: Partition.Partition = actor(Principal.toText(part));
                     label R loop {
                         try {
+                            Cycles.add(1_000_000_000_000);
                             await partAct.deleteSubDB({outerKey});
-                        } catch(_) {
-                            Debug.print("repeat deleteSubDB");
+                        } catch(e) {
+                            Debug.print("repeat deleteSubDB: " # Error.message(e));
                             continue R;
                         }
                     };
