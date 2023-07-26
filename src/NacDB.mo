@@ -650,7 +650,7 @@ module {
 
     type DeleteDBOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
     
-    // FIXME: apparently race condition
+    // FIXME: Should produce an error, if half deleted to motivate the user to delete fully. (Will that motivation work?)
     public func deleteSubDB(options: DeleteDBOptions): async* () {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
