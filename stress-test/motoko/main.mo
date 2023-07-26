@@ -68,7 +68,7 @@ actor StressTest {
     func runThread(options: ThreadArguments) : async () {
         // for (_ in Iter.range(0, 333_333)) {
         for (stepN in Iter.range(0, 1000)) {
-            Debug.print("Step " # debug_show(options.threadNum) # "/" # Nat.toText(stepN));
+            // Debug.print("Step " # debug_show(options.threadNum) # "/" # Nat.toText(stepN));
             await* runStep(options);
         }
     };
@@ -93,7 +93,6 @@ actor StressTest {
             let ?(part, subDBKey) = v else {
                 Debug.trap("programming error");
             };
-            Debug.print(Principal.toText(part));
             myAssert(
                 "sub-DB already exists",
                 not BTree.has(options.referenceTree, compareLocs, (part, subDBKey)));
