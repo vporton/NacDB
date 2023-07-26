@@ -7,6 +7,7 @@ import Principal "mo:base/Principal";
 import Array "mo:base/Array";
 import SparseQueue "../lib/SparseQueue";
 import GUID "../lib/GUID";
+import MyCycles "../lib/Cycles";
 
 type Group = ActorSpec.Group;
 
@@ -25,9 +26,9 @@ shared func constructor(dbOptions: Nac.DBOptions): async Partition.Partition {
 let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 300_000_000_000; constructor};
 
 func createCanisters() : async* {index: Index.Index} {
-    MyCycles.addPart();
+    MyCycles.addPart(dbOptions.partitionCycles);
     let index = await Index.Index(dbOptions);
-    MyCycles.addPart();
+    MyCycles.addPart(dbOptions.partitionCycles);
     await index.init();
     {index};
 };

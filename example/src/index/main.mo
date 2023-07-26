@@ -16,7 +16,7 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
         if (initialized) {
             Debug.trap("already initialized");
         };
-        MyCycles.addPart();
+        MyCycles.addPart(dbOptions.partitionCycles);
         // TODO: `StableBuffer` is too low level.
         StableBuffer.add(dbIndex.canisters, await Partition.Partition(dbOptions));
         initialized := true;

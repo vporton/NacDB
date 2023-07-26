@@ -304,7 +304,7 @@ module {
                 let (canister, newCanister) = switch (inserting2.newInnerCanister) {
                     case (?newCanister) { (newCanister.canister, newCanister) };
                     case (null) {
-                        MyCycles.addPart();
+                        MyCycles.addPart(dbOptions.partitionCycles);
                         let newCanister = await index.newCanister();
                         let s = {canister = newCanister; var innerKey: ?{key: InnerSubDBKey; wasOld: Bool} = null};
                         inserting2.newInnerCanister := ?s;
@@ -314,14 +314,14 @@ module {
                 let (newInnerSubDBKey, wasOld) = switch (newCanister.innerKey) {
                     case (?{key = newSubDBKey; wasOld}) { (newSubDBKey, wasOld) };
                     case (null) {
-                        MyCycles.addPart();
+                        MyCycles.addPart(dbOptions.partitionCycles);
                         let {inner; wasOld} = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
                         newCanister.innerKey := ?{key = inner; wasOld};
                         (inner, wasOld);
                     }
                 };
                 if (wasOld) {
-                    MyCycles.addPart();
+                    MyCycles.addPart(dbOptions.partitionCycles);
                     await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
                 };
                 ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey); // FIXME: idempotent?
@@ -350,10 +350,10 @@ module {
             Debug.trap("is moving");
         };
         item.busy := true; // TODO: seems superfluous
-        MyCycles.addPart();
+        MyCycles.addPart(options.dbOptions.partitionCycles);
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
-        MyCycles.addPart();
+        MyCycles.addPart(options.dbOptions.partitionCycles);
         if (lastCanister == options.oldCanister and (await lastCanister.isOverflowed({dbOptions = options.dbOptions}))) {
             startMovingSubDBImpl({
                 outerCanister = options.outerCanister;
@@ -394,7 +394,7 @@ module {
             oldInnerKey: InnerSubDBKey;
         }): async* ()
     {
-        MyCycles.addPart();
+        MyCycles.addPart(options.dbOptions.partitionCycles);
         if (await options.oldInnerCanister.isOverflowed({dbOptions = options.dbOptions})) {
             await* startMovingSubDB({
                 dbOptions = options.dbOptions;
@@ -460,7 +460,7 @@ module {
         let ?(part, inner) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no entry");
         };
-        MyCycles.addPart();
+        MyCycles.addPart(options.dbOptions.partitionCycles);
         await part.getByInner({subDBKey = inner; sk = options.sk});
     };
 
@@ -515,7 +515,7 @@ module {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
-        MyCycles.addPart();
+        MyCycles.addPart(options.dbOptions.partitionCycles);
         await part.subDBSizeByInner({subDBKey = innerKey});
     };
 
@@ -580,7 +580,7 @@ module {
         });
 
         if (not inserting.insertingImplDone) {
-            MyCycles.addPart();
+            MyCycles.addPart(options.dbOptions.partitionCycles);
             await oldInnerCanister.startInsertingImpl({
                 guid = options.guid;
                 dbOptions = options.dbOptions;
@@ -599,9 +599,9 @@ module {
             case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
             case (null) {
                 // FIXME: I call `isOverflowed` second time, what is: 1. inefficient; 2. (?) inconsistent.
-                MyCycles.addPart();
+                MyCycles.addPart(options.dbOptions.partitionCycles);
                 if (await oldInnerCanister.isOverflowed({dbOptions = options.dbOptions})) {
-                    MyCycles.addPart();
+                    MyCycles.addPart(options.dbOptions.partitionCycles);
                     let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
                         guid = options.guid; index = options.indexCanister; dbOptions = options.dbOptions;
                         oldInnerKey;
@@ -640,7 +640,7 @@ module {
     public func delete(options: DeleteOptions): async* () {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
-                MyCycles.addPart();
+                MyCycles.addPart(options.dbOptions.partitionCycles);
                 await innerCanister.deleteInner(innerKey, options.sk);
             };
             case (null) {};
@@ -653,7 +653,7 @@ module {
     public func deleteSubDB(options: DeleteDBOptions): async* () {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
-                MyCycles.addPart();
+                MyCycles.addPart(options.dbOptions.partitionCycles);
                 await innerCanister.deleteSubDBInner(innerKey);
             };
             case (null) {};
@@ -685,25 +685,25 @@ module {
             case (null) {
                 let canisters = StableBuffer.toArray(dbIndex.canisters); // TODO: a special function for this
                 let part = canisters[canisters.size() - 1];
-                MyCycles.addPart();
+                MyCycles.addPart(dbOptions.partitionCycles);
                 let part2 = if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
                     let part2 = await* newCanister(dbOptions, dbIndex);
                     creating.canister := ?part;
                     part2;
                 } else {
-                    MyCycles.addPart();
+                    MyCycles.addPart(dbOptions.partitionCycles);
                     let {inner} = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
                     // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Avoid calling `rawInsertSubDB` repeatedly (idempotency).
-                    MyCycles.addPart();
+                    MyCycles.addPart(dbOptions.partitionCycles);
                     return await part.createOuter(part, inner);
                 };
                 part2;
             };
         };
-        MyCycles.addPart();
+        MyCycles.addPart(dbOptions.partitionCycles);
         let {inner} = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
         // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
-        MyCycles.addPart();
+        MyCycles.addPart(dbOptions.partitionCycles);
         await part3.createOuter(part3, inner); // FIXME: outer part vs inner part? (and need to do external call of this function here and in other places?)
     };
 
@@ -789,7 +789,7 @@ module {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
-        MyCycles.addPart();
+        MyCycles.addPart(options.dbOptions.partitionCycles);
         await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
     };
 
@@ -800,7 +800,7 @@ module {
     };
 
     public func newCanister(dbOptions: DBOptions, dbIndex: DBIndex): async* PartitionCanister {
-        MyCycles.addPart();
+        MyCycles.addPart(dbOptions.partitionCycles);
         let canister = await dbOptions.constructor(dbOptions);
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
         canister;

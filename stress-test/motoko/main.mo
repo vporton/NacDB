@@ -17,7 +17,7 @@ import Error "mo:base/Error";
 actor StressTest {
     // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
     public shared func constructor(dbOptions: Nac.DBOptions): async Partition.Partition {
-        MyCycles.addPart();
+        MyCycles.addPart(dbOptions.partitionCycles);
         await Partition.Partition(dbOptions);
     };
 
@@ -48,9 +48,9 @@ actor StressTest {
 
         let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 1_000_000_000_000_000; constructor = constructor};
 
-        MyCycles.addPart();
+        MyCycles.addPart(dbOptions.partitionCycles);
         let index = await Index.Index(dbOptions);
-        MyCycles.addPart();
+        MyCycles.addPart(dbOptions.partitionCycles);
         await index.init();
 
         let nThreads = 3;
@@ -82,7 +82,7 @@ actor StressTest {
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
                 let {outer = (part, outerKey)} = try {
-                    MyCycles.addPart();
+                    MyCycles.addPart(dbOptions.partitionCycles);
                     await options.index.createSubDB({guid; dbOptions; userData = ""});
                 } catch(e) {
                     Debug.print("repeat createSubDB: " # Error.message(e));
@@ -104,7 +104,7 @@ actor StressTest {
                     let partAct: Partition.Partition = actor(Principal.toText(part));
                     label R loop {
                         try {
-                            MyCycles.addPart();
+                            MyCycles.addPart(dbOptions.partitionCycles);
                             await partAct.deleteSubDB({outerKey});
                         } catch(e) {
                             Debug.print("repeat deleteSubDB: " # Error.message(e));

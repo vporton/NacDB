@@ -1,6 +1,7 @@
 import Cycles "mo:base/ExperimentalCycles";
 import Nac "../../../src/NacDB";
 import GUID "../../../lib/GUID";
+import MyCycles "../../../lib/Cycles";
 import Index "../index/main";
 import Partition "../partition/main";
 import Debug "mo:base/Debug";
@@ -12,16 +13,15 @@ actor {
         await Partition.Partition(dbOptions);
     };
 
-    // TODO: Remove `partitionCycles` from DBOptions.
     let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 140_000_000_000; constructor = constructor};
 
     stable var index : ?Index.Index = null;
 
     public shared func init() : async () {
-        MyCycles.addPart();
+        MyCycles.addPart(dbOptions.partitionCycles);
         let index0 = await Index.Index(dbOptions);
         index := ?index0;
-        MyCycles.addPart();
+        MyCycles.addPart(dbOptions.partitionCycles);
         await index0.init();
     };
 
