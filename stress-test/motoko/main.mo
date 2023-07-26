@@ -89,6 +89,7 @@ actor StressTest {
                     continue R;
                 };
                 v := ?(Principal.fromActor(part), outerKey);
+                break R;
             };
             let ?(part, subDBKey) = v else {
                 Debug.trap("programming error");
@@ -108,7 +109,8 @@ actor StressTest {
                         } catch(e) {
                             Debug.print("repeat deleteSubDB: " # Error.message(e));
                             continue R;
-                        }
+                        };
+                        break R;
                     };
                     myAssert(
                         "sub-DB doesn't exists",
