@@ -650,6 +650,7 @@ module {
 
     type DeleteDBOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
     
+    // FIXME: apparently race condition
     public func deleteSubDB(options: DeleteDBOptions): async* () {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
