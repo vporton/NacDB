@@ -21,7 +21,7 @@ actor StressTest {
         await Partition.Partition(dbOptions);
     };
 
-    let dbOptions = {moveCap = #usedMemory 10_000; hardCap = null; partitionCycles = 100_000_000; constructor = constructor};
+    let dbOptions = {moveCap = #usedMemory 10_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
 
     /// The tree considered already debugged for comparison to the being debugged one.
     type ReferenceTree = BTree.BTree<(Principal, Nat), BTree.BTree<Text, Nat>>;
@@ -46,7 +46,7 @@ actor StressTest {
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
-        let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 100_000_000; constructor = constructor};
+        let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 10_000_000_000; constructor = constructor};
 
         MyCycles.addPart(dbOptions.partitionCycles);
         let index = await Index.Index(dbOptions);

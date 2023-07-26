@@ -23,7 +23,7 @@ shared func constructor(dbOptions: Nac.DBOptions): async Partition.Partition {
     await Partition.Partition(dbOptions);
 };
 
-let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 300_000_000_000; constructor};
+let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 10_000_000_000; constructor};
 
 func createCanisters() : async* {index: Index.Index} {
     MyCycles.addPart(dbOptions.partitionCycles);
@@ -147,7 +147,7 @@ let success = run([
                 ]);
             }),
             it("create a new partition canister", do {
-                let dbOptions2 = {moveCap = #usedMemory 500_000; hardCap = ?1000; constructor; partitionCycles = 300_000_000_000};
+                let dbOptions2 = {moveCap = #usedMemory 500_000; hardCap = ?1000; constructor; partitionCycles = 10_000_000_000};
                 let index = await Index.Index(dbOptions2);
                 await index.init();
                 ignore await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions = dbOptions2; userData = ""});
@@ -187,7 +187,7 @@ let success = run([
             //     ]);
             // }),
             it("remove loosers", do {
-                let dbOptions2 = {moveCap = #usedMemory 500_000; hardCap = ?2; constructor; partitionCycles = 300_000_000_000};
+                let dbOptions2 = {moveCap = #usedMemory 500_000; hardCap = ?2; constructor; partitionCycles = 10_000_000_000};
                 let index = await Index.Index(dbOptions2);
                 await index.init();
                 let {outer = (part, subDBKey)} = await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions = dbOptions2; userData = ""});
