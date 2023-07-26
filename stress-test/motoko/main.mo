@@ -37,7 +37,13 @@ actor StressTest {
 
     let rngBound = 2**64;
 
-    type ThreadArguments = {threadNum: Nat; var referenceTree: ReferenceTree; var rng: Prng.Seiran128; index: Index.Index; guidGen: GUID.GUIDGenerator};
+    type ThreadArguments = {
+        threadNum: Nat;
+        var referenceTree: ReferenceTree;
+        var rng: Prng.Seiran128;
+        index: Index.Index;
+        guidGen: GUID.GUIDGenerator;
+    };
 
     public func main() : async () {
         let seed : Nat64 = 0;
@@ -110,10 +116,10 @@ actor StressTest {
                         };
                         break R;
                     };
-                    myAssert(
-                        "sub-DB doesn't exists",
-                        BTree.has(options.referenceTree, compareLocs, (part, outerKey)));
                     ignore BTree.delete(options.referenceTree, compareLocs, (part, outerKey));
+                    myAssert(
+                        "sub-DB wasn't deleted",
+                        not BTree.has(options.referenceTree, compareLocs, (part, outerKey)));
                 };
                 case (null) {};
             }
