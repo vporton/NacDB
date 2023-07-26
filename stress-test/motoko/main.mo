@@ -37,7 +37,7 @@ actor StressTest {
 
     let rngBound = 2**64;
 
-    type ThreadArguments = {var referenceTree: ReferenceTree; var rng: Prng.Seiran128; index: Index.Index; guidGen: GUID.GUIDGenerator};
+    type ThreadArguments = {threadNum: Nat; var referenceTree: ReferenceTree; var rng: Prng.Seiran128; index: Index.Index; guidGen: GUID.GUIDGenerator};
 
     public func main() : async () {
         let seed : Nat64 = 0;
@@ -55,21 +55,22 @@ actor StressTest {
 
         let nThreads = 3;
         let threads : [var ?(async*())] = Array.init(nThreads, null);
-        for (i in threads.keys()) {
-            threads[i] := ?runThread({var referenceTree; var rng; index; guidGen});
+        for (threadNum in threads.keys()) {
+            threads[threadNum] := ?runThread({threadNum; var referenceTree; var rng; index; guidGen});
         };     
-        for (topt in threads.vals()) {
+        label F for (topt in threads.vals()) {
             let ?t = topt else {
                 Debug.trap("programming error");
             };
             await* t;
+            break F;
         }
     };
 
     func runThread(options: ThreadArguments) : async* () {
         // for (_ in Iter.range(0, 333_333)) {
         for (stepN in Iter.range(0, 10)) {
-            Debug.print("Step " # Nat.toText(stepN));
+            Debug.print("Step " # debug_show(options.threadNum) # "/" # Nat.toText(stepN));
             await* runStep(options);
         }
     };
