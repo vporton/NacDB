@@ -2,13 +2,11 @@
     "canisters": {
       "stresser": {
         "main": "motoko/main.mo",
-        "type": "motoko",
-        "cycles": 1000000000000000000
+        "type": "motoko"
       },
       "index": {
         "main": "../example/src/index/main.mo",
-        "type": "motoko",
-        "cycles": 100000000000000
+        "type": "motoko"
       }
     },
     "defaults": {

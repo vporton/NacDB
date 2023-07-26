@@ -12,12 +12,13 @@ actor {
         await Partition.Partition(dbOptions);
     };
 
+    // TODO: Remove `partitionCycles` from DBOptions.
     let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 140_000_000_000; constructor = constructor};
 
     stable var index : ?Index.Index = null;
 
     public shared func init() : async () {
-        Cycles.add(700_000_000_000);
+        MyCycles.addPart();
         let index0 = await Index.Index(dbOptions);
         index := ?index0;
         await index0.init();

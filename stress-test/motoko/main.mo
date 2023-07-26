@@ -10,6 +10,7 @@ import Index "../../example/src/index/main";
 import Partition "../../example/src/partition/main";
 import Principal "mo:base/Principal";
 import GUID "../../lib/GUID";
+import MyCycles "../../lib/Cycles";
 import Nat "mo:base/Nat";
 import Error "mo:base/Error";
 
@@ -46,7 +47,7 @@ actor StressTest {
 
         let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 1_000_000_000_000_000; constructor = constructor};
 
-        Cycles.add(700_000_000_000);
+        MyCycles.addPart();
         let index = await Index.Index(dbOptions);
         await index.init();
 
@@ -79,7 +80,7 @@ actor StressTest {
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
                 let {outer = (part, outerKey)} = try {
-                    Cycles.add(1_000_000_000_000);
+                    MyCycles.addPart();
                     await options.index.createSubDB({guid; dbOptions; userData = ""});
                 } catch(e) {
                     Debug.print("repeat createSubDB: " # Error.message(e));
@@ -100,7 +101,7 @@ actor StressTest {
                     let partAct: Partition.Partition = actor(Principal.toText(part));
                     label R loop {
                         try {
-                            Cycles.add(1_000_000_000_000);
+                            MyCycles.addPart();
                             await partAct.deleteSubDB({outerKey});
                         } catch(e) {
                             Debug.print("repeat deleteSubDB: " # Error.message(e));
