@@ -801,7 +801,6 @@ module {
 
     public func newCanister(dbOptions: DBOptions, dbIndex: DBIndex): async* PartitionCanister {
         MyCycles.addPart();
-        MyCycles.addPart();
         let canister = await dbOptions.constructor(dbOptions);
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
         canister;

@@ -17,6 +17,7 @@ import Error "mo:base/Error";
 actor StressTest {
     // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
     public shared func constructor(dbOptions: Nac.DBOptions): async Partition.Partition {
+        MyCycles.addPart();
         await Partition.Partition(dbOptions);
     };
 
@@ -49,6 +50,7 @@ actor StressTest {
 
         MyCycles.addPart();
         let index = await Index.Index(dbOptions);
+        MyCycles.addPart();
         await index.init();
 
         let nThreads = 3;
@@ -68,11 +70,11 @@ actor StressTest {
         // for (_ in Iter.range(0, 333_333)) {
         for (stepN in Iter.range(0, 10)) {
             Debug.print("Step " # Nat.toText(stepN));
-            await runStep(options);
+            await* runStep(options);
         }
     };
 
-    func runStep(options: ThreadArguments) : async () {
+    func runStep(options: ThreadArguments) : async* () {
         let random = options.rng.next();
         let variants = 3;
         if (random < Nat64.fromNat(rngBound / variants)) {

@@ -21,6 +21,7 @@ actor {
         MyCycles.addPart();
         let index0 = await Index.Index(dbOptions);
         index := ?index0;
+        MyCycles.addPart();
         await index0.init();
     };
 
