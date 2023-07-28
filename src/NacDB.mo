@@ -16,6 +16,7 @@ import Iter "mo:base/Iter";
 import SparseQueue "../lib/SparseQueue";
 import MyCycles "../lib/Cycles";
 import Blob "mo:base/Blob";
+import Array "mo:base/Array";
 
 module {
     public type GUID = Blob;
@@ -177,6 +178,7 @@ module {
             value: AttributeValue;
             innerKey: InnerSubDBKey;
         }): async ();
+        scanSubDBs: query() -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
     };
 
     public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
@@ -792,6 +794,10 @@ module {
         };
         MyCycles.addPart(options.dbOptions.partitionCycles);
         await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
+    };
+
+    public func scanSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))] {
+        Iter.toArray(RBT.entries(superDB.locations));
     };
 
     /// Canisters

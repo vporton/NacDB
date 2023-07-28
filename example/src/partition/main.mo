@@ -124,6 +124,11 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.scanLimitOuter({dbOptions; outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
     };
 
+    public query func scanSubDBs(): async [(Nac.OuterSubDBKey, (Nac.PartitionCanister, Nac.InnerSubDBKey))] {
+        ignore MyCycles.topUpCycles();
+        Nac.scanSubDBs({superDB});
+    };
+
     public query func getByInner({subDBKey: Nac.InnerSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
         ignore MyCycles.topUpCycles();
         Nac.getByInner({superDB; subDBKey; sk});
