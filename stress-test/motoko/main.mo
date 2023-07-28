@@ -151,7 +151,7 @@ actor StressTest {
                 Debug.trap("programming error");
             };
             let ?subtree = BTree.get(options.referenceTree, compareLocs, (part3, outerKey3)) else {
-                Debug.trap("subtree doesn't exist")
+                Debug.trap("subtree doesn't exist");
             };
             ignore BTree.insert(subtree, Text.compare, debug_show(sk), 0);
         } else {
@@ -168,7 +168,7 @@ actor StressTest {
                         break R;
                     };
                     let ?subtree = BTree.get(options.referenceTree, compareLocs, (part, outerKey)) else {
-                        Debug.trap("subtree doesn't exist")
+                        Debug.trap("subtree doesn't exist");
                     };
                     ignore BTree.delete(subtree, Text.compare, debug_show(sk));
                 };
