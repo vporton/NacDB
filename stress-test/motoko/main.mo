@@ -14,6 +14,8 @@ import MyCycles "../../lib/Cycles";
 import Nat "mo:base/Nat";
 import Error "mo:base/Error";
 import Text "mo:base/Text";
+import Blob "mo:base/Blob";
+import Int "mo:base/Int";
 
 actor StressTest {
     // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
@@ -25,7 +27,7 @@ actor StressTest {
     let dbOptions = {moveCap = #usedMemory 500_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
 
     /// The tree considered already debugged for comparison to the being debugged one.
-    type ReferenceTree = RBT.Tree<(Partition.Partition, Nac.OuterSubDBKey), RBT.Tree<Text, Nat>>;
+    type ReferenceTree = RBT.Tree<Nac.GUID, RBT.Tree<Text, Nat>>;
 
     type OuterToGUID = RBT.Tree<(Partition.Partition, Nac.OuterSubDBKey), Nac.GUID>;
 
@@ -79,7 +81,14 @@ actor StressTest {
             break F;
         };
 
-        let resultingTree = readResultingTree({referenceTree; outerToGUID; index});
+        let resultingTree = await* readResultingTree({referenceTree; outerToGUID; index});
+        Debug.print("Reference tree size: " # debug_show(RBT.size(referenceTree)));
+        Debug.print("Resulting tree size: " # debug_show(RBT.size(resultingTree)));
+        let subtreeEqual = func(t1: RBT.Tree<Text, Nat>, t2: RBT.Tree<Text, Nat>): Bool {
+            RBT.equalIgnoreDeleted(t1, t2, Text.equal, Nat.equal);
+        };
+        let equal = RBT.equalIgnoreDeleted<Nac.GUID, RBT.Tree<Text, Nat>>(referenceTree, resultingTree, Blob.equal, subtreeEqual);
+        Debug.print("Equal? " # debug_show(equal));
     };
 
     func runThread(options: ThreadArguments) : async () {
@@ -109,11 +118,11 @@ actor StressTest {
             let ?(part, subDBKey) = v else {
                 Debug.trap("programming error");
             };
-            options.referenceTree := RBT.put(options.referenceTree, compareLocs, (part, subDBKey), RBT.init<Text, Nat>());
+            options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             switch (randomSubDB(options)) {
-                case (?((part, outerKey), _)) {
+                case (?((part, outerKey), guid)) {
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
@@ -124,7 +133,7 @@ actor StressTest {
                         };
                         break R;
                     };
-                    options.referenceTree := RBT.delete(options.referenceTree, compareLocs, (part, outerKey));
+                    options.referenceTree := RBT.delete(options.referenceTree, Blob.compare, guid);
                 };
                 case (null) {};
             }
@@ -145,7 +154,7 @@ actor StressTest {
                         outerCanister = part;
                         outerKey;
                         sk = debug_show(sk);
-                        value = #int 0;
+                        value = #int 0; // TODO
                     });
                 } catch(e) {
                     Debug.print("repeat insert: " # Error.message(e));
@@ -157,14 +166,15 @@ actor StressTest {
             let ?(part3, outerKey3) = v else {
                 Debug.trap("programming error");
             };
-            let ?subtree = RBT.get(options.referenceTree, compareLocs, (part3, outerKey3)) else {
+            let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
                 Debug.trap("subtree doesn't exist");
             };
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), 0);
-            options.referenceTree := RBT.put(options.referenceTree, compareLocs, (part3, outerKey3), subtree2);
+            options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
         } else {
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
+                    let guid = GUID.nextGuid(options.guidGen);
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
@@ -175,20 +185,20 @@ actor StressTest {
                         };
                         break R;
                     };
-                    let ?subtree = RBT.get(options.referenceTree, compareLocs, (part, outerKey)) else {
+                    let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
                         Debug.trap("subtree doesn't exist");
                     };
                     let subtree2 = RBT.delete(subtree, Text.compare, debug_show(sk));
-                    options.referenceTree := RBT.put(options.referenceTree, compareLocs, (part, outerKey), subtree2);
+                    options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
                 };
                 case (null) {}
             }
         };
     };
 
-    func randomSubDB(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), RBT.Tree<Text, Nat>) {
+    func randomSubDB(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), Nac.GUID) {
         let n = Nat64.toNat(options.rng.next()) * RBT.size(options.referenceTree) / rngBound;
-        let iter = RBT.entries(options.referenceTree);
+        let iter = RBT.entries(options.outerToGUID);
         for (_ in Iter.range(0, n)) {
             ignore iter.next();
         };
@@ -196,12 +206,16 @@ actor StressTest {
     };
 
     // FIXME: With higher probability choose recent items
+    // FIXME: Return GUID.
     func randomItem(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), Text) {
         let ?(k, v) = randomSubDB(options) else {
             return null;
         };
-        let n = Nat64.toNat(options.rng.next()) * RBT.size(v) / rngBound;
-        let iter = RBT.entries(v);
+        let ?db = RBT.get(options.referenceTree, Blob.compare, v) else {
+            Debug.trap("programming error");
+        };
+        let n = Nat64.toNat(options.rng.next()) * RBT.size(db) / rngBound;
+        let iter = RBT.entries(db);
         for (_ in Iter.range(0, n)) {
             ignore iter.next();
         };
@@ -211,9 +225,25 @@ actor StressTest {
     };
 
     func readResultingTree({referenceTree: ReferenceTree; outerToGUID: OuterToGUID; index: Index.Index}): async* ReferenceTree {
-        let result: ReferenceTree = RBT.init();
+        var result: ReferenceTree = RBT.init();
         let canisters = await index.getCanisters();
-        // TODO
+        for (part in canisters.vals()) {
+            for((_, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
+                let ?guid = RBT.get(outerToGUID, compareLocs, (innerCanister, innerKey)) else {
+                    Debug.trap("readResultingTree: cannot get GUID");
+                };
+                var subtree = RBT.init<Text, Nat>();
+                result := RBT.put(result, Blob.compare, guid, subtree);
+                let scanned = await innerCanister.scanLimitInner({
+                    innerKey; lowerBound = ""; upperBound = "\u{ffff}\u{ffff}\u{ffff}\u{ffff}"; dir = #fwd; limit = 1_000_000_000});
+                for ((sk, v) in scanned.results.vals()) {
+                    let #int v2 = v else {
+                        Debug.trap("not #int");
+                    };
+                    subtree := RBT.put<Text, Nat>(subtree, Text.compare, sk, Int.abs(v2));
+                };
+            };
+        };
         result;
     };
 }
