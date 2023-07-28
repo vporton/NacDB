@@ -45,6 +45,7 @@ actor StressTest {
     type ThreadArguments = {
         threadNum: Nat;
         var referenceTree: ReferenceTree;
+        var outerKeyToGUID: BTree.BTree<(Partition.Partition, Nac.OuterSubDBKey), Nac.GUID>;
         var rng: Prng.Seiran128;
         index: Index.Index;
         guidGen: GUID.GUIDGenerator;
@@ -53,6 +54,7 @@ actor StressTest {
     public func main() : async () {
         let seed : Nat64 = 0;
         var referenceTree: ReferenceTree = BTree.init(null);
+        var outerKeyToGUID: BTree.BTree<(Partition.Partition, Nac.OuterSubDBKey), Nac.GUID> = BTree.init(null);
         let rng = Prng.Seiran128();
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
@@ -65,7 +67,7 @@ actor StressTest {
         let nThreads = 3;
         let threads : [var ?(async())] = Array.init(nThreads, null);
         for (threadNum in threads.keys()) {
-            threads[threadNum] := ?runThread({threadNum; var referenceTree; var rng; index; guidGen});
+            threads[threadNum] := ?runThread({threadNum; var referenceTree; var outerKeyToGUID; var rng; index; guidGen});
         };
         label F for (topt in threads.vals()) {
             let ?t = topt else {
@@ -92,7 +94,7 @@ actor StressTest {
             label R loop {
                 let {outer = (part, outerKey)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
-                    await options.index.createSubDB({guid; dbOptions; userData = ""});
+                    await options.index.createSubDB({guid; dbOptions; userData = debug_show(guid)});
                 } catch(e) {
                     Debug.print("repeat createSubDB: " # Error.message(e));
                     continue R;
@@ -104,6 +106,7 @@ actor StressTest {
                 Debug.trap("programming error");
             };
             ignore BTree.insert(options.referenceTree, compareLocs, (part, subDBKey), BTree.init<Text, Nat>(null));
+            ignore BTree.insert(options.outerKeyToGUID, compareLocs, (part, subDBKey), guid);
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             switch (randomSubDB(options)) {
                 case (?((part, outerKey), _)) {
