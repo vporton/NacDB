@@ -2,7 +2,7 @@ import Cycles "mo:base/ExperimentalCycles";
 import Iter "mo:base/Iter";
 import Debug "mo:base/Debug";
 import Array "mo:base/Array";
-import BTree "mo:btree/BTree";
+import RBT "mo:stable-rbtree/StableRBTree";
 import Prng "mo:prng";
 import Nat64 "mo:base/Nat64";
 import Nac "../../src/NacDB";
@@ -25,9 +25,9 @@ actor StressTest {
     let dbOptions = {moveCap = #usedMemory 500_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
 
     /// The tree considered already debugged for comparison to the being debugged one.
-    type ReferenceTree = BTree.BTree<(Partition.Partition, Nac.OuterSubDBKey), BTree.BTree<Text, Nat>>;
+    type ReferenceTree = RBT.Tree<(Partition.Partition, Nac.OuterSubDBKey), RBT.Tree<Text, Nat>>;
 
-    type OuterToGUID = BTree.BTree<(Partition.Partition, Nac.OuterSubDBKey), Nac.GUID>;
+    type OuterToGUID = RBT.Tree<(Partition.Partition, Nac.OuterSubDBKey), Nac.GUID>;
 
     func comparePartition(x: Partition.Partition, y: Partition.Partition): {#equal; #greater; #less} {
         Principal.compare(Principal.fromActor(x), Principal.fromActor(y));
@@ -55,8 +55,8 @@ actor StressTest {
 
     public func main() : async () {
         let seed : Nat64 = 0;
-        var referenceTree: ReferenceTree = BTree.init(null);
-        var outerToGUID: OuterToGUID = BTree.init(null);
+        var referenceTree: ReferenceTree = RBT.init();
+        var outerToGUID: OuterToGUID = RBT.init();
         let rng = Prng.Seiran128();
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
@@ -109,8 +109,8 @@ actor StressTest {
             let ?(part, subDBKey) = v else {
                 Debug.trap("programming error");
             };
-            ignore BTree.insert(options.referenceTree, compareLocs, (part, subDBKey), BTree.init<Text, Nat>(null));
-            ignore BTree.insert(options.outerToGUID, compareLocs, (part, subDBKey), guid);
+            options.referenceTree := RBT.put(options.referenceTree, compareLocs, (part, subDBKey), RBT.init<Text, Nat>());
+            options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             switch (randomSubDB(options)) {
                 case (?((part, outerKey), _)) {
@@ -124,7 +124,7 @@ actor StressTest {
                         };
                         break R;
                     };
-                    ignore BTree.delete(options.referenceTree, compareLocs, (part, outerKey));
+                    options.referenceTree := RBT.delete(options.referenceTree, compareLocs, (part, outerKey));
                 };
                 case (null) {};
             }
@@ -157,10 +157,11 @@ actor StressTest {
             let ?(part3, outerKey3) = v else {
                 Debug.trap("programming error");
             };
-            let ?subtree = BTree.get(options.referenceTree, compareLocs, (part3, outerKey3)) else {
+            let ?subtree = RBT.get(options.referenceTree, compareLocs, (part3, outerKey3)) else {
                 Debug.trap("subtree doesn't exist");
             };
-            ignore BTree.insert(subtree, Text.compare, debug_show(sk), 0);
+            let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), 0);
+            options.referenceTree := RBT.put(options.referenceTree, compareLocs, (part3, outerKey3), subtree2);
         } else {
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
@@ -174,19 +175,20 @@ actor StressTest {
                         };
                         break R;
                     };
-                    let ?subtree = BTree.get(options.referenceTree, compareLocs, (part, outerKey)) else {
+                    let ?subtree = RBT.get(options.referenceTree, compareLocs, (part, outerKey)) else {
                         Debug.trap("subtree doesn't exist");
                     };
-                    ignore BTree.delete(subtree, Text.compare, debug_show(sk));
+                    let subtree2 = RBT.delete(subtree, Text.compare, debug_show(sk));
+                    options.referenceTree := RBT.put(options.referenceTree, compareLocs, (part, outerKey), subtree2);
                 };
                 case (null) {}
             }
         };
     };
 
-    func randomSubDB(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), BTree.BTree<Text, Nat>) {
-        let n = Nat64.toNat(options.rng.next()) * BTree.size(options.referenceTree) / rngBound;
-        let iter = BTree.entries(options.referenceTree);
+    func randomSubDB(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), RBT.Tree<Text, Nat>) {
+        let n = Nat64.toNat(options.rng.next()) * RBT.size(options.referenceTree) / rngBound;
+        let iter = RBT.entries(options.referenceTree);
         for (_ in Iter.range(0, n)) {
             ignore iter.next();
         };
@@ -198,8 +200,8 @@ actor StressTest {
         let ?(k, v) = randomSubDB(options) else {
             return null;
         };
-        let n = Nat64.toNat(options.rng.next()) * BTree.size(v) / rngBound;
-        let iter = BTree.entries(v);
+        let n = Nat64.toNat(options.rng.next()) * RBT.size(v) / rngBound;
+        let iter = RBT.entries(v);
         for (_ in Iter.range(0, n)) {
             ignore iter.next();
         };
@@ -209,7 +211,9 @@ actor StressTest {
     };
 
     func readResultingTree({referenceTree: ReferenceTree; outerToGUID: OuterToGUID; index: Index.Index}): async* ReferenceTree {
+        let result: ReferenceTree = RBT.init();
         let canisters = await index.getCanisters();
         // TODO
+        result;
     };
 }
