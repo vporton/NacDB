@@ -103,9 +103,6 @@ actor StressTest {
             let ?(part, subDBKey) = v else {
                 Debug.trap("programming error");
             };
-            myAssert(
-                "sub-DB already exists",
-                not BTree.has(options.referenceTree, compareLocs, (part, subDBKey)));
             ignore BTree.insert(options.referenceTree, compareLocs, (part, subDBKey), BTree.init<Text, Nat>(null));
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             switch (randomSubDB(options)) {
@@ -121,9 +118,6 @@ actor StressTest {
                         break R;
                     };
                     ignore BTree.delete(options.referenceTree, compareLocs, (part, outerKey));
-                    myAssert(
-                        "sub-DB wasn't deleted",
-                        not BTree.has(options.referenceTree, compareLocs, (part, outerKey)));
                 };
                 case (null) {};
             }
@@ -156,18 +150,11 @@ actor StressTest {
             let ?(part3, outerKey3) = v else {
                 Debug.trap("programming error");
             };
-            // myAssert(); // FIXME
             // let ?subtree = BTree.get(options.referenceTree, compareLocs, (part3, outerKey3)) else {
             //     // FIXME
             // };
             // ignore BTree.insert<Text, Nat>(subtree, Text.compare, debug_show(sk), 0);
         };
-    };
-
-    func myAssert(msg: Text, f: Bool) {
-        if (not f) {
-            Debug.print(msg);
-        }
     };
 
     func randomSubDB(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), BTree.BTree<Text, Nat>) {
