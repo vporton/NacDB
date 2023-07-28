@@ -86,7 +86,7 @@ actor StressTest {
     func runStep(options: ThreadArguments) : async* () {
         let random = options.rng.next();
         let variants = 4;
-        if (random < Nat64.fromNat(rngBound / variants)) {
+        if (random < Nat64.fromNat(rngBound / variants * 1)) {
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
@@ -150,10 +150,30 @@ actor StressTest {
             let ?(part3, outerKey3) = v else {
                 Debug.trap("programming error");
             };
-            // let ?subtree = BTree.get(options.referenceTree, compareLocs, (part3, outerKey3)) else {
-            //     // FIXME
-            // };
-            // ignore BTree.insert<Text, Nat>(subtree, Text.compare, debug_show(sk), 0);
+            let ?subtree = BTree.get(options.referenceTree, compareLocs, (part3, outerKey3)) else {
+                Debug.trap("subtree doesn't exist")
+            };
+            ignore BTree.insert(subtree, Text.compare, debug_show(sk), 0);
+        } else {
+            switch (randomItem(options)) {
+                case (?((part, outerKey), sk)) {
+                    label R loop {
+                        try {
+                            MyCycles.addPart(dbOptions.partitionCycles);
+                            await part.delete({outerKey; sk});
+                        } catch(e) {
+                            Debug.print("repeat insert: " # Error.message(e));
+                            continue R;
+                        };
+                        break R;
+                    };
+                    let ?subtree = BTree.get(options.referenceTree, compareLocs, (part, outerKey)) else {
+                        Debug.trap("subtree doesn't exist")
+                    };
+                    ignore BTree.delete(subtree, Text.compare, debug_show(sk));
+                };
+                case (null) {}
+            }
         };
     };
 
