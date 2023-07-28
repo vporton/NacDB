@@ -75,7 +75,7 @@ actor StressTest {
         };
         label F for (topt in threads.vals()) {
             let ?t = topt else {
-                Debug.trap("programming error");
+                Debug.trap("programming error: threads");
             };
             await t;
             break F;
@@ -116,7 +116,7 @@ actor StressTest {
                 break R;
             };
             let ?(part, subDBKey) = v else {
-                Debug.trap("programming error");
+                Debug.trap("programming error: createSubDB");
             };
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
@@ -164,7 +164,7 @@ actor StressTest {
                 break R;
             };
             let ?(part3, outerKey3) = v else {
-                Debug.trap("programming error");
+                Debug.trap("programming error: insert");
             };
             let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
                 Debug.trap("subtree doesn't exist");
@@ -212,7 +212,7 @@ actor StressTest {
             return null;
         };
         let ?db = RBT.get(options.referenceTree, Blob.compare, v) else {
-            Debug.trap("programming error");
+            return null;
         };
         let n = Nat64.toNat(options.rng.next()) * RBT.size(db) / rngBound;
         let iter = RBT.entries(db);
