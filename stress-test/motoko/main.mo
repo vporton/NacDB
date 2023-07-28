@@ -13,6 +13,7 @@ import GUID "../../lib/GUID";
 import MyCycles "../../lib/Cycles";
 import Nat "mo:base/Nat";
 import Error "mo:base/Error";
+import Text "mo:base/Text";
 
 actor StressTest {
     // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
@@ -24,10 +25,14 @@ actor StressTest {
     let dbOptions = {moveCap = #usedMemory 500_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
 
     /// The tree considered already debugged for comparison to the being debugged one.
-    type ReferenceTree = BTree.BTree<(Principal, Nat), BTree.BTree<Text, Nat>>;
+    type ReferenceTree = BTree.BTree<(Partition.Partition, Nac.OuterSubDBKey), BTree.BTree<Text, Nat>>;
 
-    func compareLocs(x: (Principal, Nat), y: (Principal, Nat)): {#less; #equal; #greater} {
-        let c = Principal.compare(x.0, y.0);
+    func comparePartition(x: Partition.Partition, y: Partition.Partition): {#equal; #greater; #less} {
+        Principal.compare(Principal.fromActor(x), Principal.fromActor(y));
+    };
+
+    func compareLocs(x: (Partition.Partition, Nac.OuterSubDBKey), y: (Partition.Partition, Nac.OuterSubDBKey)): {#less; #equal; #greater} {
+        let c = comparePartition(x.0, y.0);
         if (c != #equal) {
             c;
         } else {
@@ -61,7 +66,7 @@ actor StressTest {
         let threads : [var ?(async())] = Array.init(nThreads, null);
         for (threadNum in threads.keys()) {
             threads[threadNum] := ?runThread({threadNum; var referenceTree; var rng; index; guidGen});
-        };     
+        };
         label F for (topt in threads.vals()) {
             let ?t = topt else {
                 Debug.trap("programming error");
@@ -80,9 +85,9 @@ actor StressTest {
 
     func runStep(options: ThreadArguments) : async* () {
         let random = options.rng.next();
-        let variants = 3;
+        let variants = 4;
         if (random < Nat64.fromNat(rngBound / variants)) {
-            var v: ?(Principal, Nat) = null;
+            var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
                 let {outer = (part, outerKey)} = try {
@@ -92,7 +97,7 @@ actor StressTest {
                     Debug.print("repeat createSubDB: " # Error.message(e));
                     continue R;
                 };
-                v := ?(Principal.fromActor(part), outerKey);
+                v := ?(part, outerKey);
                 break R;
             };
             let ?(part, subDBKey) = v else {
@@ -105,11 +110,10 @@ actor StressTest {
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             switch (randomSubDB(options)) {
                 case (?((part, outerKey), _)) {
-                    let partAct: Partition.Partition = actor(Principal.toText(part));
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            await partAct.deleteSubDB({outerKey});
+                            await part.deleteSubDB({outerKey});
                         } catch(e) {
                             Debug.print("repeat deleteSubDB: " # Error.message(e));
                             continue R;
@@ -123,16 +127,41 @@ actor StressTest {
                 };
                 case (null) {};
             }
-            // let {outer = (part2, subDBKey2)} = await part.insert({
-            //     guid = GUID.nextGuid(guidGen);
-            //     dbOptions;
-            //     indexCanister = index;
-            //     outerCanister = part;
-            //     outerKey = subDBKey;
-            //     sk = "name";
-            //     value = #text name;
-            // });
-        }
+        } else if (random < Nat64.fromNat(rngBound / variants * 3)) {
+            var v: ?(Partition.Partition, Nat) = null;
+            let guid = GUID.nextGuid(options.guidGen);
+            let sk = GUID.nextGuid(options.guidGen);
+            let ?((part, outerKey), _) = randomItem(options) else {
+                return;
+            };
+            label R loop {
+                let {outer = (part2, outerKey2)} = try {
+                    MyCycles.addPart(dbOptions.partitionCycles);
+                    await part.insert({
+                        guid;
+                        dbOptions;
+                        indexCanister = options.index;
+                        outerCanister = part;
+                        outerKey;
+                        sk = debug_show(sk);
+                        value = #int 0;
+                    });
+                } catch(e) {
+                    Debug.print("repeat insert: " # Error.message(e));
+                    continue R;
+                };
+                v := ?(part, outerKey);
+                break R;
+            };
+            let ?(part3, outerKey3) = v else {
+                Debug.trap("programming error");
+            };
+            // myAssert(); // FIXME
+            // let ?subtree = BTree.get(options.referenceTree, compareLocs, (part3, outerKey3)) else {
+            //     // FIXME
+            // };
+            // ignore BTree.insert<Text, Nat>(subtree, Text.compare, debug_show(sk), 0);
+        };
     };
 
     func myAssert(msg: Text, f: Bool) {
@@ -141,7 +170,7 @@ actor StressTest {
         }
     };
 
-    func randomSubDB(options: ThreadArguments): ?((Principal, Nat), BTree.BTree<Text, Nat>) {
+    func randomSubDB(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), BTree.BTree<Text, Nat>) {
         let n = Nat64.toNat(options.rng.next()) * BTree.size(options.referenceTree) / rngBound;
         let iter = BTree.entries(options.referenceTree);
         for (_ in Iter.range(0, n)) {
@@ -149,4 +178,19 @@ actor StressTest {
         };
         iter.next();
     };
+
+    // FIXME: With higher probability choose recent items
+    func randomItem(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), Text) {
+        let ?(k, v) = randomSubDB(options) else {
+            return null;
+        };
+        let n = Nat64.toNat(options.rng.next()) * BTree.size(v) / rngBound;
+        let iter = BTree.entries(v);
+        for (_ in Iter.range(0, n)) {
+            ignore iter.next();
+        };
+        do ? {
+            (k, iter.next()!.0);
+        };
+    }
 }
