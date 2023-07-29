@@ -23,7 +23,7 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
     };
 
     public query func getCanisters(): async [Nac.PartitionCanister] {
-        ignore MyCycles.topUpCycles();
+        // ignore MyCycles.topUpCycles();
         Nac.getCanisters(dbIndex);
     };
 

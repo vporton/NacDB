@@ -32,7 +32,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
     // Some data access methods //
 
     public query func superDBSize() : async Nat {
-        ignore MyCycles.topUpCycles();
+        // ignore MyCycles.topUpCycles();
         Nac.superDBSize(superDB);
     };
 
@@ -113,7 +113,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
     public query func scanLimitInner({innerKey: Nac.InnerSubDBKey; lowerBound: Nac.SK; upperBound: Nac.SK; dir: RBT.Direction; limit: Nat})
         : async RBT.ScanLimitResult<Text, Nac.AttributeValue>
     {
-        ignore MyCycles.topUpCycles();
+        // ignore MyCycles.topUpCycles();
         Nac.scanLimitInner({innerSuperDB = superDB; innerKey; lowerBound; upperBound; dir; limit});
     };
 
@@ -125,17 +125,17 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
     };
 
     public query func scanSubDBs(): async [(Nac.OuterSubDBKey, (Nac.PartitionCanister, Nac.InnerSubDBKey))] {
-        ignore MyCycles.topUpCycles();
+        // ignore MyCycles.topUpCycles();
         Nac.scanSubDBs({superDB});
     };
 
     public query func getByInner({subDBKey: Nac.InnerSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
-        ignore MyCycles.topUpCycles();
+        // ignore MyCycles.topUpCycles();
         Nac.getByInner({superDB; subDBKey; sk});
     };
 
     public query func hasByInner({subDBKey: Nac.InnerSubDBKey; sk: Nac.SK}): async Bool {
-        ignore MyCycles.topUpCycles();
+        // ignore MyCycles.topUpCycles();
         Nac.hasByInner({superDB; subDBKey; sk});
     };
 
@@ -155,7 +155,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
     };
 
     public query func hasSubDBByInner(options: {subDBKey: Nac.InnerSubDBKey}): async Bool {
-        ignore MyCycles.topUpCycles();
+        // ignore MyCycles.topUpCycles();
         Nac.hasSubDBByInner({innerSuperDB = superDB; innerKey = options.subDBKey});
     };
 
@@ -165,7 +165,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
     };
 
     public query func subDBSizeByInner({subDBKey: Nac.InnerSubDBKey}): async ?Nat {
-        ignore MyCycles.topUpCycles();
+        // ignore MyCycles.topUpCycles();
         Nac.subDBSizeByInner({superDB; subDBKey});
     };
 
