@@ -51,7 +51,7 @@ module {
 
     public type CreatingSubDB = {
         var canister: ?PartitionCanister; // Immediately after creation of sub-DB, this is both inner and outer.
-        var inner: ?(PartitionCanister, InnerSubDBKey); // TODO: eliminable null value and `PartitionCanister`
+        var loc: ?{inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, InnerSubDBKey)}; // TODO: eliminable null value and `PartitionCanister`
         userData: Text;
     };
 
@@ -153,7 +153,7 @@ module {
             value: AttributeValue;
         }) : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
         putLocation(outerKey: OuterSubDBKey, innerCanister: PartitionCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
-        createOuter(part: PartitionCanister, innerKey: InnerSubDBKey)
+        createOuter(part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
             : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
         delete({outerKey: OuterSubDBKey; sk: SK}): async ();
         deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
@@ -681,7 +681,7 @@ module {
     public func createSubDB({guid: GUID; dbIndex: DBIndex; dbOptions: DBOptions; userData: Text})
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
-        let creating0: CreatingSubDB = {var canister = null; var inner = null; userData};
+        let creating0: CreatingSubDB = {var canister = null; var loc = null; userData};
         let creating = SparseQueue.add(dbIndex.creatingSubDB, guid, creating0);
         let part3: PartitionCanister = switch (creating.canister) { // both inner and outer
             case (?part) { part };
@@ -694,47 +694,45 @@ module {
                     creating.canister := ?part;
                     part2;
                 } else {
-                    let inner = switch (creating.inner) {
-                        case (?inner) { inner };
+                    let {inner; outer} = switch (creating.loc) {
+                        case (?loc) { loc };
                         case (null) {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            let {inner} = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
-                            creating.inner := ?(part, inner);
-                            (part, inner);
+                            let {inner; outer} = await part.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                            creating.loc := ?{inner = (part, inner); outer = (part, outer)};
+                            {inner = (part, inner); outer = (part, outer)};
                         };
                     };
                     // SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
                     MyCycles.addPart(dbOptions.partitionCycles);
-                    return await part.createOuter(part, inner.1);
+                    return await part.createOuter(part, outer.1, inner.1);
                 };
                 part2;
             };
         };
         MyCycles.addPart(dbOptions.partitionCycles);
-        let inner = switch (creating.inner) {
-            case (?inner) { inner };
+        let {inner; outer} = switch (creating.loc) {
+            case (?loc) { loc };
             case (null) {
                 MyCycles.addPart(dbOptions.partitionCycles);
-                let {inner} = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
-                creating.inner := ?(part3, inner);
-                (part3, inner);
+                let {inner; outer} = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
+                {inner = (part3, inner); outer = (part3, outer)};
             };
         };
         // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
         MyCycles.addPart(dbOptions.partitionCycles);
-        await part3.createOuter(part3, inner.1); // FIXME: Duplicate increasing `nextOuterKey` with `rawInsertSubDB`
+        await part3.createOuter(part3, outer.1, inner.1); // FIXME: Duplicate increasing `nextOuterKey` with `rawInsertSubDB`
     };
 
     /// In the current version two partition canister are always the same.
     ///
     /// `superDB` should reside in `part`.
-    public func createOuter(outerSuperDB: SuperDB, part: PartitionCanister, innerKey: InnerSubDBKey)
+    public func createOuter(outerSuperDB: SuperDB, part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
         : {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
         outerSuperDB.locations := RBT.put(outerSuperDB.locations, Nat.compare, outerSuperDB.nextOuterKey, (part, innerKey));
-        let result = {inner = (part, innerKey); outer = (part, outerSuperDB.nextOuterKey)};
-        outerSuperDB.nextOuterKey += 1;
-        result;
+        {inner = (part, innerKey); outer = (part, outerKey)};
     };
 
     // Scanning/enumerating //

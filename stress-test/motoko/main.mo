@@ -47,7 +47,6 @@ actor StressTest {
     let rngBound = 2**64;
 
     type ThreadArguments = {
-        threadNum: Nat;
         var referenceTree: ReferenceTree;
         var outerToGUID: OuterToGUID;
         var rng: Prng.Seiran128;
@@ -57,8 +56,6 @@ actor StressTest {
 
     public func main() : async () {
         let seed : Nat64 = 0;
-        var referenceTree: ReferenceTree = RBT.init();
-        var outerToGUID: OuterToGUID = RBT.init();
         let rng = Prng.Seiran128();
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
@@ -70,8 +67,9 @@ actor StressTest {
 
         let nThreads = 1;
         let threads : [var ?(async())] = Array.init(nThreads, null);
+        let options: ThreadArguments = {var referenceTree = RBT.init(); var outerToGUID = RBT.init(); var rng; index; guidGen};
         for (threadNum in threads.keys()) {
-            threads[threadNum] := ?runThread({threadNum; var referenceTree; var outerToGUID; var rng; index; guidGen});
+            threads[threadNum] := ?runThread(options, threadNum);
         };
         label F for (topt in threads.vals()) {
             let ?t = topt else {
@@ -81,17 +79,17 @@ actor StressTest {
             break F;
         };
 
-        let resultingTree = await* readResultingTree({referenceTree; outerToGUID; index});
-        Debug.print("Reference tree size: " # debug_show(RBT.size(referenceTree)));
+        let resultingTree = await* readResultingTree({referenceTree = options.referenceTree; outerToGUID = options.outerToGUID; index});
+        Debug.print("Reference tree size: " # debug_show(RBT.size(options.referenceTree)));
         Debug.print("Resulting tree size: " # debug_show(RBT.size(resultingTree)));
         let subtreeEqual = func(t1: RBT.Tree<Text, Nat>, t2: RBT.Tree<Text, Nat>): Bool {
             RBT.equalIgnoreDeleted(t1, t2, Text.equal, Nat.equal);
         };
-        let equal = RBT.equalIgnoreDeleted<Nac.GUID, RBT.Tree<Text, Nat>>(referenceTree, resultingTree, Blob.equal, subtreeEqual);
+        let equal = RBT.equalIgnoreDeleted<Nac.GUID, RBT.Tree<Text, Nat>>(options.referenceTree, resultingTree, Blob.equal, subtreeEqual);
         Debug.print("Equal? " # debug_show(equal));
     };
 
-    func runThread(options: ThreadArguments) : async () {
+    func runThread(options: ThreadArguments, threadNum: Nat) : async () {
         for (stepN in Iter.range(0, 100)) {
             // Debug.print("Step " # debug_show(options.threadNum) # "/" # Nat.toText(stepN));
             await* runStep(options);
@@ -120,6 +118,7 @@ actor StressTest {
             };
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
+            Debug.print("Setting GUID: part = " # debug_show(Principal.fromActor(part)) # " outer key = " # debug_show(subDBKey));
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             switch (randomSubDB(options)) {
                 case (?((part, outerKey), guid)) {
@@ -230,6 +229,7 @@ actor StressTest {
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
             for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
+                Debug.print("Getting result: part = " # debug_show(Principal.fromActor(part)) # " outerkey = " # debug_show(outerKey));
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
                     Debug.trap("readResultingTree: cannot get GUID");
                 };
