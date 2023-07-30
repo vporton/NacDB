@@ -652,7 +652,6 @@ module {
 
     type DeleteDBOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
     
-    // FIXME: Should produce an error, if half deleted to motivate the user to delete fully. (Will that motivation work?)
     public func deleteSubDB(options: DeleteDBOptions): async* () {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
@@ -707,7 +706,7 @@ module {
         let {inner} = await part3.rawInsertSubDB(RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
         // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
         MyCycles.addPart(dbOptions.partitionCycles);
-        await part3.createOuter(part3, inner); // FIXME: outer part vs inner part? (and need to do external call of this function here and in other places?)
+        await part3.createOuter(part3, inner);
     };
 
     /// In the current version two partition canister are always the same.
