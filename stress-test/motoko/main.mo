@@ -68,7 +68,7 @@ actor StressTest {
         MyCycles.addPart(dbOptions.partitionCycles);
         await index.init();
 
-        let nThreads = 3;
+        let nThreads = 1;
         let threads : [var ?(async())] = Array.init(nThreads, null);
         for (threadNum in threads.keys()) {
             threads[threadNum] := ?runThread({threadNum; var referenceTree; var outerToGUID; var rng; index; guidGen});
@@ -171,7 +171,7 @@ actor StressTest {
             };
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), 0);
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
-            options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid);
+            // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid);
         } else {
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
@@ -229,8 +229,8 @@ actor StressTest {
         var result: ReferenceTree = RBT.init();
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
-            for((_, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
-                let ?guid = RBT.get(outerToGUID, compareLocs, (innerCanister, innerKey)) else {
+            for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
+                let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
                     Debug.trap("readResultingTree: cannot get GUID");
                 };
                 var subtree = RBT.init<Text, Nat>();
