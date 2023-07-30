@@ -326,7 +326,7 @@ module {
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
                 };
-                ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey); // FIXME: idempotent?
+                ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
                 subDB.busy := false; // FIXME
                 (canister, newInnerSubDBKey);
             };
