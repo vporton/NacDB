@@ -50,7 +50,7 @@ module {
     public type MoveCap = { #usedMemory: Nat };
 
     public type CreatingSubDB = {
-        var canister: ?PartitionCanister;
+        var canister: ?PartitionCanister; // Immediately after creation of sub-DB, this is both inner and outer.
         userData: Text;
     };
 
@@ -683,7 +683,7 @@ module {
     {
         let creating0: CreatingSubDB = {var canister = null; userData};
         let creating = SparseQueue.add(dbIndex.creatingSubDB, guid, creating0);
-        let part3: PartitionCanister = switch (creating.canister) { // FIXME: inner or outer?
+        let part3: PartitionCanister = switch (creating.canister) { // both inner and outer
             case (?part) { part };
             case (null) {
                 let canisters = StableBuffer.toArray(dbIndex.canisters); // TODO: a special function for this
