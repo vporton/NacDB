@@ -722,7 +722,7 @@ module {
         };
         // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
         MyCycles.addPart(dbOptions.partitionCycles);
-        await part3.createOuter(part3, outer.1, inner.1); // FIXME: Duplicate increasing `nextOuterKey` with `rawInsertSubDB`
+        await part3.createOuter(part3, outer.1, inner.1);
     };
 
     /// In the current version two partition canister are always the same.
