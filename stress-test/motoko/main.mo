@@ -132,8 +132,10 @@ actor StressTest {
                 Debug.trap("programming error: createSubDB");
             };
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
+            Debug.print("Inserting to options.outerToGUID: " # debug_show(Principal.fromActor(part)) # " " # debug_show(subDBKey));
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
+            // FIXME: Uncomment.
             // switch (randomSubDB(options)) {
             //     case (?((part, outerKey), guid)) {
             //         label R loop {
@@ -152,12 +154,10 @@ actor StressTest {
             //     case (null) {};
             // };
         } else if (random < Nat64.fromNat(rngBound / variants * 3)) {
-            // FIXME: Uncomment:
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             let sk = GUID.nextGuid(options.guidGen);
             let ?((part, outerKey), _) = randomSubDB(options) else {
-                Debug.print("No random sub-DB");
                 return;
             };
             let randomValue = Nat64.toNat(options.rng.next());
@@ -181,7 +181,7 @@ actor StressTest {
                     Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
-                v := ?(part, outerKey);
+                v := ?(part2, outerKey2);
                 break R;
             };
             let ?(part3, outerKey3) = v else {
@@ -196,9 +196,10 @@ actor StressTest {
             };
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
-            // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid); // FIXME: Describe the race condition why we need it.
-            Debug.print("insert finished"); // FIXME: Unreachable code.
+            // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid2); // needed because a DB can be moved
+            // Debug.print("insert finished");
         } else {
+            // FIXME: Uncomment.
             // switch (randomItem(options)) {
             //     case (?((part, outerKey), sk)) {
             //         let guid = GUID.nextGuid(options.guidGen);
@@ -258,7 +259,7 @@ actor StressTest {
         for (part in canisters.vals()) {
             label L for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
-                    Debug.print("readResultingTree: cannot get GUID"); // FIXME: Should be trap
+                    Debug.print("cannot get GUID for " # debug_show(Principal.fromActor(part)) # " " # debug_show(outerKey)); // FIXME: Should be trap
                     continue L;
                 };
                 var subtree = RBT.init<Text, Nat>();
@@ -266,7 +267,6 @@ actor StressTest {
                 let scanned = await innerCanister.scanLimitInner({
                     innerKey; lowerBound = ""; upperBound = "\u{ffff}\u{ffff}\u{ffff}\u{ffff}"; dir = #fwd; limit = 1_000_000_000});
                 for ((sk, v) in scanned.results.vals()) {
-                    Debug.print(debug_show(v));
                     let #int v2 = v else {
                         Debug.trap("not #int");
                     };
