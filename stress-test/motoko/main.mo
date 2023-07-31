@@ -67,7 +67,7 @@ actor StressTest {
         MyCycles.addPart(dbOptions.partitionCycles);
         await index.init();
 
-        let nThreads = 1;
+        let nThreads = 4;
         let threads : [var ?(async())] = Array.init(nThreads, null);
         let options: ThreadArguments = {var referenceTree = RBT.init(); var outerToGUID = RBT.init(); var rng; index; guidGen};
         for (threadNum in threads.keys()) {
