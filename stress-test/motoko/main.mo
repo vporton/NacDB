@@ -24,7 +24,7 @@ actor StressTest {
         await Partition.Partition(dbOptions);
     };
 
-    let dbOptions = {moveCap = #usedMemory 500_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
+    let dbOptions = {moveCap = #usedMemory 300_000; hardCap = null; partitionCycles = 150_000_000_000; constructor = constructor};
 
     /// The tree considered already debugged for comparison to the being debugged one.
     type ReferenceTree = RBT.Tree<Nac.GUID, RBT.Tree<Text, Nat>>;
@@ -55,6 +55,8 @@ actor StressTest {
     };
 
     public func main() : async () {
+        Debug.print("STARTING STRESS TEST");
+
         let seed : Nat64 = 0;
         let rng = Prng.Seiran128();
         rng.init(seed);
@@ -79,6 +81,7 @@ actor StressTest {
             break F;
         };
 
+        Debug.print("Number of partition canisters: " # debug_show(Array.size(await index.getCanisters())));
         let resultingTree = await* readResultingTree({referenceTree = options.referenceTree; outerToGUID = options.outerToGUID; index});
         Debug.print("Reference tree size: " # debug_show(RBT.size(options.referenceTree)));
         Debug.print("Resulting tree size: " # debug_show(RBT.size(resultingTree)));

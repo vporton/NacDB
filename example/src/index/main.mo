@@ -12,7 +12,7 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
     stable var initialized = false;
 
     public shared func init() : async () {
-        ignore MyCycles.topUpCycles();
+        ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         if (initialized) {
             Debug.trap("already initialized");
         };
@@ -23,19 +23,19 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
     };
 
     public query func getCanisters(): async [Nac.PartitionCanister] {
-        // ignore MyCycles.topUpCycles();
+        // ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         Nac.getCanisters(dbIndex);
     };
 
     public shared func newCanister(): async Nac.PartitionCanister {
-        ignore MyCycles.topUpCycles();
+        ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         await* Nac.newCanister(dbOptions, dbIndex);
     };
 
     public shared func createSubDB({guid: Nac.GUID; dbOptions: Nac.DBOptions; userData: Text})
         : async {inner: (Nac.PartitionCanister, Nac.InnerSubDBKey); outer: (Nac.PartitionCanister, Nac.OuterSubDBKey)}
     {
-        ignore MyCycles.topUpCycles();
+        ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         await* Nac.createSubDB({guid; dbIndex; dbOptions; userData});
     };
 }
