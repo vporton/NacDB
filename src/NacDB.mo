@@ -792,6 +792,7 @@ module {
     public func scanLimitInner(options: ScanLimitInnerOptions): RBT.ScanLimitResult<Text, AttributeValue> {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
+                // Debug.print("isize: " # debug_show(RBT.size(subDB.map)));
                 RBT.scanLimit(subDB.map, Text.compare, options.lowerBound, options.upperBound, options.dir, options.limit);
             };
             case (null) {

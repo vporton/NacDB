@@ -17,6 +17,8 @@ import Text "mo:base/Text";
 import Blob "mo:base/Blob";
 import Int "mo:base/Int";
 import Buffer "mo:base/Buffer";
+import Float "mo:base/Float";
+import Int64 "mo:base/Int64";
 
 actor StressTest {
     // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
@@ -153,9 +155,10 @@ actor StressTest {
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             let sk = GUID.nextGuid(options.guidGen);
-            let ?((part, outerKey), _) = randomItem(options) else {
+            let ?((part, outerKey), _) = randomSubDB(options) else {
                 return;
             };
+            let randomValue = Nat64.toNat(options.rng.next());
             label R loop {
                 let {outer = (part2, outerKey2)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
@@ -166,7 +169,7 @@ actor StressTest {
                         outerCanister = part;
                         outerKey;
                         sk = debug_show(sk);
-                        value = #int 0; // TODO
+                        value = #int randomValue;
                     });
                 } catch(e) {
                     Debug.print("repeat insert: " # Error.message(e));
@@ -181,7 +184,7 @@ actor StressTest {
             let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
                 Debug.trap("subtree doesn't exist");
             };
-            let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), 0);
+            let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), 0); // FIXME: `randomValue` here. But it returns true, even with 0 here!
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
             // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid);
         } else {
@@ -249,10 +252,12 @@ actor StressTest {
                 result := RBT.put(result, Blob.compare, guid, subtree);
                 let scanned = await innerCanister.scanLimitInner({
                     innerKey; lowerBound = ""; upperBound = "\u{ffff}\u{ffff}\u{ffff}\u{ffff}"; dir = #fwd; limit = 1_000_000_000});
+                Debug.print("Array.size: " # debug_show(Array.size(scanned.results)));
                 for ((sk, v) in scanned.results.vals()) {
                     let #int v2 = v else {
                         Debug.trap("not #int");
                     };
+                    Debug.print("v2: " # debug_show(v2));
                     subtree := RBT.put<Text, Nat>(subtree, Text.compare, sk, Int.abs(v2));
                 };
             };
