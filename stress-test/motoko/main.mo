@@ -176,6 +176,7 @@ actor StressTest {
                     });
                 } catch(e) {
                     if (Text.endsWith(Error.message(e), #text " trapped explicitly: missing sub-DB")) {
+                        Debug.print("insert: missing sub-DB");
                         return; // Everything is OK, a not erroneous race condition.
                     };
                     Debug.print("repeat insert: " # Error.message(e));
@@ -190,9 +191,10 @@ actor StressTest {
             let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
                 Debug.trap("subtree doesn't exist");
             };
-            let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), 0); // FIXME: `randomValue` here. But it returns true, even with 0 here!
+            let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
             // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid);
+            Debug.print("insert finished");
         } else {
             Debug.print("delete");
             switch (randomItem(options)) {
