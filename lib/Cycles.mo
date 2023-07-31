@@ -15,6 +15,6 @@ module {
     public func addPart(maxAmount: Nat) {
         // Debug.print("adding " # debug_show(Cycles.balance() / 2) # " cycles");
         let amount = Nat.min(Cycles.balance() / 3, maxAmount); // FIXME: `/ 3` is a hack.
-        Cycles.add(amount); // FIXME: `* 10` is a hack.
+        Cycles.add(amount);
     };
 }
