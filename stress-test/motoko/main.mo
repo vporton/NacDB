@@ -251,10 +251,7 @@ actor StressTest {
         var result: ReferenceTree = RBT.init();
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
-            // FIXME: The commented out variant is correct.
             label L for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
-            // let f = func (t: ((Partition.Partition, Nac.OuterSubDBKey), Nac.GUID)): (Nac.OuterSubDBKey, (Partition.Partition, Nac.InnerSubDBKey)) { (t.0.1, (t.0.0, t.0.1)) };
-            // for((outerKey, (innerCanister, innerKey)) in Iter.map<((Partition.Partition, Nac.OuterSubDBKey), Nac.GUID), (Nac.OuterSubDBKey, (Partition.Partition, Nac.InnerSubDBKey))>(RBT.entries(outerToGUID), f)) {
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
                     Debug.print("readResultingTree: cannot get GUID"); // FIXME: Should be trap
                     continue L;
@@ -264,6 +261,7 @@ actor StressTest {
                 let scanned = await innerCanister.scanLimitInner({
                     innerKey; lowerBound = ""; upperBound = "\u{ffff}\u{ffff}\u{ffff}\u{ffff}"; dir = #fwd; limit = 1_000_000_000});
                 for ((sk, v) in scanned.results.vals()) {
+                    Debug.print(debug_show(v));
                     let #int v2 = v else {
                         Debug.trap("not #int");
                     };
