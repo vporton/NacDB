@@ -50,6 +50,7 @@ actor StressTest {
     let rngBound = 2**64;
 
     type ThreadArguments = {
+        nSteps: Nat;
         var referenceTree: ReferenceTree;
         var outerToGUID: OuterToGUID;
         var rng: Prng.Seiran128;
@@ -76,13 +77,17 @@ actor StressTest {
         MyCycles.addPart(dbOptions.partitionCycles);
         await index.init();
 
-        let nThreads = 1;
+        let nThreads = 10;
+        let nSteps = 100;
+
         let threads : [var ?(async())] = Array.init(nThreads, null);
         let options: ThreadArguments = {
+            nSteps;
             var referenceTree = RBT.init();
             var outerToGUID = RBT.init();
             var rng;
-            index; guidGen;
+            index;
+            guidGen;
             var recentOuter = Buffer.Buffer(0);
             var recentSKs = Buffer.Buffer(0);
             var dbInserts = 0;
@@ -93,12 +98,11 @@ actor StressTest {
         for (threadNum in threads.keys()) {
             threads[threadNum] := ?runThread(options, threadNum);
         };
-        label F for (topt in threads.vals()) {
+        for (topt in threads.vals()) {
             let ?t = topt else {
                 Debug.trap("programming error: threads");
             };
             await t;
-            break F;
         };
 
         Debug.print("Number of partition canisters: " # debug_show(Array.size(await index.getCanisters())));
@@ -119,7 +123,7 @@ actor StressTest {
     };
 
     func runThread(options: ThreadArguments, threadNum: Nat) : async () {
-        for (stepN in Iter.range(0, 100)) {
+        for (stepN in Iter.range(0, options.nSteps)) {
             // Debug.print("Step " # debug_show(options.threadNum) # "/" # Nat.toText(stepN));
             await* runStep(options);
         }
@@ -226,7 +230,8 @@ actor StressTest {
                         break R;
                     };
                     let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
-                        Debug.trap("subtree doesn't exist");
+                        Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomSubDB()`.
+                        return; // Everything is OK, a not erroneous race condition.
                     };
                     let subtree2 = RBT.delete(subtree, Text.compare, debug_show(sk));
                     options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
