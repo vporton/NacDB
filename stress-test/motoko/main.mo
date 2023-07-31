@@ -230,7 +230,7 @@ actor StressTest {
                         break R;
                     };
                     let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
-                        Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomSubDB()`.
+                        // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomItem()`.
                         return; // Everything is OK, a not erroneous race condition.
                     };
                     let subtree2 = RBT.delete(subtree, Text.compare, debug_show(sk));
