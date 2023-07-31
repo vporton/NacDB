@@ -57,6 +57,10 @@ actor StressTest {
         guidGen: GUID.GUIDGenerator;
         var recentOuter: Buffer.Buffer<Nac.OuterSubDBKey>;
         var recentSKs: Buffer.Buffer<Nac.SK>;
+        var dbInserts: Nat;
+        var dbDeletions: Nat;
+        var eltInserts: Nat;
+        var eltDeletions: Nat;
     };
 
     public func main() : async () {
@@ -81,6 +85,10 @@ actor StressTest {
             index; guidGen;
             var recentOuter = Buffer.Buffer(0);
             var recentSKs = Buffer.Buffer(0);
+            var dbInserts = 0;
+            var dbDeletions = 0;
+            var eltInserts = 0;
+            var eltDeletions = 0;
         };
         for (threadNum in threads.keys()) {
             threads[threadNum] := ?runThread(options, threadNum);
@@ -94,6 +102,12 @@ actor StressTest {
         };
 
         Debug.print("Number of partition canisters: " # debug_show(Array.size(await index.getCanisters())));
+        Debug.print(
+            "DB inserts: " # debug_show(options.dbInserts) #
+            " DB deletions: " # debug_show(options.dbDeletions) #
+            " Elt inserts: " # debug_show(options.eltInserts) #
+            " Elt deletions: " # debug_show(options.eltDeletions));
+
         let resultingTree = await* readResultingTree({referenceTree = options.referenceTree; outerToGUID = options.outerToGUID; index});
         Debug.print("Reference tree size: " # debug_show(RBT.size(options.referenceTree)));
         Debug.print("Resulting tree size: " # debug_show(RBT.size(resultingTree)));
@@ -133,6 +147,7 @@ actor StressTest {
             };
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
+            options.dbInserts += 1;
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             switch (randomSubDB(options)) {
                 case (?((part, outerKey), guid)) {
@@ -151,6 +166,7 @@ actor StressTest {
                 };
                 case (null) {};
             };
+            options.dbDeletions += 1;
         } else if (random < Nat64.fromNat(rngBound / variants * 3)) {
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
@@ -173,7 +189,7 @@ actor StressTest {
                     });
                 } catch(e) {
                     if (Text.endsWith(Error.message(e), #text " trapped explicitly: missing sub-DB")) {
-                        Debug.print("insert: missing sub-DB");
+                        // Debug.print("insert: missing sub-DB");
                         return; // Everything is OK, a not erroneous race condition.
                     };
                     Debug.print("repeat insert: " # Error.message(e));
@@ -194,6 +210,7 @@ actor StressTest {
             };
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
+            options.eltInserts += 1;
         } else {
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
@@ -217,6 +234,7 @@ actor StressTest {
                 };
                 case (null) {}
             };
+            options.eltDeletions += 1;
         };
     };
 
