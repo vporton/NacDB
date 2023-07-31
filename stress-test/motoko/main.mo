@@ -134,24 +134,23 @@ actor StressTest {
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
-            // FIXME: Uncomment.
-            // switch (randomSubDB(options)) {
-            //     case (?((part, outerKey), guid)) {
-            //         label R loop {
-            //             try {
-            //                 MyCycles.addPart(dbOptions.partitionCycles);
-            //                 await part.deleteSubDB({outerKey});
-            //             } catch(e) {
-            //                 Debug.print("repeat deleteSubDB: " # Error.message(e));
-            //                 continue R;
-            //             };
-            //             break R;
-            //         };
-            //         options.referenceTree := RBT.delete(options.referenceTree, Blob.compare, guid);
-            //         // options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey));
-            //     };
-            //     case (null) {};
-            // };
+            switch (randomSubDB(options)) {
+                case (?((part, outerKey), guid)) {
+                    label R loop {
+                        try {
+                            MyCycles.addPart(dbOptions.partitionCycles);
+                            await part.deleteSubDB({outerKey});
+                        } catch(e) {
+                            Debug.print("repeat deleteSubDB: " # Error.message(e));
+                            continue R;
+                        };
+                        break R;
+                    };
+                    options.referenceTree := RBT.delete(options.referenceTree, Blob.compare, guid);
+                    // options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey));
+                };
+                case (null) {};
+            };
         } else if (random < Nat64.fromNat(rngBound / variants * 3)) {
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
@@ -196,29 +195,28 @@ actor StressTest {
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
         } else {
-            // FIXME: Uncomment.
-            // switch (randomItem(options)) {
-            //     case (?((part, outerKey), sk)) {
-            //         let guid = GUID.nextGuid(options.guidGen);
-            //         label R loop {
-            //             try {
-            //                 MyCycles.addPart(dbOptions.partitionCycles);
-            //                 await part.delete({outerKey; sk});
-            //             } catch(e) {
-            //                 Debug.print("repeat delete: " # Error.message(e));
-            //                 continue R;
-            //             };
-            //             break R;
-            //         };
-            //         let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
-            //             Debug.trap("subtree doesn't exist");
-            //         };
-            //         let subtree2 = RBT.delete(subtree, Text.compare, debug_show(sk));
-            //         options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
-            //         options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, outerKey), guid); // FIXME: Describe the race condition why we need it.
-            //     };
-            //     case (null) {}
-            // };
+            switch (randomItem(options)) {
+                case (?((part, outerKey), sk)) {
+                    let guid = GUID.nextGuid(options.guidGen);
+                    label R loop {
+                        try {
+                            MyCycles.addPart(dbOptions.partitionCycles);
+                            await part.delete({outerKey; sk});
+                        } catch(e) {
+                            Debug.print("repeat delete: " # Error.message(e));
+                            continue R;
+                        };
+                        break R;
+                    };
+                    let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
+                        Debug.trap("subtree doesn't exist");
+                    };
+                    let subtree2 = RBT.delete(subtree, Text.compare, debug_show(sk));
+                    options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
+                    options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, outerKey), guid); // FIXME: Describe the race condition why we need it.
+                };
+                case (null) {}
+            };
         };
     };
 
