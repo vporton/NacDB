@@ -252,7 +252,7 @@ module {
         dbOptions: DBOptions,
     ) : {outer: OuterSubDBKey; inner: InnerSubDBKey; wasOld: Bool}
     {
-        let {inner; wasOld} = rawInsertSubDBAndSetOuter(superDB, canister, map, userData, dbOptions);
+        let {inner; wasOld} = rawInsertSubDB(superDB, canister, map, userData, dbOptions);
         Debug.print("rawInsertSubDB " # debug_show(superDB.nextOuterKey));
         superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (canister, inner));
         let result = {outer = superDB.nextOuterKey; inner; wasOld};
