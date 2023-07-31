@@ -24,7 +24,8 @@ actor StressTest {
         await Partition.Partition(dbOptions);
     };
 
-    let dbOptions = {moveCap = #usedMemory 500_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
+    // let dbOptions = {moveCap = #usedMemory 500_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
+    let dbOptions = {moveCap = #usedMemory 500_000_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
 
     /// The tree considered already debugged for comparison to the being debugged one.
     type ReferenceTree = RBT.Tree<Nac.GUID, RBT.Tree<Text, Nat>>;
@@ -133,6 +134,7 @@ actor StressTest {
                         break R;
                     };
                     options.referenceTree := RBT.delete(options.referenceTree, Blob.compare, guid);
+                    options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey));
                 };
                 case (null) {};
             }

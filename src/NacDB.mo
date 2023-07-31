@@ -323,11 +323,12 @@ module {
                         (inner, wasOld);
                     }
                 };
-                if (wasOld) {
+                if (wasOld) { // TODO: `wasOld` duplicate with `oldInnerKey`?
+                    // FIXME
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
+                    ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
                 };
-                ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
                 subDB.busy := false; // FIXME
                 (canister, newInnerSubDBKey);
             };
@@ -731,7 +732,7 @@ module {
     public func createOuter(outerSuperDB: SuperDB, part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
         : {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
-        outerSuperDB.locations := RBT.put(outerSuperDB.locations, Nat.compare, outerSuperDB.nextOuterKey, (part, innerKey));
+        outerSuperDB.locations := RBT.put(outerSuperDB.locations, Nat.compare, outerKey, (part, innerKey));
         {inner = (part, innerKey); outer = (part, outerKey)};
     };
 
