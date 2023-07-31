@@ -195,8 +195,6 @@ actor StressTest {
             };
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
-            // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid2); // needed because a DB can be moved
-            // Debug.print("insert finished");
         } else {
             // FIXME: Uncomment.
             // switch (randomItem(options)) {
