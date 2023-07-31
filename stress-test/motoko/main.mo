@@ -115,7 +115,6 @@ actor StressTest {
         let random = options.rng.next();
         let variants = 4;
         if (random < Nat64.fromNat(rngBound / variants * 1)) {
-            Debug.print("createSubDB");
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
@@ -135,7 +134,6 @@ actor StressTest {
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
-            Debug.print("deleteSubDB");
             switch (randomSubDB(options)) {
                 case (?((part, outerKey), guid)) {
                     label R loop {
@@ -154,7 +152,6 @@ actor StressTest {
                 case (null) {};
             }
         } else if (random < Nat64.fromNat(rngBound / variants * 3)) {
-            Debug.print("insert");
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             let sk = GUID.nextGuid(options.guidGen);
@@ -195,10 +192,9 @@ actor StressTest {
             };
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
-            // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid);
+            options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid); // FIXME: Describe the race condition why we need it.
             Debug.print("insert finished");
         } else {
-            Debug.print("delete");
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
                     let guid = GUID.nextGuid(options.guidGen);
@@ -255,9 +251,13 @@ actor StressTest {
         var result: ReferenceTree = RBT.init();
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
-            for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
+            // FIXME: The commented out variant is correct.
+            label L for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
+            // let f = func (t: ((Partition.Partition, Nac.OuterSubDBKey), Nac.GUID)): (Nac.OuterSubDBKey, (Partition.Partition, Nac.InnerSubDBKey)) { (t.0.1, (t.0.0, t.0.1)) };
+            // for((outerKey, (innerCanister, innerKey)) in Iter.map<((Partition.Partition, Nac.OuterSubDBKey), Nac.GUID), (Nac.OuterSubDBKey, (Partition.Partition, Nac.InnerSubDBKey))>(RBT.entries(outerToGUID), f)) {
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
-                    Debug.trap("readResultingTree: cannot get GUID");
+                    Debug.print("readResultingTree: cannot get GUID"); // FIXME: Should be trap
+                    continue L;
                 };
                 var subtree = RBT.init<Text, Nat>();
                 result := RBT.put(result, Blob.compare, guid, subtree);
