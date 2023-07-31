@@ -259,7 +259,6 @@ actor StressTest {
                     Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part)) # " " # debug_show(outerKey)); // FIXME: Should be trap
                 };
                 var subtree = RBT.init<Text, Nat>();
-                result := RBT.put(result, Blob.compare, guid, subtree);
                 let scanned = await innerCanister.scanLimitInner({
                     innerKey; lowerBound = ""; upperBound = "\u{ffff}\u{ffff}\u{ffff}\u{ffff}"; dir = #fwd; limit = 1_000_000_000});
                 for ((sk, v) in scanned.results.vals()) {
@@ -268,6 +267,7 @@ actor StressTest {
                     };
                     subtree := RBT.put<Text, Nat>(subtree, Text.compare, sk, Int.abs(v2));
                 };
+                result := RBT.put(result, Blob.compare, guid, subtree);
             };
         };
         result;
