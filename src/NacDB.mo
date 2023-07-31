@@ -212,8 +212,16 @@ module {
 
     /// The "real" returned value is `outer`, but `inner` can be used for caching
     /// (on cache failure retrieve new `inner` using `outer`).
-    public func rawInsertSubDB(innerCanister: PartitionCanister, superDB: SuperDB, map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions)
-        : {outer: OuterSubDBKey; inner: InnerSubDBKey; wasOld: Bool}
+    ///
+    /// You are advised to pass setLocation if sure that outer and inner canisters coincide (otherwise, don't).
+    public func rawInsertSubDB(
+        innerCanister: PartitionCanister,
+        superDB: SuperDB,
+        map: RBT.Tree<SK, AttributeValue>,
+        userData: Text,
+        dbOptions: DBOptions,
+        // setLocation: Bool, // FIXME: Use. // FIXME: Cannot return outer when `not setLocation`.
+    ) : {outer: OuterSubDBKey; inner: InnerSubDBKey; wasOld: Bool}
     {
         let (inner, wasOld) = switch (superDB.moving) {
             case (?_) { Debug.trap("DB is scaling") }; // TODO: needed?
