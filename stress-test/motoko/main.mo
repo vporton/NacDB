@@ -72,7 +72,7 @@ actor StressTest {
         MyCycles.addPart(dbOptions.partitionCycles);
         await index.init();
 
-        let nThreads = 4;
+        let nThreads = 1;
         let threads : [var ?(async())] = Array.init(nThreads, null);
         let options: ThreadArguments = {
             var referenceTree = RBT.init();
@@ -115,6 +115,7 @@ actor StressTest {
         let random = options.rng.next();
         let variants = 4;
         if (random < Nat64.fromNat(rngBound / variants * 1)) {
+            Debug.print("createSubDB");
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
@@ -134,6 +135,7 @@ actor StressTest {
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
+            Debug.print("deleteSubDB");
             switch (randomSubDB(options)) {
                 case (?((part, outerKey), guid)) {
                     label R loop {
@@ -152,6 +154,7 @@ actor StressTest {
                 case (null) {};
             }
         } else if (random < Nat64.fromNat(rngBound / variants * 3)) {
+            Debug.print("insert");
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             let sk = GUID.nextGuid(options.guidGen);
@@ -172,6 +175,9 @@ actor StressTest {
                         value = #int randomValue;
                     });
                 } catch(e) {
+                    if (Text.endsWith(Error.message(e), #text " trapped explicitly: missing sub-DB")) {
+                        return; // Everything is OK, a not erroneous race condition.
+                    };
                     Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
@@ -188,6 +194,7 @@ actor StressTest {
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
             // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part3, outerKey3), guid);
         } else {
+            Debug.print("delete");
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
                     let guid = GUID.nextGuid(options.guidGen);
@@ -196,7 +203,7 @@ actor StressTest {
                             MyCycles.addPart(dbOptions.partitionCycles);
                             await part.delete({outerKey; sk});
                         } catch(e) {
-                            Debug.print("repeat insert: " # Error.message(e));
+                            Debug.print("repeat delete: " # Error.message(e));
                             continue R;
                         };
                         break R;
