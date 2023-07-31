@@ -24,8 +24,7 @@ actor StressTest {
         await Partition.Partition(dbOptions);
     };
 
-    // let dbOptions = {moveCap = #usedMemory 500_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
-    let dbOptions = {moveCap = #usedMemory 500_000_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
+    let dbOptions = {moveCap = #usedMemory 500_000; hardCap = null; partitionCycles = 10_000_000_000; constructor = constructor};
 
     /// The tree considered already debugged for comparison to the being debugged one.
     type ReferenceTree = RBT.Tree<Nac.GUID, RBT.Tree<Text, Nat>>;
@@ -119,7 +118,6 @@ actor StressTest {
             };
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
-            Debug.print("Setting GUID: part = " # debug_show(Principal.fromActor(part)) # " outer key = " # debug_show(subDBKey));
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             switch (randomSubDB(options)) {
                 case (?((part, outerKey), guid)) {
@@ -231,7 +229,6 @@ actor StressTest {
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
             for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
-                Debug.print("Getting result: part = " # debug_show(Principal.fromActor(part)) # " outerkey = " # debug_show(outerKey));
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
                     Debug.trap("readResultingTree: cannot get GUID");
                 };
