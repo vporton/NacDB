@@ -65,7 +65,10 @@ actor StressTest {
     };
 
     public func main() : async () {
-        Debug.print("STARTING STRESS TEST");
+        let nThreads = 1; //10;
+        let nSteps = 1000; // 100;
+
+        Debug.print("STARTING STRESS TEST: " # debug_show(nThreads) # " threads, each " # debug_show(nSteps) # " steps");
 
         let seed : Nat64 = 0;
         let rng = Prng.Seiran128();
@@ -76,9 +79,6 @@ actor StressTest {
         let index = await Index.Index(dbOptions);
         MyCycles.addPart(dbOptions.partitionCycles);
         await index.init();
-
-        let nThreads = 10;
-        let nSteps = 100;
 
         let threads : [var ?(async())] = Array.init(nThreads, null);
         let options: ThreadArguments = {
