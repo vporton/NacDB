@@ -16,6 +16,7 @@ import Error "mo:base/Error";
 import Text "mo:base/Text";
 import Blob "mo:base/Blob";
 import Int "mo:base/Int";
+import Buffer "mo:base/Buffer";
 
 actor StressTest {
     // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
@@ -52,6 +53,8 @@ actor StressTest {
         var rng: Prng.Seiran128;
         index: Index.Index;
         guidGen: GUID.GUIDGenerator;
+        var recentOuter: Buffer.Buffer<Nac.OuterSubDBKey>;
+        var recentSKs: Buffer.Buffer<Nac.SK>;
     };
 
     public func main() : async () {
@@ -69,7 +72,14 @@ actor StressTest {
 
         let nThreads = 4;
         let threads : [var ?(async())] = Array.init(nThreads, null);
-        let options: ThreadArguments = {var referenceTree = RBT.init(); var outerToGUID = RBT.init(); var rng; index; guidGen};
+        let options: ThreadArguments = {
+            var referenceTree = RBT.init();
+            var outerToGUID = RBT.init();
+            var rng;
+            index; guidGen;
+            var recentOuter = Buffer.Buffer(0);
+            var recentSKs = Buffer.Buffer(0);
+        };
         for (threadNum in threads.keys()) {
             threads[threadNum] := ?runThread(options, threadNum);
         };
