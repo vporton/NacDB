@@ -98,7 +98,6 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
 
     public shared func putLocation(outerKey: Nac.OuterSubDBKey, innerCanister: Nac.PartitionCanister, newInnerSubDBKey: Nac.InnerSubDBKey) : async () {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        Debug.print("putLocation " # debug_show(Principal.fromActor(this)) # " " # debug_show(outerKey));
         Nac.putLocation(superDB, outerKey, innerCanister, newInnerSubDBKey);
     };
 

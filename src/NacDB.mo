@@ -253,7 +253,6 @@ module {
     ) : {outer: OuterSubDBKey; inner: InnerSubDBKey; wasOld: Bool}
     {
         let {inner; wasOld} = rawInsertSubDB(superDB, canister, map, userData, dbOptions);
-        Debug.print("rawInsertSubDB " # debug_show(superDB.nextOuterKey));
         superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (canister, inner));
         let result = {outer = superDB.nextOuterKey; inner; wasOld};
         superDB.nextOuterKey += 1;
@@ -701,7 +700,6 @@ module {
     public func createSubDB({guid: GUID; dbIndex: DBIndex; dbOptions: DBOptions; userData: Text})
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
-        Debug.print("In createSubDB");
         let creating0: CreatingSubDB = {var canister = null; var loc = null; userData};
         let creating = SparseQueue.add(dbIndex.creatingSubDB, guid, creating0);
         let part3: PartitionCanister = switch (creating.canister) { // both inner and outer
@@ -726,7 +724,6 @@ module {
                     };
                     // SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
                     MyCycles.addPart(dbOptions.partitionCycles);
-                    Debug.print("In createSubDB key: " # debug_show(outer.1));
                     return await part.createOuter(part, outer.1, inner.1);
                 };
                 part2;
@@ -744,7 +741,6 @@ module {
         };
         // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
         MyCycles.addPart(dbOptions.partitionCycles);
-        Debug.print("In createSubDB key: " # debug_show(outer.1));
         await part3.createOuter(part3, outer.1, inner.1);
     };
 
