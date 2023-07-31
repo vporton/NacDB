@@ -108,9 +108,9 @@ actor StressTest {
         Debug.print("Number of partition canisters: " # debug_show(Array.size(await index.getCanisters())));
         Debug.print(
             "DB inserts: " # debug_show(options.dbInserts) #
-            " DB deletions: " # debug_show(options.dbDeletions) #
-            " Elt inserts: " # debug_show(options.eltInserts) #
-            " Elt deletions: " # debug_show(options.eltDeletions));
+            ", DB deletions: " # debug_show(options.dbDeletions) #
+            ", Elt inserts: " # debug_show(options.eltInserts) #
+            ", Elt deletions: " # debug_show(options.eltDeletions));
 
         let resultingTree = await* readResultingTree({referenceTree = options.referenceTree; outerToGUID = options.outerToGUID; index});
         Debug.print("Reference tree size: " # debug_show(RBT.size(options.referenceTree)));
