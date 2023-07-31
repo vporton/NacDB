@@ -132,7 +132,6 @@ actor StressTest {
                 Debug.trap("programming error: createSubDB");
             };
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
-            Debug.print("Inserting to options.outerToGUID: " # debug_show(Principal.fromActor(part)) # " " # debug_show(subDBKey));
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             // FIXME: Uncomment.
@@ -259,8 +258,7 @@ actor StressTest {
         for (part in canisters.vals()) {
             label L for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
-                    Debug.print("cannot get GUID for " # debug_show(Principal.fromActor(part)) # " " # debug_show(outerKey)); // FIXME: Should be trap
-                    continue L;
+                    Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part)) # " " # debug_show(outerKey)); // FIXME: Should be trap
                 };
                 var subtree = RBT.init<Text, Nat>();
                 result := RBT.put(result, Blob.compare, guid, subtree);
