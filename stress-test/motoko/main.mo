@@ -147,7 +147,7 @@ actor StressTest {
                         break R;
                     };
                     options.referenceTree := RBT.delete(options.referenceTree, Blob.compare, guid);
-                    options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey));
+                    // options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey));
                 };
                 case (null) {};
             }
@@ -187,7 +187,7 @@ actor StressTest {
                 Debug.trap("programming error: insert");
             };
             let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
-                Debug.print("subtree doesn't exist"); // FIXME: seems an error in test
+                Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomSubDB()`.
                 return; // Everything is OK, a not erroneous race condition.
             };
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
@@ -213,6 +213,7 @@ actor StressTest {
                     };
                     let subtree2 = RBT.delete(subtree, Text.compare, debug_show(sk));
                     options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
+                    options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, outerKey), guid); // FIXME: Describe the race condition why we need it.
                 };
                 case (null) {}
             }
