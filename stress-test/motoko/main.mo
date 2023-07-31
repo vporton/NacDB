@@ -209,7 +209,7 @@ actor StressTest {
                 Debug.trap("programing error: level1 guid")
             };
             let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else { // FIXME: always null
-                Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomSubDB()`.
+                // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomSubDB()`.
                 return; // Everything is OK, a not erroneous race condition.
             };
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
