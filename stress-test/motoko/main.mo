@@ -206,7 +206,7 @@ actor StressTest {
                 Debug.trap("programming error: insert");
             };
             let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part3, outerKey3)) else {
-                Debug.trap("programing error: level1 guid")
+                return; // It was meanwhile delete by another thread.
             };
             let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else { // FIXME: always null
                 // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomSubDB()`.
@@ -229,7 +229,7 @@ actor StressTest {
                         break R;
                     };
                     let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part, outerKey)) else {
-                        Debug.trap("programing error: level1 guid")
+                        return; // It was meanwhile delete by another thread.
                     };
                     let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else {
                         // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomItem()`.
