@@ -133,6 +133,7 @@ actor StressTest {
         let random = options.rng.next();
         let variants = 4;
         if (random < Nat64.fromNat(rngBound / variants * 1)) {
+            Debug.print("createSuBDB start");
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
@@ -152,7 +153,9 @@ actor StressTest {
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
             options.dbInserts += 1;
+            Debug.print("createSuBDB finish");
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
+            Debug.print("deleteSuBDB start");
             switch (randomSubDB(options)) {
                 case (?((part, outerKey), guid)) {
                     label R loop {
@@ -171,7 +174,9 @@ actor StressTest {
                 case (null) {};
             };
             options.dbDeletions += 1;
+            Debug.print("deleteSuBDB finish");
         } else if (random < Nat64.fromNat(rngBound / variants * 3)) {
+            Debug.print("insert start");
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             let sk = GUID.nextGuid(options.guidGen);
@@ -215,10 +220,11 @@ actor StressTest {
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
             options.eltInserts += 1;
+            Debug.print("insert finish");
         } else {
+            Debug.print("delete start");
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
-                    let guid = GUID.nextGuid(options.guidGen);
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
@@ -229,17 +235,21 @@ actor StressTest {
                         };
                         break R;
                     };
-                    let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid) else {
+                    let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part, outerKey)) else {
+                        Debug.trap("programing error: level1 guid")
+                    };
+                    let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else {
                         // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomItem()`.
                         return; // Everything is OK, a not erroneous race condition.
                     };
                     let subtree2 = RBT.delete(subtree, Text.compare, debug_show(sk));
-                    options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, subtree2);
+                    options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
                     // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, outerKey), guid); // FIXME: Describe the race condition why we need it.
                 };
                 case (null) {}
             };
             options.eltDeletions += 1;
+            Debug.print("delete finish");
         };
     };
 
