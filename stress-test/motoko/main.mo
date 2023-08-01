@@ -66,7 +66,7 @@ actor StressTest {
 
     public func main() : async () {
         let nThreads = 1; //10;
-        let nSteps = 1000; // 100;
+        let nSteps = 610; // the mininum number leading to an error
 
         Debug.print("STARTING STRESS TEST: " # debug_show(nThreads) # " threads, each " # debug_show(nSteps) # " steps");
 
