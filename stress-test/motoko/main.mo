@@ -123,7 +123,7 @@ actor StressTest {
     };
 
     func runThread(options: ThreadArguments, threadNum: Nat) : async () {
-        for (stepN in Iter.range(0, options.nSteps)) {
+        for (stepN in Iter.range(0, options.nSteps - 1)) {
             // Debug.print("Step " # debug_show(options.threadNum) # "/" # Nat.toText(stepN));
             await* runStep(options);
         }
