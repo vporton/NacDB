@@ -242,7 +242,7 @@ actor StressTest {
                         // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomItem()`.
                         return; // Everything is OK, a not erroneous race condition.
                     };
-                    let subtree2 = RBT.delete(subtree, Text.compare, debug_show(sk));
+                    let subtree2 = RBT.delete(subtree, Text.compare, sk);
                     options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
                     // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, outerKey), guid); // FIXME: Describe the race condition why we need it.
                 };
