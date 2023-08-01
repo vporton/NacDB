@@ -140,7 +140,7 @@ actor StressTest {
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await options.index.createSubDB({guid; dbOptions; userData = debug_show(guid)});
                 } catch(e) {
-                    Debug.print("repeat createSubDB: " # Error.message(e));
+                    // Debug.print("repeat createSubDB: " # Error.message(e));
                     continue R;
                 };
                 v := ?(part, outerKey);
@@ -160,7 +160,7 @@ actor StressTest {
                             MyCycles.addPart(dbOptions.partitionCycles);
                             await part.deleteSubDB({outerKey});
                         } catch(e) {
-                            Debug.print("repeat deleteSubDB: " # Error.message(e));
+                            // Debug.print("repeat deleteSubDB: " # Error.message(e));
                             continue R;
                         };
                         break R;
@@ -196,7 +196,7 @@ actor StressTest {
                         // Debug.print("insert: missing sub-DB");
                         return; // Everything is OK, a not erroneous race condition.
                     };
-                    Debug.print("repeat insert: " # Error.message(e));
+                    // Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
                 v := ?(part2, outerKey2);
@@ -223,7 +223,7 @@ actor StressTest {
                             MyCycles.addPart(dbOptions.partitionCycles);
                             await part.delete({outerKey; sk});
                         } catch(e) {
-                            Debug.print("repeat delete: " # Error.message(e));
+                            // Debug.print("repeat delete: " # Error.message(e));
                             continue R;
                         };
                         break R;
