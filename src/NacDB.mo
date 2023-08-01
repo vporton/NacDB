@@ -667,7 +667,6 @@ module {
             };
             case (null) {};
         };
-        options.outerSuperDB.locations := RBT.delete(options.outerSuperDB.locations, Nat.compare, options.outerKey);
     };
 
     type DeleteDBOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
