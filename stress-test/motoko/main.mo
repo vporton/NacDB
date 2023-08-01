@@ -273,7 +273,7 @@ actor StressTest {
         };
         let n = Nat64.toNat(options.rng.next()) * RBT.size(db) / rngBound;
         let iter = RBT.entries(db);
-        for (_ in Iter.range(0, n)) {
+        for (_ in Iter.range(0, n-1)) {
             ignore iter.next();
         };
         do ? {
