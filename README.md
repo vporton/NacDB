@@ -25,7 +25,7 @@ TypeScript client is not provided, because it is automatically created from Cand
 Some functions are engineered in such a way that interrupting them in the middle
 (what may happen due to technical limitations of Internet Computer) leads to memory
 leaks. It is an intentional engineering decision to ignore this problem, because
-such cases are rate and thus the amount of leaked memory is expected not to be very big.
+such cases are rare and thus the amount of leaked memory is expected not to be very big.
 
 ## Architecture: General
 
