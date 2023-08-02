@@ -76,7 +76,7 @@ shared functions using operations provided by this library on variables of types
 `DBIndex` and `SuperDB`.
 
 Keys in `SuperDB` (identifying sub-databases) are of the type `SubDBKey = Nat`.
-keys in sub-DBs are of the type `SK = Text`. Values stored in the sub-DBs are
+Keys in sub-DBs are of the type `SK = Text`. Values stored in the sub-DBs are
 of type `AttributeKey` defined similarly to the same-named type in CanDB, but
 I chose to return `AttributeKey` directly, not a map of values (as in CanDB).
 
