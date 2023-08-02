@@ -90,7 +90,7 @@ module {
         /// even when the sub-DB to which it points moves to a different canister.
         var locations: RBT.Tree<OuterSubDBKey, (PartitionCanister, InnerSubDBKey)>;
 
-        // TODO: Which variables can be removed from `moving` and `moving2`?
+        // TODO: Which variables can be removed from `moving`?
         var moving: ?{
             // outerSuperDB: SuperDB; // cannot be passed together with `oldInnerSuperDB`...
             outerCanister: PartitionCanister; // ... so, this instead.
@@ -98,16 +98,6 @@ module {
             oldInnerCanister: PartitionCanister;
             oldInnerSuperDB: SuperDB;
             oldInnerSubDBKey: InnerSubDBKey;
-        };
-        var moving2: ?{ // TODO: Initialize this when start moving.
-            outerCanister: PartitionCanister;
-            outerKey: OuterSubDBKey;
-            oldSuperDB: SuperDB;
-            oldInnerKey: InnerSubDBKey;
-            var newInnerCanister: ?{ // null - not yet determined
-                var newInnerCanister: PartitionCanister;
-                var newInnerKey: ?InnerSubDBKey; // null - not yet determined
-            };
         };
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
@@ -199,7 +189,6 @@ module {
             subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
             var locations = RBT.init();
             var moving = null;
-            var moving2 = null;
             var inserting = SparseQueue.init(100);
             var inserting2 = SparseQueue.init(100);
         };
