@@ -11,7 +11,7 @@ TODO:
 - review and as necessary modify the API, then freeze the API
 - do a more elaborate stress testing, with higher probability of operations that repeat recent IDs usage often
 
-The current stage of development is a MVP. API is not yet frozen, incompatible changes are possible.
+The current stage of development is an MVP. API is not yet frozen, incompatible changes are possible.
 
 It is usually recommended to use NacDB together with CanDB, because NacDB is strong
 in one specific point: seamless enumeration of its sub-databases. For example, in
