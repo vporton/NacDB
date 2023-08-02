@@ -39,7 +39,7 @@ just moved to it). Such the architecture is chosen because of high cost of creat
 Each sub-database has so called "outer ID" or "outer key" that does not change when
 a sub-DB is moved. You can also use "inner key" for quikier operations. If a move happens,
 inner key becomes invalid and the next operation returns an error or `null`. In this case,
-you need to update the inner key from the outer key to continus.
+you need to update the inner key from the outer key to continue.
 
 When to move a sub-DB is decided by `moveCap` value of the following type, that restricts
 the memory used by the canister (the move occurs when we have the actual value above `moveCap` threshold):
