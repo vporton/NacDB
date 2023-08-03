@@ -327,9 +327,10 @@ module {
                     }
                 };
                 if (wasOld) { // TODO: `wasOld` duplicate with `oldInnerKey`?
+                    // FIXME: This is unreachable code during stress-test.
                     // FIXME
                     MyCycles.addPart(dbOptions.partitionCycles);
-                    await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
+                    await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey); // FIXME: seems extraneous code.
                     ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
                 };
                 (canister, newInnerSubDBKey);
