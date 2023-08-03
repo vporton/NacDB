@@ -327,7 +327,7 @@ module {
                     }
                 };
                 if (wasOld) { // TODO: `wasOld` duplicate with `oldInnerKey`?
-                    // FIXME: This is unreachable code during stress-test.
+                    Debug.print("wasOld"); // FIXME: This is unreachable code during stress-test.
                     // FIXME
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey); // FIXME: seems extraneous code.
