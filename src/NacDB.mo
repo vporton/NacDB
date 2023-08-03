@@ -42,9 +42,6 @@ module {
     public type SubDB = {
         var map: RBT.Tree<SK, AttributeValue>;
         var userData: Text; // useful to have a back reference to "locator" of our sub-DB in another database
-        var busy: Bool; // Forbid to move this entry to other canister.
-                        // During the move it is true. Deletion in old canister and setting it to false happen in the same atomic action,
-                        // so moving is also protected by this flag.
     };
 
     public type MoveCap = { #usedMemory: Nat };
@@ -220,7 +217,6 @@ module {
                     var map = map;
                     var userData = userData;
                     hardCap = dbOptions.hardCap;
-                    var busy = false;
                 };
                 let wasOld = switch (BTree.insert(superDB.subDBs, Nat.compare, key, subDB)) {
                     case (?_) { true };
@@ -336,7 +332,6 @@ module {
                     await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
                     ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
                 };
-                subDB.busy := false; // FIXME
                 (canister, newInnerSubDBKey);
             };
             case (null) {
@@ -357,10 +352,6 @@ module {
         let ?item = BTree.get(options.oldInnerSuperDB.subDBs, Nat.compare, options.oldInnerSubDBKey) else {
             Debug.trap("item must exist");
         };
-        if (item.busy) {
-            Debug.trap("is moving");
-        };
-        item.busy := true; // TODO: seems superfluous
         MyCycles.addPart(options.dbOptions.partitionCycles);
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
@@ -706,7 +697,7 @@ module {
                         case (?loc) { loc };
                         case (null) {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter(part, RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter(part, RBT.init(), creating.userData, dbOptions);
                             creating.loc := ?{inner = (part, inner); outer = (part, outer)};
                             {inner = (part, inner); outer = (part, outer)};
                         };
@@ -723,7 +714,7 @@ module {
             case (?loc) { loc };
             case (null) {
                 MyCycles.addPart(dbOptions.partitionCycles);
-                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter(part3, RBT.init(), creating.userData, dbOptions); // We don't need `busy == true`, because we didn't yet created "links" to it.
+                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter(part3, RBT.init(), creating.userData, dbOptions);
                 creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
                 {inner = (part3, inner); outer = (part3, outer)};
             };
