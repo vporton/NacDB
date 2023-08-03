@@ -295,6 +295,7 @@ module {
         };
     };
 
+    /// Called only if `isOverflowed`.
     public func finishMovingSubDBImpl({
         guid: GUID;
         index: IndexCanister;
@@ -330,13 +331,12 @@ module {
                         (inner, wasOld);
                     }
                 };
-                if (wasOld) { // TODO: `wasOld` duplicate with `oldInnerKey`?
-                    Debug.print("wasOld"); // FIXME: This is unreachable code during stress-test.
-                    // FIXME
-                    MyCycles.addPart(dbOptions.partitionCycles);
-                    await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey); // FIXME: seems extraneous code.
-                    ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
-                };
+
+                // There was `isOverflowed`, change the outer.
+                MyCycles.addPart(dbOptions.partitionCycles);
+                await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey); // FIXME: seems extraneous code.
+                ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
+
                 (canister, newInnerSubDBKey);
             };
             case (null) {
