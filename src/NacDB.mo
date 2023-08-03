@@ -454,6 +454,7 @@ module {
 
     public type GetByInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey; sk: SK};
 
+    // FIXME: Race condition, when moving sub-DB.
     public func getByInner(options: GetByInnerOptions) : ?AttributeValue {
         switch (getSubDBByInner(options.superDB, options.subDBKey)) {
             case (?subDB) {
