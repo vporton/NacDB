@@ -222,6 +222,9 @@ module {
                     case (?_) { true };
                     case (null) { false };
                 };
+                if (wasOld) {
+                    Debug.print("wasOld");
+                };
                 (key, wasOld);
             };
         };

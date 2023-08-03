@@ -131,8 +131,9 @@ actor StressTest {
 
     func runStep(options: ThreadArguments) : async* () {
         let random = options.rng.next();
-        let variants = 4;
-        if (random < Nat64.fromNat(rngBound / variants * 1)) {
+        let variants = 4+2;
+        if (random < Nat64.fromNat(rngBound / variants * (1+1))) { // two times greater probability
+            options.dbInserts += 1;
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
@@ -152,8 +153,8 @@ actor StressTest {
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
             options.recentOuter.add((part, subDBKey));
-            options.dbInserts += 1;
-        } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
+        } else if (random < Nat64.fromNat(rngBound / variants * (2+1))) {
+            options.dbDeletions += 1;
             switch (randomSubDB(options)) {
                 case (?(part, outerKey)) {
                     label R loop {
@@ -177,8 +178,8 @@ actor StressTest {
                 };
                 case (null) {};
             };
-            options.dbDeletions += 1;
-        } else if (random < Nat64.fromNat(rngBound / variants * 3)) {
+        } else if (random < Nat64.fromNat(rngBound / variants * (3+2))) { // two times greater probability
+            options.eltInserts += 1;
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             let sk = GUID.nextGuid(options.guidGen);
@@ -223,8 +224,8 @@ actor StressTest {
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
             options.recentOuter.add((part3, outerKey3));
             options.recentSKs.add(((part3, outerKey3), debug_show(sk)));
-            options.eltInserts += 1;
         } else {
+            options.eltDeletions += 1;
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
                     label R loop {
@@ -252,7 +253,6 @@ actor StressTest {
                 };
                 case (null) {}
             };
-            options.eltDeletions += 1;
         };
     };
 
