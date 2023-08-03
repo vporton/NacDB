@@ -218,6 +218,7 @@ module {
                     var userData = userData;
                     hardCap = dbOptions.hardCap;
                 };
+                // FIXME: It erroneously retrieves status for inner DB and is always `false`:
                 let wasOld = switch (BTree.insert(superDB.subDBs, Nat.compare, key, subDB)) {
                     case (?_) { true };
                     case (null) { false };
