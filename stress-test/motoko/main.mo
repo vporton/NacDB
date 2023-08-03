@@ -56,8 +56,8 @@ actor StressTest {
         var rng: Prng.Seiran128;
         index: Index.Index;
         guidGen: GUID.GUIDGenerator;
-        var recentOuter: Buffer.Buffer<Nac.OuterSubDBKey>;
-        var recentSKs: Buffer.Buffer<Nac.SK>;
+        var recentOuter: Buffer.Buffer<(Nac.PartitionCanister, Nac.OuterSubDBKey)>;
+        var recentSKs: Buffer.Buffer<((Nac.PartitionCanister, Nac.OuterSubDBKey), Nac.SK)>;
         var dbInserts: Nat;
         var dbDeletions: Nat;
         var eltInserts: Nat;
@@ -151,10 +151,11 @@ actor StressTest {
             };
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
+            options.recentOuter.add((part, subDBKey));
             options.dbInserts += 1;
         } else if (random < Nat64.fromNat(rngBound / variants * 2)) {
             switch (randomSubDB(options)) {
-                case (?((part, outerKey), guid)) {
+                case (?(part, outerKey)) {
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
@@ -165,8 +166,14 @@ actor StressTest {
                         };
                         break R;
                     };
-                    options.referenceTree := RBT.delete(options.referenceTree, Blob.compare, guid);
+                    switch (RBT.get(options.outerToGUID, compareLocs, (part, outerKey))) {
+                        case (?guid) {
+                            options.referenceTree := RBT.delete(options.referenceTree, Blob.compare, guid);
+                        };
+                        case (null) {};
+                    };
                     options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey));
+                    options.recentOuter.add((part, outerKey));
                 };
                 case (null) {};
             };
@@ -175,7 +182,7 @@ actor StressTest {
             var v: ?(Partition.Partition, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             let sk = GUID.nextGuid(options.guidGen);
-            let ?((part, outerKey), _) = randomSubDB(options) else {
+            let ?(part, outerKey) = randomSubDB(options) else {
                 return;
             };
             let randomValue = Nat64.toNat(options.rng.next());
@@ -214,6 +221,8 @@ actor StressTest {
             };
             let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
+            options.recentOuter.add((part3, outerKey3));
+            options.recentSKs.add(((part3, outerKey3), debug_show(sk)));
             options.eltInserts += 1;
         } else {
             switch (randomItem(options)) {
@@ -238,6 +247,8 @@ actor StressTest {
                     let subtree2 = RBT.delete(subtree, Text.compare, sk);
                     options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
                     // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, outerKey), guid); // FIXME: Describe the race condition why we need it.
+                    options.recentOuter.add((part, outerKey));
+                    options.recentSKs.add(((part, outerKey), sk));
                 };
                 case (null) {}
             };
@@ -245,31 +256,68 @@ actor StressTest {
         };
     };
 
-    func randomSubDB(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), Nac.GUID) {
-        let n = Nat64.toNat(options.rng.next()) * RBT.size(options.referenceTree) / rngBound;
-        let iter = RBT.entries(options.outerToGUID);
-        for (_ in Iter.range(0, n)) {
-            ignore iter.next();
+    func randomBufferElementPreferringNearEnd<T>(rng: Prng.Seiran128, buf: Buffer.Buffer<T>): ?T {
+        if (buf.size() == 0) {
+            return null;
         };
-        iter.next();
+        // sum_{i=0,n-1}(1/2^i) = 2 - 2^(1-n)
+        let max = Int.abs(2 - 1/2**(buf.size() - 1));
+        let r = Float.fromInt(Nat64.toNat(rng.next()) * max / 2**64);
+        var i = 0;
+        var sum = 0.0;
+        label r loop {
+            sum := sum + (2.0)**(-Float.fromInt(i));
+            if (sum < r) {
+                continue r;
+            };
+            return ?buf.get(i);
+        };
+        Debug.trap("programming error");
     };
 
-    // FIXME: With higher probability choose recent items
-    // FIXME: Return GUID.
+    func randomSubDB(options: ThreadArguments): ?(Partition.Partition, Nac.OuterSubDBKey) {
+        // For stress testing, choose either...
+        if (options.rng.next() < 2**63) {
+            // ... a random value in the tree
+            let n = Nat64.toNat(options.rng.next()) * RBT.size(options.referenceTree) / rngBound;
+            let iter = RBT.entries(options.outerToGUID);
+            for (_ in Iter.range(0, n)) {
+                ignore iter.next();
+            };
+            switch (iter.next()) {
+                case (?res) { ?res.0 };
+                case (null) { null };
+            };
+        } else {
+            // ... or a recently used value.
+            randomBufferElementPreferringNearEnd(options.rng, options.recentOuter);
+        };
+    };
+
     func randomItem(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), Text) {
         let ?(k, v) = randomSubDB(options) else {
             return null;
         };
-        let ?db = RBT.get(options.referenceTree, Blob.compare, v) else {
+        let ?guid = RBT.get(options.outerToGUID, compareLocs, (k, v)) else {
             return null;
         };
-        let n = Nat64.toNat(options.rng.next()) * RBT.size(db) / rngBound;
-        let iter = RBT.entries(db);
-        for (_ in Iter.range(0, n-1)) {
-            ignore iter.next();
+        let ?db = RBT.get<Nac.GUID, RBT.Tree<Text, Nat>>(options.referenceTree, Blob.compare, guid) else {
+            return null;
         };
-        do ? {
-            (k, iter.next()!.0);
+        // For stress testing, choose either...
+        if (options.rng.next() < 2**63) {
+            // ... a random value in the tree
+            let n = Nat64.toNat(options.rng.next()) * RBT.size(db) / rngBound;
+            let iter = RBT.entries(db);
+            for (_ in Iter.range(0, n-1)) {
+                ignore iter.next();
+            };
+            do ? {
+                ((k, v), iter.next()!.0);
+            };
+        } else {
+            // ... or a recently used value.
+            randomBufferElementPreferringNearEnd(options.rng, options.recentSKs);
         };
     };
 
