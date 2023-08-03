@@ -454,7 +454,6 @@ module {
 
     public type GetByInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey; sk: SK};
 
-    // FIXME: Race condition, when moving sub-DB.
     public func getByInner(options: GetByInnerOptions) : ?AttributeValue {
         switch (getSubDBByInner(options.superDB, options.subDBKey)) {
             case (?subDB) {
@@ -468,6 +467,7 @@ module {
 
     public type GetByOuterOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
 
+    // FIXME: Race condition, when moving sub-DB.
     public func getByOuter(options: GetByOuterOptions) : async* ?AttributeValue {
         let ?(part, inner) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no entry");
