@@ -219,6 +219,7 @@ module {
                     hardCap = dbOptions.hardCap;
                 };
                 // FIXME: It erroneously retrieves status for inner DB and is always `false`:
+                // FIXME: Element insertion after DB deletion is an erroneous race condition.
                 let wasOld = switch (BTree.insert(superDB.subDBs, Nat.compare, key, subDB)) {
                     case (?_) { true };
                     case (null) { false };
