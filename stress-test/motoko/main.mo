@@ -327,7 +327,7 @@ actor StressTest {
         for (part in canisters.vals()) {
             label L for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
-                    Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part)) # " " # debug_show(outerKey)); // FIXME: Should be trap
+                    Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part)) # " " # debug_show(outerKey));
                 };
                 var subtree = RBT.init<Text, Nat>();
                 let scanned = await innerCanister.scanLimitInner({
