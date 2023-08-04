@@ -173,7 +173,7 @@ actor StressTest {
                         };
                         case (null) {};
                     };
-                    options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey));
+                    // options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey)); // TODO: Uncomment.
                     options.recentOuter.add((part, outerKey));
                 };
                 case (null) {};
@@ -247,7 +247,6 @@ actor StressTest {
                     };
                     let subtree2 = RBT.delete(subtree, Text.compare, sk);
                     options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
-                    // options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, outerKey), guid); // FIXME: Describe the race condition why we need it.
                     options.recentOuter.add((part, outerKey));
                     options.recentSKs.add(((part, outerKey), sk));
                 };
