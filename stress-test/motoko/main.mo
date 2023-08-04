@@ -324,7 +324,7 @@ actor StressTest {
         var result: ReferenceTree = RBT.init();
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
-            label L for((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
+            label L for ((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
                     Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part)) # " " # debug_show(outerKey));
                 };
