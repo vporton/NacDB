@@ -175,7 +175,7 @@ module {
     public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
-            var creatingSubDB = SparseQueue.init(100); // TODO
+            var creatingSubDB = SparseQueue.init(10000); // FIXME
             moveCap = options.moveCap;
         };
     };
@@ -187,8 +187,8 @@ module {
             subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
             var locations = RBT.init();
             var moving = null;
-            var inserting = SparseQueue.init(100);
-            var inserting2 = SparseQueue.init(100);
+            var inserting = SparseQueue.init(10000); // FIXME
+            var inserting2 = SparseQueue.init(10000); // FIXME
         };
     };
 
@@ -710,10 +710,8 @@ module {
                         };
                     };
                     // SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
-                    MyCycles.addPart(dbOptions.partitionCycles);
-                    return await part.createOuter(part, outer.1, inner.1);
+                    part;
                 };
-                part2;
             };
         };
         let {inner; outer} = switch (creating.loc) {
@@ -726,8 +724,6 @@ module {
             };
         };
         // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
-        MyCycles.addPart(dbOptions.partitionCycles);
-        await part3.createOuter(part3, outer.1, inner.1);
     };
 
     /// In the current version two partition canister are always the same.
