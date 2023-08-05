@@ -716,7 +716,6 @@ module {
                 part2;
             };
         };
-        MyCycles.addPart(dbOptions.partitionCycles);
         let {inner; outer} = switch (creating.loc) {
             case (?loc) { loc };
             case (null) {
