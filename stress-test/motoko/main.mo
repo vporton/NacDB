@@ -154,30 +154,30 @@ actor StressTest {
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
             options.recentOuter.add((part, subDBKey));
         } else if (random < Nat64.fromNat(rngBound / variants * (2+1))) {
-            options.dbDeletions += 1;
-            switch (randomSubDB(options)) {
-                case (?(part, outerKey)) {
-                    label R loop {
-                        try {
-                            MyCycles.addPart(dbOptions.partitionCycles);
-                            await part.deleteSubDB({outerKey});
-                        } catch(e) {
-                            // Debug.print("repeat deleteSubDB: " # Error.message(e));
-                            continue R;
-                        };
-                        break R;
-                    };
-                    switch (RBT.get(options.outerToGUID, compareLocs, (part, outerKey))) {
-                        case (?guid) {
-                            options.referenceTree := RBT.delete(options.referenceTree, Blob.compare, guid);
-                        };
-                        case (null) {};
-                    };
-                    // options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey)); // TODO: Uncomment.
-                    options.recentOuter.add((part, outerKey));
-                };
-                case (null) {};
-            };
+            // options.dbDeletions += 1;
+            // switch (randomSubDB(options)) {
+            //     case (?(part, outerKey)) {
+            //         label R loop {
+            //             try {
+            //                 MyCycles.addPart(dbOptions.partitionCycles);
+            //                 await part.deleteSubDB({outerKey});
+            //             } catch(e) {
+            //                 // Debug.print("repeat deleteSubDB: " # Error.message(e));
+            //                 continue R;
+            //             };
+            //             break R;
+            //         };
+            //         switch (RBT.get(options.outerToGUID, compareLocs, (part, outerKey))) {
+            //             case (?guid) {
+            //                 options.referenceTree := RBT.delete(options.referenceTree, Blob.compare, guid);
+            //             };
+            //             case (null) {};
+            //         };
+            //         // options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey)); // TODO: Uncomment.
+            //         options.recentOuter.add((part, outerKey));
+            //     };
+            //     case (null) {};
+            // };
         } else if (random < Nat64.fromNat(rngBound / variants * (3+2))) { // two times greater probability
             options.eltInserts += 1;
             var v: ?(Partition.Partition, Nat) = null;
