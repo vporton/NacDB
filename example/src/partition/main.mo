@@ -4,7 +4,6 @@ import Nac "../../../src/NacDB";
 import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
 import Nat "mo:base/Nat";
-import SparseQueue "../../../lib/SparseQueue";
 import MyCycles "../../../lib/Cycles";
 import Text "mo:base/Text";
 import Debug "mo:base/Debug";
