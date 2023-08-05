@@ -179,51 +179,51 @@ actor StressTest {
                 case (null) {};
             };
         } else if (random < Nat64.fromNat(rngBound / variants * (3+2))) { // two times greater probability
-            // options.eltInserts += 1;
-            // var v: ?(Partition.Partition, Nat) = null;
-            // let guid = GUID.nextGuid(options.guidGen);
-            // let sk = GUID.nextGuid(options.guidGen);
-            // let ?(part, outerKey) = randomSubDB(options) else {
-            //     return;
-            // };
-            // let randomValue = Nat64.toNat(options.rng.next());
-            // label R loop {
-            //     let {outer = (part2, outerKey2)} = try {
-            //         MyCycles.addPart(dbOptions.partitionCycles);
-            //         await part.insert({
-            //             guid;
-            //             dbOptions;
-            //             indexCanister = options.index;
-            //             outerCanister = part;
-            //             outerKey;
-            //             sk = debug_show(sk);
-            //             value = #int randomValue;
-            //         });
-            //     } catch(e) {
-            //         if (Text.endsWith(Error.message(e), #text " trapped explicitly: missing sub-DB")) {
-            //             // Debug.print("insert: missing sub-DB");
-            //             return; // Everything is OK, a not erroneous race condition.
-            //         };
-            //         // Debug.print("repeat insert: " # Error.message(e));
-            //         continue R;
-            //     };
-            //     v := ?(part2, outerKey2);
-            //     break R;
-            // };
-            // let ?(part3, outerKey3) = v else {
-            //     Debug.trap("programming error: insert");
-            // };
-            // let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part3, outerKey3)) else {
-            //     return; // It was meanwhile delete by another thread.
-            // };
-            // let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else { // FIXME: always null
-            //     // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomSubDB()`.
-            //     return; // Everything is OK, a not erroneous race condition.
-            // };
-            // let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
-            // options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
-            // options.recentOuter.add((part3, outerKey3));
-            // options.recentSKs.add(((part3, outerKey3), debug_show(sk)));
+            options.eltInserts += 1;
+            var v: ?(Partition.Partition, Nat) = null;
+            let guid = GUID.nextGuid(options.guidGen);
+            let sk = GUID.nextGuid(options.guidGen);
+            let ?(part, outerKey) = randomSubDB(options) else {
+                return;
+            };
+            let randomValue = Nat64.toNat(options.rng.next());
+            label R loop {
+                let {outer = (part2, outerKey2)} = try {
+                    MyCycles.addPart(dbOptions.partitionCycles);
+                    await part.insert({
+                        guid;
+                        dbOptions;
+                        indexCanister = options.index;
+                        outerCanister = part;
+                        outerKey;
+                        sk = debug_show(sk);
+                        value = #int randomValue;
+                    });
+                } catch(e) {
+                    if (Text.endsWith(Error.message(e), #text " trapped explicitly: missing sub-DB")) {
+                        // Debug.print("insert: missing sub-DB");
+                        return; // Everything is OK, a not erroneous race condition.
+                    };
+                    // Debug.print("repeat insert: " # Error.message(e));
+                    continue R;
+                };
+                v := ?(part2, outerKey2);
+                break R;
+            };
+            let ?(part3, outerKey3) = v else {
+                Debug.trap("programming error: insert");
+            };
+            let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part3, outerKey3)) else {
+                return; // It was meanwhile delete by another thread.
+            };
+            let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else { // FIXME: always null
+                // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomSubDB()`.
+                return; // Everything is OK, a not erroneous race condition.
+            };
+            let subtree2 = RBT.put(subtree, Text.compare, debug_show(sk), randomValue);
+            options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
+            options.recentOuter.add((part3, outerKey3));
+            options.recentSKs.add(((part3, outerKey3), debug_show(sk)));
         } else {
             // options.eltDeletions += 1;
             // switch (randomItem(options)) {
