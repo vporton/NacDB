@@ -1,6 +1,5 @@
-- Feed canisters with cycles.
-
-- TypeScript
+- It can be abused by calling with the same GUID after complete accomplishing
+  of an operation.
 
 - Documentation `mo-doc` and `typedoc`.
 
