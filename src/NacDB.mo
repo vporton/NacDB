@@ -85,6 +85,7 @@ module {
         subDBs: BTree.BTree<InnerSubDBKey, SubDB>;
         /// The canister and the `SubDBKey` of this `RBT.Tree` is constant,
         /// even when the sub-DB to which it points moves to a different canister.
+        // TODO: Join the following two variables into one:
         var locations: RBT.Tree<OuterSubDBKey, (PartitionCanister, InnerSubDBKey)>;
 
         // TODO: Which variables can be removed from `moving`?
@@ -216,7 +217,6 @@ module {
                 let subDB : SubDB = {
                     var map = map;
                     var userData = userData;
-                    hardCap = dbOptions.hardCap;
                 };
                 // FIXME: It erroneously retrieves status for inner DB and is always `false`:
                 // FIXME: Element insertion after DB deletion is an erroneous race condition.
@@ -577,6 +577,7 @@ module {
     public func insert(options: InsertOptions)
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
+        // FIXME: race to store into an already non-existing inner DB
         let ?(oldInnerCanister, oldInnerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("missing sub-DB");
         };
