@@ -32,7 +32,7 @@ module {
             case (null) {};
         };
         if (RBT.size(queue.order) >= queue.maxSize) {
-            Debug.print("QUEUE OVERFLOW");
+            // Debug.print("QUEUE OVERFLOW");
             let i = RBT.iter(queue.order, #fwd);
             let ?(number, _) = i.next() else {
                 Debug.trap("empty queue");

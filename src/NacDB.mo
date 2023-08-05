@@ -175,7 +175,7 @@ module {
     public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
-            var creatingSubDB = SparseQueue.init(10000); // FIXME
+            var creatingSubDB = SparseQueue.init(100); // FIXME
             moveCap = options.moveCap;
         };
     };
@@ -187,8 +187,8 @@ module {
             subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
             var locations = RBT.init();
             var moving = null;
-            var inserting = SparseQueue.init(10000); // FIXME
-            var inserting2 = SparseQueue.init(10000); // FIXME
+            var inserting = SparseQueue.init(100); // FIXME
+            var inserting2 = SparseQueue.init(100); // FIXME
         };
     };
 
