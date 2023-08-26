@@ -34,7 +34,7 @@ let
       { name = "encoding"
       , version = "main"
       , repo = "https://github.com/aviate-labs/encoding.mo"
-      , dependencies = [ "base-0.7.3" ]
+      , dependencies = [ "base" ]
       },
       { name = "base-0.7.3"
       , version = "master"
@@ -63,6 +63,11 @@ let
   overrides =
     [
       { name = "base"
+      , repo = "https://github.com/dfinity/motoko-base"
+      , version = "moc-0.9.0"
+      , dependencies = [] : List Text
+      },
+      { name = "base-0.7.3"
       , repo = "https://github.com/dfinity/motoko-base"
       , version = "moc-0.9.0"
       , dependencies = [] : List Text
