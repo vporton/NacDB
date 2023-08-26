@@ -64,12 +64,12 @@ let
     [
       { name = "base"
       , repo = "https://github.com/dfinity/motoko-base"
-      , version = "moc-0.9.0"
+      , version = "moc-0.9.3"
       , dependencies = [] : List Text
       },
       { name = "base-0.7.3"
       , repo = "https://github.com/dfinity/motoko-base"
-      , version = "moc-0.9.0"
+      , version = "moc-0.9.3"
       , dependencies = [] : List Text
       },
     ] : List Package
