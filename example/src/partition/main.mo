@@ -17,18 +17,18 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
 
     // Mandatory methods //
 
-    public shared func rawInsertSubDB(map: RBT.Tree<Nac.SK, Nac.AttributeValue>, userData: Text, dbOptions: Nac.DBOptions)
+    public shared func rawInsertSubDB(map: RBT.Tree<Nac.SK, Nac.AttributeValue>, inner: ?Nac.InnerSubDBKey, userData: Text, dbOptions: Nac.DBOptions)
         : async {inner: Nac.OuterSubDBKey; wasOld: Bool}
     {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        Nac.rawInsertSubDB(superDB, this, map, userData, dbOptions);
+        Nac.rawInsertSubDB(superDB, this, map, inner, userData, dbOptions);
     };
 
-    public shared func rawInsertSubDBAndSetOuter(canister: Nac.PartitionCanister, map: RBT.Tree<Nac.SK, Nac.AttributeValue>, userData: Text, dbOptions: Nac.DBOptions)
+    public shared func rawInsertSubDBAndSetOuter(canister: Nac.PartitionCanister, map: RBT.Tree<Nac.SK, Nac.AttributeValue>, inner: ?Nac.InnerSubDBKey, userData: Text, dbOptions: Nac.DBOptions)
         : async {inner: Nac.InnerSubDBKey; outer: Nac.OuterSubDBKey; wasOld: Bool}
     {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        Nac.rawInsertSubDBAndSetOuter(superDB, canister, map, userData, dbOptions);
+        Nac.rawInsertSubDBAndSetOuter(superDB, canister, map, inner, userData, dbOptions);
     };
 
     public shared func isOverflowed({dbOptions: Nac.DBOptions}) : async Bool {

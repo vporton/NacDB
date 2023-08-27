@@ -117,9 +117,9 @@ module {
     // TODO: arguments as {...}, not (...).
     public type PartitionCanister = actor {
         // TODO: Remove superfluous, if any.
-        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions)
+        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, inner: ?InnerSubDBKey, userData: Text, dbOptions: DBOptions)
             : async {inner: OuterSubDBKey; wasOld: Bool};
-        rawInsertSubDBAndSetOuter(canister: PartitionCanister, map: RBT.Tree<SK, AttributeValue>, userData: Text, dbOptions: DBOptions)
+        rawInsertSubDBAndSetOuter(canister: PartitionCanister, map: RBT.Tree<SK, AttributeValue>, inner: ?InnerSubDBKey, userData: Text, dbOptions: DBOptions)
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey; wasOld: Bool};
         isOverflowed: shared ({dbOptions: DBOptions}) -> async Bool;
         superDBSize: query () -> async Nat;
@@ -206,31 +206,35 @@ module {
         superDB: SuperDB,
         innerCanister: PartitionCanister,
         map: RBT.Tree<SK, AttributeValue>,
+        inner: ?InnerSubDBKey,
         userData: Text,
         dbOptions: DBOptions,
     ) : {inner: InnerSubDBKey; wasOld: Bool}
     {
-        let (inner, wasOld) = switch (superDB.moving) {
+        let (inner2, wasOld) = switch (superDB.moving) {
             case (?_) { Debug.trap("DB is scaling") }; // TODO: needed?
             case (null) {
-                let key = superDB.nextInnerKey;
+                let (key, wasOld) = switch (inner) {
+                    case (?key) { (key, true) };
+                    case (null) {
+                        let key = superDB.nextInnerKey;
+                        superDB.nextInnerKey += 1;
+                        (key, false);
+                    };
+                };                    
                 let subDB : SubDB = {
                     var map = map;
                     var userData = userData;
                 };
-                // FIXME: It erroneously retrieves status for inner DB and is always `false`:
                 // FIXME: Element insertion after DB deletion is an erroneous race condition.
-                let wasOld = switch (BTree.insert(superDB.subDBs, Nat.compare, key, subDB)) {
-                    case (?_) { true };
-                    case (null) { false };
-                };
+                ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
                 if (wasOld) {
                     Debug.print("wasOld");
                 };
                 (key, wasOld);
             };
         };
-        {inner; wasOld};
+        {inner = inner2; wasOld};
     };
 
     /// Use only if sure that outer and inner canisters coincide.
@@ -238,16 +242,17 @@ module {
         superDB: SuperDB,
         canister: PartitionCanister,
         map: RBT.Tree<SK, AttributeValue>,
+        inner: ?InnerSubDBKey,
         userData: Text,
         dbOptions: DBOptions,
     ) : {outer: OuterSubDBKey; inner: InnerSubDBKey; wasOld: Bool}
     {
-        let {inner; wasOld} = rawInsertSubDB(superDB, canister, map, userData, dbOptions);
+        let {inner = inner2; wasOld} = rawInsertSubDB(superDB, canister, map, inner, userData, dbOptions);
         if (not wasOld) {
-            superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (canister, inner));
+            superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (canister, inner2));
         };
         // FIXME: The below is wrong if `not wasOld`.
-        let result = {outer = superDB.nextOuterKey; inner; wasOld};
+        let result = {outer = superDB.nextOuterKey; inner = inner2; wasOld};
         superDB.nextOuterKey += 1;
         result;
     };
@@ -330,7 +335,7 @@ module {
                     case (?{key = newSubDBKey; wasOld}) { (newSubDBKey, wasOld) };
                     case (null) {
                         MyCycles.addPart(dbOptions.partitionCycles);
-                        let {inner; wasOld} = await canister.rawInsertSubDB(subDB.map, subDB.userData, dbOptions);
+                        let {inner; wasOld} = await canister.rawInsertSubDB(subDB.map, null, subDB.userData, dbOptions);
                         newCanister.innerKey := ?{key = inner; wasOld};
                         (inner, wasOld);
                     }
@@ -707,7 +712,7 @@ module {
                         case (?loc) { loc };
                         case (null) {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter(part, RBT.init(), creating.userData, dbOptions);
+                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter(part, RBT.init(), null, creating.userData, dbOptions);
                             creating.loc := ?{inner = (part, inner); outer = (part, outer)};
                             {inner = (part, inner); outer = (part, outer)};
                         };
@@ -721,7 +726,7 @@ module {
             case (?loc) { loc };
             case (null) {
                 MyCycles.addPart(dbOptions.partitionCycles);
-                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter(part3, RBT.init(), creating.userData, dbOptions);
+                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter(part3, RBT.init(), null, creating.userData, dbOptions);
                 creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
                 {inner = (part3, inner); outer = (part3, outer)};
             };
