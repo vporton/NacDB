@@ -233,12 +233,13 @@ actor StressTest {
             options.recentSKs.add(((part3, outerKey3), debug_show(sk)));
         } else {
             options.eltDeletions += 1;
+            let guid = GUID.nextGuid(options.guidGen);
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            await part.delete({outerKey; sk});
+                            await part.delete({outerKey; sk; guid});
                         } catch(e) {
                             // Debug.print("repeat delete: " # Error.message(e));
                             continue R;
