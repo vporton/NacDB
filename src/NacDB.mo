@@ -119,7 +119,16 @@ module {
         // TODO: Remove superfluous, if any.
         rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, inner: ?InnerSubDBKey, userData: Text, dbOptions: DBOptions)
             : async {inner: OuterSubDBKey; wasOld: Bool};
-        rawInsertSubDBAndSetOuter(canister: PartitionCanister, map: RBT.Tree<SK, AttributeValue>, inner: ?InnerSubDBKey, userData: Text, dbOptions: DBOptions)
+        rawInsertSubDBAndSetOuter(
+            canister: PartitionCanister,
+            map: RBT.Tree<SK, AttributeValue>,
+            keys: ?{
+                inner: InnerSubDBKey;
+                outer: OuterSubDBKey;
+            },
+            userData: Text,
+            dbOptions: DBOptions
+        )
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey; wasOld: Bool};
         isOverflowed: shared ({dbOptions: DBOptions}) -> async Bool;
         superDBSize: query () -> async Nat;
@@ -241,19 +250,28 @@ module {
         superDB: SuperDB,
         canister: PartitionCanister,
         map: RBT.Tree<SK, AttributeValue>,
-        inner: ?InnerSubDBKey,
+        keys: ?{
+            inner: InnerSubDBKey;
+            outer: OuterSubDBKey;
+        },
         userData: Text,
         dbOptions: DBOptions,
     ) : {outer: OuterSubDBKey; inner: InnerSubDBKey; wasOld: Bool}
     {
-        let {inner = inner2; wasOld} = rawInsertSubDB(superDB, canister, map, inner, userData, dbOptions);
-        if (not wasOld) {
+        let {inner = inner2; wasOld} = rawInsertSubDB(superDB, canister, map, do ? {keys!.inner}, userData, dbOptions);
+        if (not wasOld) { // TODO: We can deal without `wasOld` variable.
             superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (canister, inner2));
         };
-        // FIXME: The below is wrong if `not wasOld`.
-        let result = {outer = superDB.nextOuterKey; inner = inner2; wasOld};
-        superDB.nextOuterKey += 1;
-        result;
+        switch (keys) {
+            case (?{inner; outer}) {
+                {outer; inner; wasOld};
+            };
+            case (null) {
+                let result = {outer = superDB.nextOuterKey; inner = inner2; wasOld};
+                superDB.nextOuterKey += 1;
+                result;
+            };
+        };
     };
 
     public func getInner(superDB: SuperDB, outerKey: InnerSubDBKey) : ?(PartitionCanister, InnerSubDBKey) {

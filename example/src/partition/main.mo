@@ -24,11 +24,20 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.rawInsertSubDB(superDB, this, map, inner, userData, dbOptions);
     };
 
-    public shared func rawInsertSubDBAndSetOuter(canister: Nac.PartitionCanister, map: RBT.Tree<Nac.SK, Nac.AttributeValue>, inner: ?Nac.InnerSubDBKey, userData: Text, dbOptions: Nac.DBOptions)
+    public shared func rawInsertSubDBAndSetOuter(
+        canister: Nac.PartitionCanister,
+        map: RBT.Tree<Nac.SK, Nac.AttributeValue>,
+        keys: ?{
+            inner: Nac.InnerSubDBKey;
+            outer: Nac.OuterSubDBKey;
+        },
+        userData: Text,
+        dbOptions: Nac.DBOptions
+    )
         : async {inner: Nac.InnerSubDBKey; outer: Nac.OuterSubDBKey; wasOld: Bool}
     {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        Nac.rawInsertSubDBAndSetOuter(superDB, canister, map, inner, userData, dbOptions);
+        Nac.rawInsertSubDBAndSetOuter(superDB, canister, map, keys, userData, dbOptions);
     };
 
     public shared func isOverflowed({dbOptions: Nac.DBOptions}) : async Bool {
