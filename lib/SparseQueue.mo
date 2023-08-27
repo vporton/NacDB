@@ -10,6 +10,7 @@ module {
     public type GUID = Blob;
 
     // FIXME: RBT leaves memory allocated for deleted items.
+    // FIXME: Remove old (by time) items.
     public type SparseQueue<T> = {
         var tree: RBT.Tree<GUID, (Nat, T)>;
         var order: RBT.Tree<Nat, GUID>; // TODO: this variable unneeded
