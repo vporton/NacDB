@@ -19,6 +19,7 @@ import Int "mo:base/Int";
 import Buffer "mo:base/Buffer";
 import Float "mo:base/Float";
 import Int64 "mo:base/Int64";
+import BTree "mo:btree/BTree";
 
 actor StressTest {
     // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
@@ -116,7 +117,12 @@ actor StressTest {
         Debug.print("Reference tree size: " # debug_show(RBT.size(options.referenceTree)));
         Debug.print("Resulting tree size: " # debug_show(RBT.size(resultingTree)));
         let subtreeEqual = func(t1: RBT.Tree<Text, Nat>, t2: RBT.Tree<Text, Nat>): Bool {
-            RBT.equalIgnoreDeleted(t1, t2, Text.equal, Nat.equal);
+            if (RBT.equalIgnoreDeleted(t1, t2, Text.equal, Nat.equal)) {
+                true;
+            } else {
+                Debug.print(debug_show(Iter.toArray(RBT.entries(t1))) # "/" # debug_show(Iter.toArray(RBT.entries(t2))));
+                false;
+            }
         };
         let equal = RBT.equalIgnoreDeleted<Nac.GUID, RBT.Tree<Text, Nat>>(options.referenceTree, resultingTree, Blob.equal, subtreeEqual);
         Debug.print("Equal? " # debug_show(equal));
@@ -262,13 +268,16 @@ actor StressTest {
         };
         // sum_{i=0,n-1}(1/2^i) = 2 - 2^(1-n)
         let max = Int.abs(2 - 1/2**(buf.size() - 1));
-        let r = Float.fromInt(Nat64.toNat(rng.next()) * max / 2**64);
+        let r = Float.fromInt(Nat64.toNat(rng.next())) * Float.fromInt(max) / 2**64;
         var i = 0;
         var sum = 0.0;
-        label r loop {
+        // Debug.print("RAND: " # debug_show(r));
+        label it loop {
             sum := sum + (2.0)**(-Float.fromInt(i));
+            // Debug.print("SUM : " # debug_show(sum));
             if (sum < r) {
-                continue r;
+                i += 1;
+                continue it;
             };
             return ?buf.get(i);
         };
@@ -281,7 +290,7 @@ actor StressTest {
             // ... a random value in the tree
             let n = Nat64.toNat(options.rng.next()) * RBT.size(options.referenceTree) / rngBound;
             let iter = RBT.entries(options.outerToGUID);
-            for (_ in Iter.range(0, n)) {
+            for (_ in Iter.range(0, n-1)) {
                 ignore iter.next();
             };
             switch (iter.next()) {
