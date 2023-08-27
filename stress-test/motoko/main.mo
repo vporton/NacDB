@@ -280,7 +280,7 @@ actor StressTest {
                 i += 1;
                 continue it;
             };
-            if (buf.size() == 0) {
+            if (i >= buf.size()) {
                 return null;
             };
             let e = ?buf.remove(i);
