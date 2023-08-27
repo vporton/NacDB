@@ -66,7 +66,7 @@ actor StressTest {
     };
 
     public func main() : async () {
-        let nThreads = 1; //2; // 3;
+        let nThreads = 3;
         let nSteps = 500;
 
         Debug.print("STARTING STRESS TEST: " # debug_show(nThreads) # " threads, each " # debug_show(nSteps) # " steps");
