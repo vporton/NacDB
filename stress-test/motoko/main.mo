@@ -232,33 +232,33 @@ actor StressTest {
             options.recentOuter.add((part3, outerKey3));
             options.recentSKs.add(((part3, outerKey3), debug_show(sk)));
         } else {
-            // options.eltDeletions += 1;
-            // switch (randomItem(options)) {
-            //     case (?((part, outerKey), sk)) {
-            //         label R loop {
-            //             try {
-            //                 MyCycles.addPart(dbOptions.partitionCycles);
-            //                 await part.delete({outerKey; sk});
-            //             } catch(e) {
-            //                 // Debug.print("repeat delete: " # Error.message(e));
-            //                 continue R;
-            //             };
-            //             break R;
-            //         };
-            //         let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part, outerKey)) else {
-            //             return; // It was meanwhile deleted by another thread.
-            //         };
-            //         let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else {
-            //             // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomItem()`.
-            //             return; // Everything is OK, a not erroneous race condition.
-            //         };
-            //         let subtree2 = RBT.delete(subtree, Text.compare, sk);
-            //         options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
-            //         options.recentOuter.add((part, outerKey));
-            //         options.recentSKs.add(((part, outerKey), sk));
-            //     };
-            //     case (null) {}
-            // };
+            options.eltDeletions += 1;
+            switch (randomItem(options)) {
+                case (?((part, outerKey), sk)) {
+                    label R loop {
+                        try {
+                            MyCycles.addPart(dbOptions.partitionCycles);
+                            await part.delete({outerKey; sk});
+                        } catch(e) {
+                            // Debug.print("repeat delete: " # Error.message(e));
+                            continue R;
+                        };
+                        break R;
+                    };
+                    let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part, outerKey)) else {
+                        return; // It was meanwhile deleted by another thread.
+                    };
+                    let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else {
+                        // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomItem()`.
+                        return; // Everything is OK, a not erroneous race condition.
+                    };
+                    let subtree2 = RBT.delete(subtree, Text.compare, sk);
+                    options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
+                    options.recentOuter.add((part, outerKey));
+                    options.recentSKs.add(((part, outerKey), sk));
+                };
+                case (null) {}
+            };
         };
     };
 
