@@ -155,7 +155,7 @@ module {
         putLocation(outerKey: OuterSubDBKey, innerCanister: PartitionCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
         createOuter(part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
             : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
-        delete({outerKey: OuterSubDBKey; sk: SK}): async ();
+        delete({outerKey: OuterSubDBKey; sk: SK; guid: GUID}): async ();
         deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
@@ -619,7 +619,7 @@ module {
             var finishMovingSubDBDone = null;
         });
 
-        trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid}); // TODO: inefficient here (and in other places?)
+        trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
 
         if (not inserting.insertingImplDone) {
             MyCycles.addPart(options.dbOptions.partitionCycles);
@@ -679,10 +679,12 @@ module {
         }
     };
 
-    type DeleteOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
+    type DeleteOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK; guid: GUID};
     
     /// idempotent
     public func delete(options: DeleteOptions): async* () {
+        // FIXME: No `guid` here:
+        trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 MyCycles.addPart(options.dbOptions.partitionCycles);
@@ -690,6 +692,7 @@ module {
             };
             case (null) {};
         };
+        options.outerSuperDB.busy := RBT.delete(options.outerSuperDB.busy, Nat.compare, options.outerKey); // TODO: Don't repeat this line.
     };
 
     type DeleteDBOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey};

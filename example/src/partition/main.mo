@@ -116,9 +116,9 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.createOuter(superDB, part, outerKey, innerKey);
     };
 
-    public shared func delete({outerKey: Nac.OuterSubDBKey; sk: Nac.SK}): async () {
+    public shared func delete({outerKey: Nac.OuterSubDBKey; sk: Nac.SK; guid: Nac.GUID}): async () {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await* Nac.delete({dbOptions; outerSuperDB = superDB; outerKey; sk});
+        await* Nac.delete({dbOptions; outerSuperDB = superDB; outerKey; sk; guid});
     };
 
     public shared func deleteInner(innerKey: Nac.InnerSubDBKey, sk: Nac.SK): async () {
