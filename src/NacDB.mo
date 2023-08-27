@@ -201,6 +201,7 @@ module {
 
     /// The "real" returned value is `outer`, but `inner` can be used for caching
     /// (on cache failure retrieve new `inner` using `outer`).
+    /// FIXME: From function arguments it's impossible to determine whether `wasOld`.
     public func rawInsertSubDB(
         superDB: SuperDB,
         innerCanister: PartitionCanister,
