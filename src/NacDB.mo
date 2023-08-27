@@ -87,7 +87,7 @@ module {
         /// even when the sub-DB to which it points moves to a different canister.
         // TODO: Join the following two variables into one:
         var locations: RBT.Tree<OuterSubDBKey, (PartitionCanister, InnerSubDBKey)>;
-        var busy: RBT.Tree<OuterSubDBKey, ()>; // TODO: Improve efficiency.
+        var busy: RBT.Tree<OuterSubDBKey, SparseQueue.GUID>; // TODO: Improve efficiency.
 
         // TODO: Which variables can be removed from `moving`?
         var moving: ?{
@@ -447,10 +447,15 @@ module {
         }
     };
 
-    func trapMoving({superDB: SuperDB; subDBKey: OuterSubDBKey}) {
-        if (RBT.get(superDB.busy, Nat.compare, subDBKey) != null) {
+    // FIXME: If a function was interrupted in the middle, this becomes a deadlock.
+    func trapMoving({superDB: SuperDB; subDBKey: OuterSubDBKey; guid: SparseQueue.GUID}) {
+        // If we call it repeatedly (with the same GUID), allow despite the lock.
+        let v = RBT.get(superDB.busy, Nat.compare, subDBKey);
+        if (v != null and v != ?guid) {
             Debug.trap("item busy");
         };
+        // TODO: Can be optimized:
+        superDB.busy := RBT.put(superDB.busy, Nat.compare, subDBKey, guid);
     };
 
     func removeLoosers({subDB: SubDB; dbOptions: DBOptions}) {
@@ -614,7 +619,7 @@ module {
             var finishMovingSubDBDone = null;
         });
 
-        // trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey}); // TODO: inefficient here (and in other places?)
+        trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid}); // TODO: inefficient here (and in other places?)
 
         if (not inserting.insertingImplDone) {
             MyCycles.addPart(options.dbOptions.partitionCycles);
@@ -658,6 +663,7 @@ module {
         };
 
         SparseQueue.delete(options.outerSuperDB.inserting, options.guid);
+        options.outerSuperDB.busy := RBT.delete(options.outerSuperDB.busy, Nat.compare, options.outerKey); // TODO: Don't repeat this line.
 
         {inner = (newInnerPartition, newInnerKey); outer = (options.outerCanister, options.outerKey)};
     };
