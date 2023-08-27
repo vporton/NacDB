@@ -120,6 +120,7 @@ actor StressTest {
         };
         let equal = RBT.equalIgnoreDeleted<Nac.GUID, RBT.Tree<Text, Nat>>(options.referenceTree, resultingTree, Blob.equal, subtreeEqual);
         Debug.print("Equal? " # debug_show(equal));
+        // FIXME: Also check that there are no "hanging" inner keys not linked to by outer ones.
     };
 
     func runThread(options: ThreadArguments, threadNum: Nat) : async () {
