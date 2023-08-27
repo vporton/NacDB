@@ -207,7 +207,7 @@ module {
         map: RBT.Tree<SK, AttributeValue>,
         userData: Text,
         dbOptions: DBOptions,
-    ) : {inner: InnerSubDBKey; wasOld: Bool} // TODO: is `wasOld` useful?
+    ) : {inner: InnerSubDBKey; wasOld: Bool}
     {
         let (inner, wasOld) = switch (superDB.moving) {
             case (?_) { Debug.trap("DB is scaling") }; // TODO: needed?
