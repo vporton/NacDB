@@ -9,6 +9,7 @@ import Bool "mo:base/Bool";
 module {
     public type GUID = Blob;
 
+    // FIXME: RBT leaves memory allocated for deleted items.
     public type SparseQueue<T> = {
         var tree: RBT.Tree<GUID, T>;
         var order: RBT.Tree<Nat, GUID>;
@@ -32,16 +33,17 @@ module {
             case (null) {};
         };
         if (RBT.size(queue.order) >= queue.maxSize) {
-            // Debug.print("QUEUE OVERFLOW");
-            let i = RBT.iter(queue.order, #fwd);
-            let ?(number, _) = i.next() else {
-                Debug.trap("empty queue");
-            };
-            let ?guid2 = RBT.get(queue.order, Nat.compare, number) else {
-                Debug.trap("programming error")
-            };
-            queue.order := RBT.delete(queue.order, Nat.compare, number);
-            queue.tree := RBT.delete<Blob, T>(queue.tree, Blob.compare, guid2);
+            Debug.trap("QUEUE OVERFLOW");
+            // // Debug.print("QUEUE OVERFLOW");
+            // let i = RBT.iter(queue.order, #fwd);
+            // let ?(number, _) = i.next() else {
+            //     Debug.trap("empty queue");
+            // };
+            // let ?guid2 = RBT.get(queue.order, Nat.compare, number) else {
+            //     Debug.trap("programming error")
+            // };
+            // queue.order := RBT.delete(queue.order, Nat.compare, number);
+            // queue.tree := RBT.delete<Blob, T>(queue.tree, Blob.compare, guid2);
         };
         queue.tree := RBT.put(queue.tree, Blob.compare, guid, value);
         let k = queue.next;

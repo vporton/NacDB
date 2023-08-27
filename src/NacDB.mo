@@ -87,6 +87,7 @@ module {
         /// even when the sub-DB to which it points moves to a different canister.
         // TODO: Join the following two variables into one:
         var locations: RBT.Tree<OuterSubDBKey, (PartitionCanister, InnerSubDBKey)>;
+        var busy: RBT.Tree<OuterSubDBKey, ()>; // TODO: Improve efficiency.
 
         // TODO: Which variables can be removed from `moving`?
         var moving: ?{
@@ -194,7 +195,9 @@ module {
             var nextInnerKey = 0;
             var nextOuterKey = 0;
             subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
+            // FIXME: in RBT remain stalled deleted elements!
             var locations = RBT.init();
+            var busy = RBT.init();
             var moving = null;
             var inserting = SparseQueue.init(100); // FIXME
             var inserting2 = SparseQueue.init(100); // FIXME
@@ -441,17 +444,11 @@ module {
         }
     };
 
-    // TODO?
-    // func trapMoving({superDB: SuperDB; subDBKey: SubDBKey}) {
-    //     switch (BTree.get(superDB.subDBs, Nat.compare, subDBKey)) {
-    //         case (?item) {
-    //             if (item.busy) {
-    //                 Debug.trap("item busy");
-    //             }
-    //         };
-    //         case (null) {};
-    //     };
-    // };
+    func trapMoving({superDB: SuperDB; subDBKey: OuterSubDBKey}) {
+        if (RBT.get(superDB.busy, Nat.compare, subDBKey) != null) {
+            Debug.trap("item busy");
+        };
+    };
 
     func removeLoosers({subDB: SubDB; dbOptions: DBOptions}) {
         switch (dbOptions.hardCap) {
@@ -613,6 +610,8 @@ module {
             var insertingImplDone = false;
             var finishMovingSubDBDone = null;
         });
+
+        // trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey}); // TODO: inefficient here (and in other places?)
 
         if (not inserting.insertingImplDone) {
             MyCycles.addPart(options.dbOptions.partitionCycles);
