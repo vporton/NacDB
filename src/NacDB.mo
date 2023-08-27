@@ -339,7 +339,7 @@ module {
             var newInnerCanister = null;
         });
         
-        switch (BTree.get(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey)) {
+        let result = switch (BTree.get(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey)) {
             case (?subDB) {
                 let (canister, newCanister) = switch (inserting2.newInnerCanister) {
                     case (?newCanister) { (newCanister.canister, newCanister) };
@@ -372,6 +372,9 @@ module {
                 Debug.trap("no sub-DB");
             };
         };
+
+        SparseQueue.delete(oldInnerSuperDB.inserting2, guid);
+        result;
     };
 
     func startMovingSubDB(options: {
@@ -654,6 +657,8 @@ module {
             innerKey = newInnerKey;
         };
 
+        SparseQueue.delete(options.outerSuperDB.inserting, options.guid);
+
         {inner = (newInnerPartition, newInnerKey); outer = (options.outerCanister, options.outerKey)};
     };
 
@@ -747,7 +752,8 @@ module {
                 {inner = (part3, inner); outer = (part3, outer)};
             };
         };
-        // SparseQueue.delete(dbIndex.creatingSubDB, creatingId); // FIXME: Ensure idempotency.
+        SparseQueue.delete(dbIndex.creatingSubDB, guid);
+        {inner; outer}
     };
 
     /// In the current version two partition canister are always the same.

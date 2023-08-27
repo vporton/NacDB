@@ -11,8 +11,8 @@ module {
 
     // FIXME: RBT leaves memory allocated for deleted items.
     public type SparseQueue<T> = {
-        var tree: RBT.Tree<GUID, T>;
-        var order: RBT.Tree<Nat, GUID>;
+        var tree: RBT.Tree<GUID, (Nat, T)>;
+        var order: RBT.Tree<Nat, GUID>; // TODO: this variable unneeded
         maxSize: Nat;
         var next: Nat;
     };
@@ -29,12 +29,12 @@ module {
     /// It returns `value` or an old value. TODO: It is error prone.
     public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T): T {
         switch (RBT.get(queue.tree, Blob.compare, guid)) {
-            case (?v) return v; // already there is
+            case (?v) return v.1; // already there is
             case (null) {};
         };
         if (RBT.size(queue.order) >= queue.maxSize) {
+            Debug.print("QUEUE OVERFLOW");
             Debug.trap("QUEUE OVERFLOW");
-            // // Debug.print("QUEUE OVERFLOW");
             // let i = RBT.iter(queue.order, #fwd);
             // let ?(number, _) = i.next() else {
             //     Debug.trap("empty queue");
@@ -45,19 +45,23 @@ module {
             // queue.order := RBT.delete(queue.order, Nat.compare, number);
             // queue.tree := RBT.delete<Blob, T>(queue.tree, Blob.compare, guid2);
         };
-        queue.tree := RBT.put(queue.tree, Blob.compare, guid, value);
         let k = queue.next;
+        queue.tree := RBT.put(queue.tree, Blob.compare, guid, (k, value));
         queue.order := RBT.put(queue.order, Nat.compare, k, guid);
         queue.next += 1;
         value;
     };
 
-    // We don't really need this.
-    // public func delete<T>(queue: SparseQueue<T>, key: GUID) {
-    //     queue.tree := RBT.delete(queue.tree, Nat.compare, key);
-    // };
+    public func delete<T>(queue: SparseQueue<T>, key: GUID) {
+        let v0 = RBT.get(queue.tree, Blob.compare, key);
+        let ?v = v0 else {
+            Debug.trap("programming error");
+        };
+        queue.order := RBT.delete(queue.order, Nat.compare, v.0);
+        queue.tree := RBT.delete(queue.tree, Blob.compare, key);
+    };
 
     public func get<T>(queue: SparseQueue<T>, key: GUID): ?T {
-        RBT.get(queue.tree, Blob.compare, key);
+        do ? { RBT.get(queue.tree, Blob.compare, key)!.1 };
     };
 }
