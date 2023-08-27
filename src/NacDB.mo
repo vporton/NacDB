@@ -213,7 +213,7 @@ module {
             case (?_) { Debug.trap("DB is scaling") }; // TODO: needed?
             case (null) {
                 let key = superDB.nextInnerKey;
-                superDB.nextInnerKey += 1;
+                superDB.nextInnerKey += 1; // FIXME: duplicate
                 let subDB : SubDB = {
                     var map = map;
                     var userData = userData;
@@ -245,7 +245,7 @@ module {
         let {inner; wasOld} = rawInsertSubDB(superDB, canister, map, userData, dbOptions);
         superDB.locations := RBT.put(superDB.locations, Nat.compare, superDB.nextOuterKey, (canister, inner));
         let result = {outer = superDB.nextOuterKey; inner; wasOld};
-        superDB.nextOuterKey += 1;
+        superDB.nextOuterKey += 1; // FIXME: duplicate
         result;
     };
 
