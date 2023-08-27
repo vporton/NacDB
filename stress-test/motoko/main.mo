@@ -280,6 +280,9 @@ actor StressTest {
                 i += 1;
                 continue it;
             };
+            if (buf.size() == 0) {
+                return null;
+            };
             let e = ?buf.remove(i);
             // Put the value on the top:
             let ?e2 = e else {
