@@ -279,7 +279,13 @@ actor StressTest {
                 i += 1;
                 continue it;
             };
-            return ?buf.get(i);
+            let e = ?buf.remove(i);
+            // Put the value on the top:
+            let ?e2 = e else {
+                return null;
+            };
+            buf.add(e2);
+            return e;
         };
         Debug.trap("programming error");
     };
@@ -287,6 +293,12 @@ actor StressTest {
     func randomSubDB(options: ThreadArguments): ?(Partition.Partition, Nac.OuterSubDBKey) {
         // For stress testing, choose either...
         if (options.rng.next() < 2**63) {
+            if (options.rng.next() < 2**63) { // a "gather many" sub-DB
+                return switch (RBT.entries(options.outerToGUID).next()) {
+                    case (?res) { ?res.0 };
+                    case (null) { null };
+                };
+            };
             // ... a random value in the tree
             let n = Nat64.toNat(options.rng.next()) * RBT.size(options.referenceTree) / rngBound;
             let iter = RBT.entries(options.outerToGUID);
