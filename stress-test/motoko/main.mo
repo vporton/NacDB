@@ -223,7 +223,7 @@ actor StressTest {
             let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part3, outerKey3)) else {
                 return; // It was meanwhile delete by another thread.
             };
-            let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else { // FIXME: always null
+            let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else {
                 // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomSubDB()`.
                 return; // Everything is OK, a not erroneous race condition.
             };

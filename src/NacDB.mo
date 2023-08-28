@@ -48,7 +48,7 @@ module {
 
     public type CreatingSubDB = {
         var canister: ?PartitionCanister; // Immediately after creation of sub-DB, this is both inner and outer.
-        var loc: ?{inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, InnerSubDBKey)}; // TODO: eliminable null value and `PartitionCanister`
+        var loc: ?{inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, InnerSubDBKey)};
         userData: Text;
     };
 
@@ -56,7 +56,6 @@ module {
     public type InsertingItem = {
         part: PartitionCanister; // TODO: Can we remove this?
         subDBKey: OuterSubDBKey;
-        // TODO: Express dependencies not as Bools but as enums.
         var insertingImplDone: Bool;
         var finishMovingSubDBDone: ?{
             // new ones (TODO: name with the word "new")
@@ -447,7 +446,6 @@ module {
         }
     };
 
-    // FIXME: If a function was interrupted in the middle, this becomes a deadlock.
     func trapMoving({superDB: SuperDB; subDBKey: OuterSubDBKey; guid: SparseQueue.GUID}) {
         // If we call it repeatedly (with the same GUID), allow despite the lock.
         let v = RBT.get(superDB.busy, Nat.compare, subDBKey);
@@ -607,7 +605,6 @@ module {
     public func insert(options: InsertOptions)
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
-        // FIXME: race to store into an already non-existing inner DB
         let ?(oldInnerCanister, oldInnerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("missing sub-DB");
         };
@@ -683,7 +680,6 @@ module {
     
     /// idempotent
     public func delete(options: DeleteOptions): async* () {
-        // FIXME: No `guid` here:
         trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
@@ -777,7 +773,6 @@ module {
 
     // Scanning/enumerating //
 
-    // TODO: here and in other places `inner` -> `inner` and `outer` -> `outer`
     type IterInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey; dir: RBT.Direction};
     
     public func iterByInner(options: IterInnerOptions) : I.Iter<(Text, AttributeValue)> {
