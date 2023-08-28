@@ -132,7 +132,7 @@ module {
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey; wasOld: Bool};
         isOverflowed: shared ({dbOptions: DBOptions}) -> async Bool;
         superDBSize: query () -> async Nat;
-        deleteSubDB({outerKey: OuterSubDBKey}) : async ();
+        deleteSubDB({outerKey: OuterSubDBKey; guid: GUID}) : async ();
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
         finishMovingSubDBImpl({
             guid: GUID;
@@ -446,6 +446,7 @@ module {
         }
     };
 
+    // TODO: More fine-tuned lock: for individual sub-DB entries.
     func trapMoving({superDB: SuperDB; subDBKey: OuterSubDBKey; guid: SparseQueue.GUID}) {
         // If we call it repeatedly (with the same GUID), allow despite the lock.
         let v = RBT.get(superDB.busy, Nat.compare, subDBKey);
@@ -692,9 +693,11 @@ module {
         options.outerSuperDB.busy := RBT.delete(options.outerSuperDB.busy, Nat.compare, options.outerKey); // TODO: Don't repeat this line.
     };
 
-    type DeleteDBOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
+    type DeleteDBOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
     
     public func deleteSubDB(options: DeleteDBOptions): async* () {
+        trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
+
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 MyCycles.addPart(options.dbOptions.partitionCycles);
@@ -703,6 +706,8 @@ module {
             case (null) {};
         };
         options.outerSuperDB.locations := RBT.delete(options.outerSuperDB.locations, Nat.compare, options.outerKey);
+
+        options.outerSuperDB.busy := RBT.delete(options.outerSuperDB.busy, Nat.compare, options.outerKey); // TODO: Don't repeat this line.
     };
 
     public func deleteSubDBInner(superDB: SuperDB, innerKey: InnerSubDBKey) : async* () {

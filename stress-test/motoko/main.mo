@@ -164,10 +164,11 @@ actor StressTest {
             options.dbDeletions += 1;
             switch (randomSubDB(options)) {
                 case (?(part, outerKey)) {
+                    let guid = GUID.nextGuid(options.guidGen);
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            await part.deleteSubDB({outerKey});
+                            await part.deleteSubDB({outerKey; guid});
                         } catch(e) {
                             // Debug.print("repeat deleteSubDB: " # Error.message(e));
                             continue R;

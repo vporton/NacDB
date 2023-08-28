@@ -105,7 +105,7 @@ let success = run([
             }),
             it("delete sub-DB", do {
                 let {index; part; subDBKey} = await* createSubDB();
-                await part.deleteSubDB({outerKey = subDBKey});
+                await part.deleteSubDB({outerKey = subDBKey}); // TODO: pass `guid`
                 let has2 = await part.hasSubDBByOuter({subDBKey});
                 ActorSpec.assertTrue(not has2);
             }),

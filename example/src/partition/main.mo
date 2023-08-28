@@ -52,9 +52,9 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.superDBSize(superDB);
     };
 
-    public shared func deleteSubDB({outerKey: Nac.OuterSubDBKey}) : async () {
+    public shared func deleteSubDB({outerKey: Nac.OuterSubDBKey; guid: Nac.GUID}) : async () {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await* Nac.deleteSubDB({dbOptions; outerSuperDB = superDB; outerKey});
+        await* Nac.deleteSubDB({dbOptions; outerSuperDB = superDB; outerKey; guid});
     };
 
     public shared func deleteSubDBInner(innerKey: Nac.InnerSubDBKey) : async () {
