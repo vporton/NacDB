@@ -747,7 +747,6 @@ module {
                             {inner = (part, inner); outer = (part, outer)};
                         };
                     };
-                    // SparseQueue.delete(dbIndex.creatingSubDB, creatingId);
                     part;
                 };
             };
