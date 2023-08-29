@@ -301,7 +301,7 @@ module {
         oldInnerSubDBKey: InnerSubDBKey;
         newCanister: ?PartitionCanister;
     }) {
-        switch (oldInnerSuperDB.moving) { // FIXME: `moving` belongs to outer super-DB (here and in other places).
+        switch (oldInnerSuperDB.moving) {
             case (?_) { Debug.trap("already moving") };
             case (null) {
                 oldInnerSuperDB.moving := ?{
