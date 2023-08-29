@@ -238,7 +238,6 @@ module {
                     var map = map;
                     var userData = userData;
                 };
-                // FIXME: Element insertion after DB deletion is an erroneous race condition.
                 ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
                 key;
             };
