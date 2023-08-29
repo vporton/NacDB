@@ -13,7 +13,7 @@ module {
 
     public func addPart(maxAmount: Nat) {
         // Debug.print("adding " # debug_show(Cycles.balance() / 2) # " cycles");
-        let amount = Nat.min(Cycles.balance() / 3, maxAmount); // FIXME: `/ 3` is a hack.
+        let amount = Nat.min(Cycles.balance() / 2, maxAmount);
         Cycles.add(amount);
     };
 }
