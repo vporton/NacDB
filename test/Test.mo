@@ -29,6 +29,8 @@ let dbOptions = {
     partitionCycles = 10_000_000_000;
     constructor;
     timeout = 20 * 1_000_000_000; // 20 sec
+    createDBQueueLength = 60;
+    insertQueueLength = 60;
 };
 
 func createCanisters() : async* {index: Index.Index} {

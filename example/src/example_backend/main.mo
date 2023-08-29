@@ -19,6 +19,8 @@ actor {
         partitionCycles = 10_000_000_000;
         constructor = constructor;
         timeout = 20 * 1_000_000_000; // 20 sec
+        createDBQueueLength = 60;
+        insertQueueLength = 60;
     };
 
     stable var index : ?Index.Index = null;

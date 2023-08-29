@@ -34,6 +34,8 @@ actor StressTest {
         partitionCycles = 28_000_000_000;
         constructor = constructor;
         timeout = 3600 * 1_000_000_000; // 1 hour
+        createDBQueueLength = 60;
+        insertQueueLength = 60;
     };
 
     /// The tree considered already debugged for comparison to the being debugged one.

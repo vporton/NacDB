@@ -185,7 +185,7 @@ module {
     public func createDBIndex(dbOptions: DBOptions) : DBIndex {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
-            var creatingSubDB = SparseQueue.init(100, dbOptions.timeout); // FIXME
+            var creatingSubDB = SparseQueue.init(dbOptions.createDBQueueLength, dbOptions.timeout);
             moveCap = dbOptions.moveCap;
         };
     };
@@ -199,8 +199,8 @@ module {
             var locations = RBT.init();
             var busy = RBT.init();
             var moving = null;
-            var inserting = SparseQueue.init(100, dbOptions.timeout); // FIXME
-            var inserting2 = SparseQueue.init(100, dbOptions.timeout); // FIXME
+            var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
+            var inserting2 = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
         };
     };
 
@@ -210,6 +210,8 @@ module {
         constructor: shared(dbOptions: DBOptions) -> async PartitionCanister;
         partitionCycles: Nat;
         timeout: Time.Time;
+        createDBQueueLength: Nat;
+        insertQueueLength: Nat;
     };
 
     /// The "real" returned value is `outer`, but `inner` can be used for caching
