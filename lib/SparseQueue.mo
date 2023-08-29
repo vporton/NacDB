@@ -11,7 +11,6 @@ import BTree "mo:btree/BTree";
 module {
     public type GUID = Blob;
 
-    // FIXME: RBT leaves memory allocated for deleted items.
     // FIXME: Remove old (by time) items.
     public type SparseQueue<T> = {
         var tree: BTree.BTree<GUID, (Nat, T)>;
