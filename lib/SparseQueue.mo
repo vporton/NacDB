@@ -30,11 +30,12 @@ module {
 
     public func clearOld<T>(queue: SparseQueue<T>, before: Time.Time) {
         loop {
-            let ?(time, _) = BTree.entries(queue.order).next() else {
+            let ?(time, guid) = BTree.entries(queue.order).next() else {
                 return;
             };
             if (time < before) {
                 ignore BTree.delete(queue.order, Int.compare, time);
+                ignore BTree.delete(queue.tree, Blob.compare, guid);
             } else {
                 return;
             };
