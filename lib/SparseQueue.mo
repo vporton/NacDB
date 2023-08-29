@@ -16,18 +16,20 @@ module {
         var order: BTree.BTree<Time.Time, GUID>;
         maxSize: Nat;
         var next: Nat;
+        timeout: Time.Time; // When to clear old items.
     };
 
-    public func init<T>(maxSize: Nat): SparseQueue<T> {
+    public func init<T>(maxSize: Nat, timeout: Time.Time): SparseQueue<T> {
         {
             var tree = BTree.init(null);
             var order = BTree.init(null);
             maxSize;
             var next = 0;
+            timeout;
         }
     };
 
-    public func clearOld<T>(queue: SparseQueue<T>, before: Time.Time) {
+    private func clearOld<T>(queue: SparseQueue<T>, before: Time.Time) {
         loop {
             let ?(time, guid) = BTree.entries(queue.order).next() else {
                 return;
@@ -43,6 +45,8 @@ module {
 
     /// It returns `value` or an old value. TODO: It is error prone.
     public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T): T {
+        clearOld(queue, Time.now() - queue.timeout);
+
         switch (BTree.get(queue.tree, Blob.compare, guid)) {
             case (?(_, v)) return v; // already there is
             case (null) {};
