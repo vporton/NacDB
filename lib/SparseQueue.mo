@@ -28,6 +28,19 @@ module {
         }
     };
 
+    public func clearOld<T>(queue: SparseQueue<T>, before: Time.Time) {
+        loop {
+            let ?(time, _) = BTree.entries(queue.order).next() else {
+                return;
+            };
+            if (time < before) {
+                ignore BTree.delete(queue.order, Int.compare, time);
+            } else {
+                return;
+            };
+        };
+    };
+
     /// It returns `value` or an old value. TODO: It is error prone.
     public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T): T {
         switch (BTree.get(queue.tree, Blob.compare, guid)) {
