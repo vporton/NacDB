@@ -13,7 +13,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
 
     // let dbOptions = dbOptions;
 
-    stable let superDB = Nac.createSuperDB();
+    stable let superDB = Nac.createSuperDB(dbOptions);
 
     // Mandatory methods //
 

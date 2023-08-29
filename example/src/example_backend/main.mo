@@ -13,7 +13,13 @@ actor {
         await Partition.Partition(dbOptions);
     };
 
-    let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 10_000_000_000; constructor = constructor};
+    let dbOptions = {
+        moveCap = #usedMemory 500_000;
+        hardCap = ?1000;
+        partitionCycles = 10_000_000_000;
+        constructor = constructor;
+        timeout = 20 * 1_000_000_000; // 20 sec
+    };
 
     stable var index : ?Index.Index = null;
 

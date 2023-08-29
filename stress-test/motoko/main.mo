@@ -28,7 +28,13 @@ actor StressTest {
         await Partition.Partition(dbOptions);
     };
 
-    let dbOptions = {moveCap = #usedMemory 300_000; hardCap = null; partitionCycles = 28_000_000_000; constructor = constructor};
+    let dbOptions = {
+        moveCap = #usedMemory 300_000;
+        hardCap = null;
+        partitionCycles = 28_000_000_000;
+        constructor = constructor;
+        timeout = 3600 * 1_000_000_000; // 1 hour
+    };
 
     /// The tree considered already debugged for comparison to the being debugged one.
     type ReferenceTree = RBT.Tree<Nac.GUID, RBT.Tree<Text, Nat>>;

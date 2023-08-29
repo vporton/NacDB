@@ -17,6 +17,7 @@ import SparseQueue "../lib/SparseQueue";
 import MyCycles "../lib/Cycles";
 import Blob "mo:base/Blob";
 import Array "mo:base/Array";
+import Time "mo:base/Time";
 
 module {
     public type GUID = Blob;
@@ -181,15 +182,15 @@ module {
         scanSubDBs: query() -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
     };
 
-    public func createDBIndex(options: {moveCap: MoveCap}) : DBIndex {
+    public func createDBIndex(dbOptions: DBOptions) : DBIndex {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
-            var creatingSubDB = SparseQueue.init(100); // FIXME
-            moveCap = options.moveCap;
+            var creatingSubDB = SparseQueue.init(100, dbOptions.timeout); // FIXME
+            moveCap = dbOptions.moveCap;
         };
     };
 
-    public func createSuperDB() : SuperDB {
+    public func createSuperDB(dbOptions: DBOptions) : SuperDB {
         {
             var nextInnerKey = 0;
             var nextOuterKey = 0;
@@ -198,8 +199,8 @@ module {
             var locations = RBT.init();
             var busy = RBT.init();
             var moving = null;
-            var inserting = SparseQueue.init(100); // FIXME
-            var inserting2 = SparseQueue.init(100); // FIXME
+            var inserting = SparseQueue.init(100, dbOptions.timeout); // FIXME
+            var inserting2 = SparseQueue.init(100, dbOptions.timeout); // FIXME
         };
     };
 
@@ -208,6 +209,7 @@ module {
         moveCap: MoveCap;
         constructor: shared(dbOptions: DBOptions) -> async PartitionCanister;
         partitionCycles: Nat;
+        timeout: Time.Time;
     };
 
     /// The "real" returned value is `outer`, but `inner` can be used for caching

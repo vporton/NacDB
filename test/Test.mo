@@ -23,7 +23,13 @@ shared func constructor(dbOptions: Nac.DBOptions): async Partition.Partition {
     await Partition.Partition(dbOptions);
 };
 
-let dbOptions = {moveCap = #usedMemory 500_000; hardCap = ?1000; partitionCycles = 10_000_000_000; constructor};
+let dbOptions = {
+    moveCap = #usedMemory 500_000;
+    hardCap = ?1000;
+    partitionCycles = 10_000_000_000;
+    constructor;
+    timeout = 20 * 1_000_000_000; // 20 sec
+};
 
 func createCanisters() : async* {index: Index.Index} {
     MyCycles.addPart(dbOptions.partitionCycles);
