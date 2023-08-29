@@ -45,7 +45,7 @@ module {
     /// It returns `value` or an old value. TODO: It is error prone.
     public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T): T {
         switch (BTree.get(queue.tree, Blob.compare, guid)) {
-            case (?v) return v.1; // already there is
+            case (?(_, v)) return v; // already there is
             case (null) {};
         };
         if (BTree.size(queue.order) >= queue.maxSize) {
@@ -70,10 +70,10 @@ module {
 
     public func delete<T>(queue: SparseQueue<T>, key: GUID) {
         let v0 = BTree.get(queue.tree, Blob.compare, key);
-        let ?v = v0 else {
+        let ?(time, _) = v0 else {
             Debug.trap("programming error");
         };
-        ignore BTree.delete(queue.order, Int.compare, v.0);
+        ignore BTree.delete(queue.order, Int.compare, time);
         ignore BTree.delete(queue.tree, Blob.compare, key);
     };
 
