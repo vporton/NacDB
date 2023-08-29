@@ -56,7 +56,6 @@ module {
             case (?v) return v.0; // already there is
             case (null) {};
         };
-        Debug.print("QUEUE SIZE: " # debug_show(BTree.size(queue.order)));
         if (BTree.size(queue.order) >= queue.maxSize) {
             Debug.print("QUEUE OVERFLOW");
             Debug.trap("QUEUE OVERFLOW");
