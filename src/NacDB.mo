@@ -646,7 +646,7 @@ module {
                         outerCanister = options.outerCanister;
                         outerKey = options.outerKey;
                     });
-                    options.outerSuperDB.moving := null; // FIXME
+                    options.outerSuperDB.moving := null;
                     (innerPartition, innerKey);
                 } else {
                     (oldInnerCanister, oldInnerKey);
