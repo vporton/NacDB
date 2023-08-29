@@ -360,7 +360,7 @@ module {
 
                 // There was `isOverflowed`, change the outer.
                 MyCycles.addPart(dbOptions.partitionCycles);
-                await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey); // FIXME: seems extraneous code.
+                await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
                 ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
 
                 (canister, newInnerSubDBKey);
