@@ -11,7 +11,6 @@ import BTree "mo:btree/BTree";
 module {
     public type GUID = Blob;
 
-    // FIXME: Remove old (by time) items.
     public type SparseQueue<T> = {
         var tree: BTree.BTree<GUID, (Nat, T)>;
         var order: BTree.BTree<Time.Time, GUID>;
