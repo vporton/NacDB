@@ -29,21 +29,21 @@ module {
     };
 
     private func clearOld<T>(queue: SparseQueue<T>, before: Time.Time) {
-        loop {
+        label outer loop {
             let ?(time, subtree) = BTree.entries(queue.order).next() else {
-                return;
+                break outer;
             };
             if (time < before) {
                 var i = RBT.entries<GUID, ()>(subtree);
-                label R loop {
+                label inner loop {
                     let ?(guid, _) = i.next() else {
-                        break R;
+                        break inner;
                     };
                     ignore BTree.delete(queue.tree, Blob.compare, guid);
                 };
                 ignore BTree.delete(queue.order, Int.compare, time);
             } else {
-                return;
+                break outer;
             };
         };
     };
