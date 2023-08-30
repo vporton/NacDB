@@ -679,7 +679,6 @@ module {
     
     /// idempotent
     public func delete(options: DeleteOptions): async* () {
-        // FIXME: Use `guid` to allow multiple calls.
         trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
