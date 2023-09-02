@@ -194,6 +194,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         sk: Nac.SK;
         value: Nac.AttributeValue;
         innerKey: Nac.InnerSubDBKey;
+        needsMove: Bool;
     }): async () {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         await* Nac.startInsertingImpl({
@@ -206,6 +207,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
             value;
             innerSuperDB = superDB;
             innerKey;
+            needsMove;
         });
     };
 }

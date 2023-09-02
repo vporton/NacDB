@@ -57,6 +57,7 @@ module {
     public type InsertingItem = {
         part: PartitionCanister; // TODO: Can we remove this?
         subDBKey: OuterSubDBKey;
+        var needsMove: ?Bool;
         var insertingImplDone: Bool;
         var finishMovingSubDBDone: ?{
             // new ones (TODO: name with the word "new")
@@ -177,6 +178,7 @@ module {
             sk: SK;
             value: AttributeValue;
             innerKey: InnerSubDBKey;
+            needsMove: Bool;
         }): async ();
         scanSubDBs: query() -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
     };
@@ -419,31 +421,6 @@ module {
         };
     };
 
-    func startMovingSubDBIfOverflow(
-        options: {
-            dbOptions: DBOptions;
-            index: IndexCanister;
-            outerCanister: PartitionCanister;
-            outerKey: OuterSubDBKey;
-            oldInnerCanister: PartitionCanister;
-            oldInnerSuperDB: SuperDB;
-            oldInnerKey: InnerSubDBKey;
-        }): async* ()
-    {
-        MyCycles.addPart(options.dbOptions.partitionCycles);
-        if (await options.oldInnerCanister.isOverflowed({dbOptions = options.dbOptions})) {
-            await* startMovingSubDB({
-                dbOptions = options.dbOptions;
-                index = options.index;
-                outerCanister = options.outerCanister;
-                outerKey = options.outerKey;
-                oldCanister = options.oldInnerCanister;
-                oldInnerSuperDB = options.oldInnerSuperDB;
-                oldInnerSubDBKey = options.oldInnerKey;
-            });
-        }
-    };
-
     // TODO: More fine-tuned lock: for individual sub-DB entries.
     func trapMoving({superDB: SuperDB; subDBKey: OuterSubDBKey; guid: SparseQueue.GUID}) {
         // If we call it repeatedly (with the same GUID), allow despite the lock.
@@ -566,22 +543,24 @@ module {
         value: AttributeValue;
         innerSuperDB: SuperDB;
         innerKey: InnerSubDBKey;
+        needsMove: Bool;
     }) : async* () {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
                 subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
                 removeLoosers({subDB; dbOptions = options.dbOptions});
 
-                await* startMovingSubDBIfOverflow({
-                    dbOptions = options.dbOptions;
-                    index = options.indexCanister;
-                    outerCanister = options.outerCanister;
-                    outerKey = options.outerKey;
-                    indexCanister = options.indexCanister;
-                    oldInnerCanister = options.outerCanister;
-                    oldInnerSuperDB = options.innerSuperDB;
-                    oldInnerKey = options.innerKey;
-                });
+                if (options.needsMove) {
+                    await* startMovingSubDB({
+                        dbOptions = options.dbOptions;
+                        index = options.indexCanister;
+                        outerCanister = options.outerCanister;
+                        outerKey = options.outerKey;
+                        oldCanister = options.outerCanister; // having the same inner and outer canister in `insert`
+                        oldInnerSuperDB = options.innerSuperDB;
+                        oldInnerSubDBKey = options.innerKey;
+                    });
+                }
             };
             case (null) {
                 Debug.trap("missing sub-DB");
@@ -611,6 +590,7 @@ module {
         let inserting = SparseQueue.add<InsertingItem>(options.outerSuperDB.inserting, options.guid, {
             part = options.outerCanister;
             subDBKey = options.outerKey;
+            var needsMove = null;
             var insertingImplDone = false;
             var finishMovingSubDBDone = null;
         });
@@ -618,6 +598,15 @@ module {
         trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
 
         if (not inserting.insertingImplDone) {
+            let needsMove = switch(inserting.needsMove) {
+                case(?needsMove) { needsMove };
+                case(null) {
+                    MyCycles.addPart(options.dbOptions.partitionCycles);
+                    let needsMove = await oldInnerCanister.isOverflowed({dbOptions = options.dbOptions});
+                    inserting.needsMove := ?needsMove;
+                    needsMove;
+                };
+            };
             MyCycles.addPart(options.dbOptions.partitionCycles);
             await oldInnerCanister.startInsertingImpl({
                 guid = options.guid;
@@ -628,6 +617,7 @@ module {
                 sk = options.sk;
                 value = options.value;
                 innerKey = oldInnerKey;
+                needsMove;
             });
             inserting.insertingImplDone := true;
         };
@@ -636,9 +626,16 @@ module {
         let (newInnerPartition, newInnerKey) = switch (inserting.finishMovingSubDBDone) {
             case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
             case (null) {
-                // FIXME: I call `isOverflowed` second time, what is: 1. inefficient; 2. (?) inconsistent.
-                MyCycles.addPart(options.dbOptions.partitionCycles);
-                if (await oldInnerCanister.isOverflowed({dbOptions = options.dbOptions})) {
+                let needsMove = switch(inserting.needsMove) {
+                    case(?needsMove) { needsMove };
+                    case(null) {
+                        MyCycles.addPart(options.dbOptions.partitionCycles);
+                        let needsMove = await oldInnerCanister.isOverflowed({dbOptions = options.dbOptions});
+                        inserting.needsMove := ?needsMove;
+                        needsMove;
+                    };
+                };
+                if (needsMove) {
                     MyCycles.addPart(options.dbOptions.partitionCycles);
                     let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
                         guid = options.guid; index = options.indexCanister; dbOptions = options.dbOptions;
