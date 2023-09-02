@@ -805,7 +805,7 @@ module {
 
     type EntriesRevInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
     
-    public func entriesRev(options: EntriesRevInnerOptions) : I.Iter<(Text, AttributeValue)> {
+    public func entriesInnerRev(options: EntriesRevInnerOptions) : I.Iter<(Text, AttributeValue)> {
         iterByInner({innerSuperDB = options.innerSuperDB; innerKey = options.innerKey; dir = #bwd});
     };
 
