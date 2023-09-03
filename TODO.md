@@ -1,3 +1,5 @@
+TODO:
+
 - RBT does not free memory when an item is deleted! Especially note `Inserting`/`Creating`.
 
 - It can be abused by calling with the same GUID after complete accomplishing
