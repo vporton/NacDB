@@ -117,7 +117,8 @@ module {
     // TODO: Can we have separate type for inner and outer canisters?
     // TODO: arguments as {...}, not (...).
     public type PartitionCanister = actor {
-        // TODO: Remove superfluous, if any.
+        // Mandatory //
+
         rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, inner: ?InnerSubDBKey, userData: Text, dbOptions: DBOptions)
             : async {inner: OuterSubDBKey};
         rawInsertSubDBAndSetOuter(
@@ -132,9 +133,6 @@ module {
         )
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
         isOverflowed: shared ({dbOptions: DBOptions}) -> async Bool;
-        superDBSize: query () -> async Nat;
-        deleteSubDB({outerKey: OuterSubDBKey; guid: GUID}) : async ();
-        deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
         finishMovingSubDBImpl({
             guid: GUID;
             index: IndexCanister;
@@ -143,6 +141,27 @@ module {
             oldInnerKey: InnerSubDBKey;
             dbOptions: DBOptions;
         }) : async (PartitionCanister, InnerSubDBKey);
+        putLocation(outerKey: OuterSubDBKey, innerCanister: PartitionCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
+        createOuter(part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
+            : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
+        startInsertingImpl(options: {
+            guid: GUID;
+            dbOptions: DBOptions;
+            indexCanister: IndexCanister;
+            outerCanister: PartitionCanister;
+            outerKey: OuterSubDBKey;
+            sk: SK;
+            value: AttributeValue;
+            innerKey: InnerSubDBKey;
+            needsMove: Bool;
+        }): async ();
+
+        // Optional //
+
+        // TODO: Remove superfluous, if any.
+        superDBSize: query () -> async Nat;
+        deleteSubDB({outerKey: OuterSubDBKey; guid: GUID}) : async ();
+        deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
         insert({
             guid: GUID;
             dbOptions: DBOptions;
@@ -152,9 +171,6 @@ module {
             sk: SK;
             value: AttributeValue;
         }) : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
-        putLocation(outerKey: OuterSubDBKey, innerCanister: PartitionCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
-        createOuter(part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
-            : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
         delete({outerKey: OuterSubDBKey; sk: SK; guid: GUID}): async ();
         deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
@@ -169,17 +185,6 @@ module {
         hasSubDBByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async Bool;
         subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Nat;
-        startInsertingImpl(options: {
-            guid: GUID;
-            dbOptions: DBOptions;
-            indexCanister: IndexCanister;
-            outerCanister: PartitionCanister;
-            outerKey: OuterSubDBKey;
-            sk: SK;
-            value: AttributeValue;
-            innerKey: InnerSubDBKey;
-            needsMove: Bool;
-        }): async ();
         scanSubDBs: query() -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
     };
 
