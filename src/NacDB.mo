@@ -186,6 +186,10 @@ module {
         subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
+
+        // Debugging facilities //
+
+        partitionSubDBs: shared () -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
     };
 
     public func createDBIndex(dbOptions: DBOptions) : DBIndex {
@@ -866,5 +870,10 @@ module {
         canister;
     };
 
+    /// Debugging features
 
+    /// Because, it's a debugging feature, I am reluctant to introduce pagination et al.
+    public func partitionSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))] {
+        Iter.toArray(BTree.entries(superDB.locations));
+    }
 };

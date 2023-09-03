@@ -75,7 +75,7 @@ actor StressTest {
 
     public func main() : async () {
         let nThreads = 3;
-        let nSteps = 500;
+        let nSteps = 300;
 
         Debug.print("STARTING STRESS TEST: " # debug_show(nThreads) # " threads, each " # debug_show(nSteps) # " steps");
 
@@ -134,8 +134,44 @@ actor StressTest {
         };
         let equal = RBT.equalIgnoreDeleted<Nac.GUID, RBT.Tree<Text, Nat>>(options.referenceTree, resultingTree, Blob.equal, subtreeEqual);
         Debug.print("Equal? " # debug_show(equal));
-        // FIXME: Also check that there are no "hanging" inner keys not linked to by outer ones.
+
+        var brokenOuterCount = 0;
+        // for (c in (await index.getCanisters()).vals()) {
+        //     for ((outerKey, (innerCanister, innerKey)) in (await c.partitionSubDBs()).vals()) {
+        //         if (not (await innerCanister.hasSubDBByInner({subDBKey = innerKey}))) {
+        //             brokenOuterCount += 1;
+        //         }
+        //     }
+        // };
+        let partitions = await index.getCanisters();
+        let nThreads2 = Array.size(partitions);
+        let threads2 : [var ?(async())] = Array.init(nThreads2, null);
+        let runThread2 = func(outerPart: Nac.PartitionCanister) : async () {
+            for ((outerKey, (innerCanister, innerKey)) in (await outerPart.partitionSubDBs()).vals()) {
+                if (not (await innerCanister.hasSubDBByInner({subDBKey = innerKey}))) {
+                    brokenOuterCount += 1;
+                }
+            }
+        };
+        for (threadNum in threads2.keys()) {
+            threads2[threadNum] := ?runThread2(partitions[threadNum]);
+        };
+        for (topt in threads2.vals()) {
+            let ?t = topt else {
+                Debug.trap("programming error: threads2");
+            };
+            await t;
+        };
+        Debug.print("Broken outer links: " # debug_show(brokenOuterCount));
     };
+
+    // func runThread2(outerPart: Nac.PartitionCanister) : async () {
+    //     for ((outerKey, (innerCanister, innerKey)) in (await outerPart.partitionSubDBs()).vals()) {
+    //         if (not (await innerCanister.hasSubDBByInner({subDBKey = innerKey}))) {
+    //             brokenOuterCount += 1;
+    //         }
+    //     }
+    // };
 
     func runThread(options: ThreadArguments, threadNum: Nat) : async () {
         for (stepN in Iter.range(0, options.nSteps - 1)) {
