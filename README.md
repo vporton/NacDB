@@ -9,7 +9,6 @@ It is anticipated that NacDB will often be used together with CanDB.
 TODO:
 - review code, based on review simplify it and make it more secure
 - review and as necessary modify the API, then freeze the API
-- do a more elaborate stress testing, with higher probability of operations that repeat recent IDs usage often
 
 The current stage of development is an MVP. API is not yet frozen, incompatible changes are possible.
 
