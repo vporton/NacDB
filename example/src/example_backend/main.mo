@@ -8,7 +8,6 @@ import Debug "mo:base/Debug";
 import Array "mo:base/Array";
 
 actor {
-    // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
     public shared func constructor(dbOptions: Nac.DBOptions): async Partition.Partition {
         await Partition.Partition(dbOptions);
     };
