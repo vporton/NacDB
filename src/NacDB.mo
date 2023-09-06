@@ -55,7 +55,6 @@ module {
 
     /// Treat this as an opaque data structure, because this data is ignored if the sub-DB moves during insertion.
     public type InsertingItem = {
-        part: PartitionCanister; // TODO: Can we remove this?
         subDBKey: OuterSubDBKey;
         var needsMove: ?Bool;
         var insertingImplDone: Bool;
