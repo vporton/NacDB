@@ -80,6 +80,7 @@ module {
     };
 
     public type SuperDB = {
+        dbOptions: DBOptions;
         var nextInnerKey: Nat;
         var nextOuterKey: Nat;
         subDBs: BTree.BTree<InnerSubDBKey, SubDB>;
@@ -103,6 +104,7 @@ module {
     };
 
     public type DBIndex = {
+        dbOptions: DBOptions;
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
     };
@@ -110,7 +112,7 @@ module {
     public type IndexCanister = actor {
         getCanisters: query () -> async [PartitionCanister];
         newCanister(): async PartitionCanister;
-        createSubDB: shared({guid: GUID; dbOptions: DBOptions; userData: Text})
+        createSubDB: shared({guid: GUID; userData: Text})
             -> async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
     };
 
@@ -119,7 +121,7 @@ module {
     public type PartitionCanister = actor {
         // Mandatory //
 
-        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, inner: ?InnerSubDBKey, userData: Text, dbOptions: DBOptions)
+        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, inner: ?InnerSubDBKey, userData: Text)
             : async {inner: OuterSubDBKey};
         rawInsertSubDBAndSetOuter(
             canister: PartitionCanister,
@@ -129,24 +131,21 @@ module {
                 outer: OuterSubDBKey;
             },
             userData: Text,
-            dbOptions: DBOptions
         )
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
-        isOverflowed: shared ({dbOptions: DBOptions}) -> async Bool;
+        isOverflowed: shared ({}) -> async Bool;
         finishMovingSubDBImpl({
             guid: GUID;
             index: IndexCanister;
             outerCanister: PartitionCanister;
             outerKey: OuterSubDBKey;
             oldInnerKey: InnerSubDBKey;
-            dbOptions: DBOptions;
         }) : async (PartitionCanister, InnerSubDBKey);
         putLocation(outerKey: OuterSubDBKey, innerCanister: PartitionCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
         createOuter(part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
             : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
         startInsertingImpl(options: {
             guid: GUID;
-            dbOptions: DBOptions;
             indexCanister: IndexCanister;
             outerCanister: PartitionCanister;
             outerKey: OuterSubDBKey;
@@ -164,7 +163,6 @@ module {
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
         insert({
             guid: GUID;
-            dbOptions: DBOptions;
             indexCanister: IndexCanister;
             outerCanister: PartitionCanister;
             outerKey: OuterSubDBKey;
@@ -196,12 +194,13 @@ module {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
             var creatingSubDB = SparseQueue.init(dbOptions.createDBQueueLength, dbOptions.timeout);
-            moveCap = dbOptions.moveCap;
+            dbOptions;
         };
     };
 
     public func createSuperDB(dbOptions: DBOptions) : SuperDB {
         {
+            dbOptions;
             var nextInnerKey = 0;
             var nextOuterKey = 0;
             subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
@@ -232,7 +231,6 @@ module {
         map: RBT.Tree<SK, AttributeValue>,
         inner: ?InnerSubDBKey,
         userData: Text,
-        dbOptions: DBOptions,
     ) : {inner: InnerSubDBKey}
     {
         let inner2 = switch (superDB.moving) {
@@ -267,10 +265,9 @@ module {
             outer: OuterSubDBKey;
         },
         userData: Text,
-        dbOptions: DBOptions,
     ) : {outer: OuterSubDBKey; inner: InnerSubDBKey}
     {
-        let {inner = inner2} = rawInsertSubDB(superDB, canister, map, do ? {keys!.inner}, userData, dbOptions);
+        let {inner = inner2} = rawInsertSubDB(superDB, canister, map, do ? {keys!.inner}, userData);
         if (keys == null) {
             ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextOuterKey, (canister, inner2));
         };
@@ -341,7 +338,6 @@ module {
         outerKey: OuterSubDBKey;
         oldInnerSuperDB: SuperDB;
         oldInnerKey: InnerSubDBKey;
-        dbOptions: DBOptions
     }) : async* (PartitionCanister, InnerSubDBKey)
     {
         let inserting2 = SparseQueue.add<InsertingItem2>(oldInnerSuperDB.inserting2, guid, {
@@ -353,7 +349,7 @@ module {
                 let (canister, newCanister) = switch (inserting2.newInnerCanister) {
                     case (?newCanister) { (newCanister.canister, newCanister) };
                     case (null) {
-                        MyCycles.addPart(dbOptions.partitionCycles);
+                        MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
                         let newCanister = await index.newCanister();
                         let s = {canister = newCanister; var innerKey: ?{key: InnerSubDBKey} = null};
                         inserting2.newInnerCanister := ?s;
@@ -363,15 +359,15 @@ module {
                 let newInnerSubDBKey = switch (newCanister.innerKey) {
                     case (?{key = newSubDBKey}) { newSubDBKey };
                     case (null) {
-                        MyCycles.addPart(dbOptions.partitionCycles);
-                        let {inner} = await canister.rawInsertSubDB(subDB.map, null, subDB.userData, dbOptions);
+                        MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
+                        let {inner} = await canister.rawInsertSubDB(subDB.map, null, subDB.userData);
                         newCanister.innerKey := ?{key = inner};
                         inner;
                     }
                 };
 
                 // There was `isOverflowed`, change the outer.
-                MyCycles.addPart(dbOptions.partitionCycles);
+                MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
                 await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
                 ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
 
@@ -387,7 +383,6 @@ module {
     };
 
     func startMovingSubDB(options: {
-        dbOptions: DBOptions;
         index: IndexCanister;
         outerCanister: PartitionCanister;
         outerKey: OuterSubDBKey;
@@ -398,11 +393,11 @@ module {
         let ?item = BTree.get(options.oldInnerSuperDB.subDBs, Nat.compare, options.oldInnerSubDBKey) else {
             Debug.trap("item must exist");
         };
-        MyCycles.addPart(options.dbOptions.partitionCycles);
+        MyCycles.addPart(options.oldInnerSuperDB.dbOptions.partitionCycles);
         let pks = await options.index.getCanisters();
         let lastCanister = pks[pks.size()-1];
-        MyCycles.addPart(options.dbOptions.partitionCycles);
-        if (lastCanister == options.oldCanister and (await lastCanister.isOverflowed({dbOptions = options.dbOptions}))) {
+        MyCycles.addPart(options.oldInnerSuperDB.dbOptions.partitionCycles);
+        if (lastCanister == options.oldCanister and (await lastCanister.isOverflowed({}))) {
             startMovingSubDBImpl({
                 outerCanister = options.outerCanister;
                 outerKey = options.outerKey;
@@ -423,8 +418,8 @@ module {
         };
     };
 
-    public func isOverflowed({dbOptions: DBOptions; superDB: SuperDB}) : Bool {
-        switch (dbOptions.moveCap) {
+    public func isOverflowed({superDB: SuperDB}) : Bool {
+        switch (superDB.dbOptions.moveCap) {
             case (#usedMemory mem) {
                 Prim.rts_heap_size() > mem; // current canister
             };
@@ -442,8 +437,8 @@ module {
         ignore BTree.insert(superDB.busy, Nat.compare, subDBKey, guid);
     };
 
-    func removeLoosers({subDB: SubDB; dbOptions: DBOptions}) {
-        switch (dbOptions.hardCap) {
+    func removeLoosers({superDB: SuperDB; subDB: SubDB}) {
+        switch (superDB.dbOptions.hardCap) {
             case (?hardCap) {
                 while (RBT.size(subDB.map) > hardCap) {
                     let iter = RBT.entries(subDB.map);
@@ -476,14 +471,14 @@ module {
         }
     };
 
-    public type GetByOuterOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
+    public type GetByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
 
     // Sometimes traps "missing sub-DB".
     public func getByOuter(options: GetByOuterOptions) : async* ?AttributeValue {
         let ?(part, inner) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no entry");
         };
-        MyCycles.addPart(options.dbOptions.partitionCycles);
+        MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
         await part.getByInner({subDBKey = inner; sk = options.sk});
     };
 
@@ -532,20 +527,19 @@ module {
         }
     };
 
-    public type SubDBSizeByOuterOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
+    public type SubDBSizeByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
     public func subDBSizeByOuter(options: SubDBSizeByOuterOptions): async* ?Nat {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
-        MyCycles.addPart(options.dbOptions.partitionCycles);
+        MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
         await part.subDBSizeByInner({subDBKey = innerKey});
     };
 
     /// To be called in a partition where `innerSuperDB` resides.
     public func startInsertingImpl(options: {
         guid: GUID;
-        dbOptions: DBOptions;
         indexCanister: IndexCanister;
         outerCanister: PartitionCanister;
         outerKey: OuterSubDBKey;
@@ -558,11 +552,10 @@ module {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
                 subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
-                removeLoosers({subDB; dbOptions = options.dbOptions});
+                removeLoosers({superDB = options.innerSuperDB; subDB});
 
                 if (options.needsMove) {
                     await* startMovingSubDB({
-                        dbOptions = options.dbOptions;
                         index = options.indexCanister;
                         outerCanister = options.outerCanister;
                         outerKey = options.outerKey;
@@ -580,7 +573,6 @@ module {
 
     public type InsertOptions = {
         guid: GUID;
-        dbOptions: DBOptions;
         indexCanister: IndexCanister;
         outerCanister: PartitionCanister;
         outerSuperDB: SuperDB;
@@ -611,16 +603,15 @@ module {
             let needsMove = switch(inserting.needsMove) {
                 case(?needsMove) { needsMove };
                 case(null) {
-                    MyCycles.addPart(options.dbOptions.partitionCycles);
-                    let needsMove = await oldInnerCanister.isOverflowed({dbOptions = options.dbOptions});
+                    MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+                    let needsMove = await oldInnerCanister.isOverflowed({});
                     inserting.needsMove := ?needsMove;
                     needsMove;
                 };
             };
-            MyCycles.addPart(options.dbOptions.partitionCycles);
+            MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
             await oldInnerCanister.startInsertingImpl({
                 guid = options.guid;
-                dbOptions = options.dbOptions;
                 indexCanister = options.indexCanister;
                 outerCanister = options.outerCanister;
                 outerKey = options.outerKey;
@@ -639,16 +630,16 @@ module {
                 let needsMove = switch(inserting.needsMove) {
                     case(?needsMove) { needsMove };
                     case(null) {
-                        MyCycles.addPart(options.dbOptions.partitionCycles);
-                        let needsMove = await oldInnerCanister.isOverflowed({dbOptions = options.dbOptions});
+                        MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+                        let needsMove = await oldInnerCanister.isOverflowed({});
                         inserting.needsMove := ?needsMove;
                         needsMove;
                     };
                 };
                 if (needsMove) {
-                    MyCycles.addPart(options.dbOptions.partitionCycles);
+                    MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
                     let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
-                        guid = options.guid; index = options.indexCanister; dbOptions = options.dbOptions;
+                        guid = options.guid; index = options.indexCanister;
                         oldInnerKey;
                         outerCanister = options.outerCanister;
                         outerKey = options.outerKey;
@@ -682,14 +673,14 @@ module {
         }
     };
 
-    type DeleteOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK; guid: GUID};
+    type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK; guid: GUID};
     
     /// idempotent
     public func delete(options: DeleteOptions): async* () {
         trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
-                MyCycles.addPart(options.dbOptions.partitionCycles);
+                MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
                 await innerCanister.deleteInner(innerKey, options.sk);
             };
             case (null) {};
@@ -697,14 +688,14 @@ module {
         ignore BTree.delete(options.outerSuperDB.busy, Nat.compare, options.outerKey); // TODO: Don't repeat this line.
     };
 
-    type DeleteDBOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
+    type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
     
     public func deleteSubDB(options: DeleteDBOptions): async* () {
         trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
 
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
-                MyCycles.addPart(options.dbOptions.partitionCycles);
+                MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
                 await innerCanister.deleteSubDBInner(innerKey);
             };
             case (null) {};
@@ -728,7 +719,7 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
-    public func createSubDB({guid: GUID; dbIndex: DBIndex; dbOptions: DBOptions; userData: Text})
+    public func createSubDB({guid: GUID; dbIndex: DBIndex; userData: Text})
         : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
         let creating0: CreatingSubDB = {var canister = null; var loc = null; userData};
@@ -738,17 +729,17 @@ module {
             case (null) {
                 let canisters = StableBuffer.toArray(dbIndex.canisters); // TODO: a special function for this
                 let part = canisters[canisters.size() - 1];
-                MyCycles.addPart(dbOptions.partitionCycles);
-                let part2 = if (await part.isOverflowed({dbOptions})) { // TODO: Join .isOverflowed and .newCanister into one call?
-                    let part2 = await* newCanister(dbOptions, dbIndex);
+                MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+                let part2 = if (await part.isOverflowed({})) { // TODO: Join .isOverflowed and .newCanister into one call?
+                    let part2 = await* newCanister(dbIndex);
                     creating.canister := ?part;
                     part2;
                 } else {
                     let {inner; outer} = switch (creating.loc) {
                         case (?loc) { loc };
                         case (null) {
-                            MyCycles.addPart(dbOptions.partitionCycles);
-                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter(part, RBT.init(), null, creating.userData, dbOptions);
+                            MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter(part, RBT.init(), null, creating.userData);
                             creating.loc := ?{inner = (part, inner); outer = (part, outer)};
                             {inner = (part, inner); outer = (part, outer)};
                         };
@@ -760,8 +751,8 @@ module {
         let {inner; outer} = switch (creating.loc) {
             case (?loc) { loc };
             case (null) {
-                MyCycles.addPart(dbOptions.partitionCycles);
-                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter(part3, RBT.init(), null, creating.userData, dbOptions);
+                MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter(part3, RBT.init(), null, creating.userData);
                 creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
                 {inner = (part3, inner); outer = (part3, outer)};
             };
@@ -844,13 +835,13 @@ module {
         };
     };
 
-    type ScanLimitOuterOptions = {dbOptions: DBOptions; outerSuperDB: SuperDB; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
+    type ScanLimitOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
     public func scanLimitOuter(options: ScanLimitOuterOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
-        MyCycles.addPart(options.dbOptions.partitionCycles);
+        MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
         await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
     };
 
@@ -864,9 +855,9 @@ module {
         StableBuffer.toArray(dbIndex.canisters);
     };
 
-    public func newCanister(dbOptions: DBOptions, dbIndex: DBIndex): async* PartitionCanister {
-        MyCycles.addPart(dbOptions.partitionCycles);
-        let canister = await dbOptions.constructor(dbOptions);
+    public func newCanister(dbIndex: DBIndex): async* PartitionCanister {
+        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+        let canister = await dbIndex.dbOptions.constructor(dbIndex.dbOptions);
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
         canister;
     };
