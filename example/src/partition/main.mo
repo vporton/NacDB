@@ -15,7 +15,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
 
     // Mandatory methods //
 
-    public shared func rawInsertSubDB(map: RBT.Tree<Nac.SK, Nac.AttributeValue>, inner: ?Nac.InnerSubDBKey, userData: Text)
+    public shared func rawInsertSubDB(map: [(Nac.SK, Nac.AttributeValue)], inner: ?Nac.InnerSubDBKey, userData: Text)
         : async {inner: Nac.OuterSubDBKey}
     {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
@@ -24,7 +24,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
 
     public shared func rawInsertSubDBAndSetOuter(
         canister: Nac.PartitionCanister,
-        map: RBT.Tree<Nac.SK, Nac.AttributeValue>,
+        map: [(Nac.SK, Nac.AttributeValue)],
         keys: ?{
             inner: Nac.InnerSubDBKey;
             outer: Nac.OuterSubDBKey;

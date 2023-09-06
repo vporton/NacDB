@@ -41,7 +41,7 @@ module {
     public type AttributeValue = AttributeValuePrimitive or AttributeValueBlob or AttributeValueTuple or AttributeValueArray or AttributeValueRBTree;
 
     public type SubDB = {
-        var map: RBT.Tree<SK, AttributeValue>; // FIXME: Use BTree.
+        var map: BTree.BTree<SK, AttributeValue>;
         var userData: Text; // useful to have a back reference to "locator" of our sub-DB in another database
     };
 
@@ -116,11 +116,11 @@ module {
     public type PartitionCanister = actor {
         // Mandatory //
 
-        rawInsertSubDB(map: RBT.Tree<SK, AttributeValue>, inner: ?InnerSubDBKey, userData: Text)
+        rawInsertSubDB(map: [(SK, AttributeValue)], inner: ?InnerSubDBKey, userData: Text)
             : async {inner: OuterSubDBKey};
         rawInsertSubDBAndSetOuter(
             canister: PartitionCanister,
-            map: RBT.Tree<SK, AttributeValue>,
+            map: [(SK, AttributeValue)],
             keys: ?{
                 inner: InnerSubDBKey;
                 outer: OuterSubDBKey;
@@ -223,7 +223,7 @@ module {
     public func rawInsertSubDB(
         superDB: SuperDB,
         innerCanister: PartitionCanister,
-        map: RBT.Tree<SK, AttributeValue>,
+        map: [(SK, AttributeValue)],
         inner: ?InnerSubDBKey,
         userData: Text,
     ) : {inner: InnerSubDBKey}
@@ -240,7 +240,7 @@ module {
                     };
                 };                    
                 let subDB : SubDB = {
-                    var map = map;
+                    var map = BTree.fromArray(Array.size(map), Text.compare, map);
                     var userData = userData;
                 };
                 ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
@@ -254,7 +254,7 @@ module {
     public func rawInsertSubDBAndSetOuter(
         superDB: SuperDB,
         canister: PartitionCanister,
-        map: RBT.Tree<SK, AttributeValue>,
+        map: [(SK, AttributeValue)],
         keys: ?{
             inner: InnerSubDBKey;
             outer: OuterSubDBKey;
@@ -355,7 +355,7 @@ module {
                     case (?{key = newSubDBKey}) { newSubDBKey };
                     case (null) {
                         MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
-                        let {inner} = await canister.rawInsertSubDB(subDB.map, null, subDB.userData);
+                        let {inner} = await canister.rawInsertSubDB(BTree.toArray(subDB.map), null, subDB.userData);
                         newCanister.innerKey := ?{key = inner};
                         inner;
                     }
@@ -435,11 +435,11 @@ module {
     func removeLoosers({superDB: SuperDB; subDB: SubDB}) {
         switch (superDB.dbOptions.hardCap) {
             case (?hardCap) {
-                while (RBT.size(subDB.map) > hardCap) {
-                    let iter = RBT.entries(subDB.map);
+                while (BTree.size(subDB.map) > hardCap) {
+                    let iter = BTree.entries(subDB.map);
                     switch (iter.next()) {
                         case (?(k, v)) {
-                            subDB.map := RBT.delete(subDB.map, Text.compare, k);
+                            ignore BTree.delete(subDB.map, Text.compare, k);
                         };
                         case (null) {
                             return;
@@ -458,7 +458,7 @@ module {
     public func getByInner(options: GetByInnerOptions) : ?AttributeValue {
         switch (getSubDBByInner(options.superDB, options.subDBKey)) {
             case (?subDB) {
-                RBT.get(subDB.map, Text.compare, options.sk);
+                BTree.get(subDB.map, Text.compare, options.sk);
             };
             case (null) {
                 Debug.trap("missing sub-DB")
@@ -518,7 +518,7 @@ module {
 
     public func subDBSizeByInner(options: SubDBSizeByInnerOptions): ?Nat {
         do ? {
-            RBT.size(getSubDBByInner(options.superDB, options.subDBKey)!.map);
+            BTree.size(getSubDBByInner(options.superDB, options.subDBKey)!.map);
         }
     };
 
@@ -546,7 +546,7 @@ module {
     }) : async* () {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
-                subDB.map := RBT.put(subDB.map, Text.compare, options.sk, options.value);
+                ignore BTree.insert(subDB.map, Text.compare, options.sk, options.value);
                 removeLoosers({superDB = options.innerSuperDB; subDB});
 
                 if (options.needsMove) {
@@ -660,7 +660,7 @@ module {
     public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: SK}): async* () {
         switch (BTree.get(innerSuperDB.subDBs, Nat.compare, innerKey)) {
             case (?subDB) {
-                subDB.map := RBT.delete<Text, AttributeValue>(subDB.map, Text.compare, sk);
+                ignore BTree.delete<Text, AttributeValue>(subDB.map, Text.compare, sk);
             };
             case (null) {
                 Debug.trap("no sub-DB")
@@ -734,7 +734,7 @@ module {
                         case (?loc) { loc };
                         case (null) {
                             MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
-                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter(part, RBT.init(), null, creating.userData);
+                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter(part, [], null, creating.userData);
                             creating.loc := ?{inner = (part, inner); outer = (part, outer)};
                             {inner = (part, inner); outer = (part, outer)};
                         };
@@ -747,7 +747,7 @@ module {
             case (?loc) { loc };
             case (null) {
                 MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
-                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter(part3, RBT.init(), null, creating.userData);
+                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter(part3, [], null, creating.userData);
                 creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
                 {inner = (part3, inner); outer = (part3, outer)};
             };
@@ -768,12 +768,12 @@ module {
 
     // Scanning/enumerating //
 
-    type IterInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey; dir: RBT.Direction};
+    type IterInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
     
     public func iterByInner(options: IterInnerOptions) : I.Iter<(Text, AttributeValue)> {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
-                RBT.iter(subDB.map, options.dir);
+                BTree.entries(subDB.map);
             };
             case (null) {
                 Debug.trap("missing sub-DB");
@@ -822,7 +822,7 @@ module {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
                 // Debug.print("isize: " # debug_show(RBT.size(subDB.map)));
-                RBT.scanLimit(subDB.map, Text.compare, options.lowerBound, options.upperBound, options.dir, options.limit);
+                BTree.scanLimit(subDB.map, Text.compare, options.lowerBound, options.upperBound, options.dir, options.limit);
             };
             case (null) {
                 Debug.trap("missing sub-DB");
