@@ -37,11 +37,10 @@ actor {
           Debug.trap("no index canister")
         };
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
-        let location = await index0.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions; index = index0; userData = ""});
+        let location = await index0.createSubDB({guid = GUID.nextGuid(guidGen); index = index0; userData = ""});
         let {outer = (part, subDBKey)} = location;
         let {outer = (part2, subDBKey2)} = await part.insert({
             guid = GUID.nextGuid(guidGen);
-            dbOptions;
             indexCanister = index0;
             outerCanister = part;
             outerKey = subDBKey;
