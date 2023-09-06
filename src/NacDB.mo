@@ -240,7 +240,7 @@ module {
                     };
                 };                    
                 let subDB : SubDB = {
-                    var map = BTree.fromArray(Array.size(map), Text.compare, map);
+                    var map = BTree.fromArray(8, Text.compare, map);
                     var userData = userData;
                 };
                 ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);

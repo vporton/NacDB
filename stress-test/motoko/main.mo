@@ -75,7 +75,7 @@ actor StressTest {
 
     public func main() : async () {
         let nThreads = 3;
-        let nSteps = 300;
+        let nSteps = 700;
 
         Debug.print("STARTING STRESS TEST: " # debug_show(nThreads) # " threads, each " # debug_show(nSteps) # " steps");
 
@@ -192,7 +192,7 @@ actor StressTest {
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await options.index.createSubDB({guid; dbOptions; userData = debug_show(guid)}); // FIXME: Remove dbOptions
                 } catch(e) {
-                    // Debug.print("repeat createSubDB: " # Error.message(e));
+                    Debug.print("repeat createSubDB: " # Error.message(e));
                     continue R;
                 };
                 v := ?(part, outerKey);
