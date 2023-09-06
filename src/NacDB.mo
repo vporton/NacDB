@@ -41,7 +41,7 @@ module {
     public type AttributeValue = AttributeValuePrimitive or AttributeValueBlob or AttributeValueTuple or AttributeValueArray or AttributeValueRBTree;
 
     public type SubDB = {
-        var map: RBT.Tree<SK, AttributeValue>;
+        var map: RBT.Tree<SK, AttributeValue>; // FIXME: Use BTree.
         var userData: Text; // useful to have a back reference to "locator" of our sub-DB in another database
     };
 

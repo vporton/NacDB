@@ -190,7 +190,7 @@ actor StressTest {
             label R loop {
                 let {outer = (part, outerKey)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
-                    await options.index.createSubDB({guid; dbOptions; userData = debug_show(guid)});
+                    await options.index.createSubDB({guid; dbOptions; userData = debug_show(guid)}); // FIXME: Remove dbOptions
                 } catch(e) {
                     // Debug.print("repeat createSubDB: " # Error.message(e));
                     continue R;
