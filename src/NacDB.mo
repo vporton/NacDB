@@ -63,10 +63,6 @@ module {
             innerPartition: PartitionCanister;
             innerKey: OuterSubDBKey;
         };
-        // old: ?{
-        //     partitionCanister: PartitionCanister;
-        //     innerKey: OuterSubDBKey;
-        // };
     };
 
     public type InsertingItem2 = {
