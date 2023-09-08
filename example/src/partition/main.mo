@@ -1,5 +1,5 @@
 import I "mo:base/Iter";
-import RBT "mo:stable-rbtree/StableRBTree";
+import BTree "mo:btree/BTree";
 import Nac "../../../src/NacDB";
 import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
@@ -119,15 +119,15 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.deleteInner({innerSuperDB = superDB; innerKey; sk});
     };
 
-    public query func scanLimitInner({innerKey: Nac.InnerSubDBKey; lowerBound: Nac.SK; upperBound: Nac.SK; dir: RBT.Direction; limit: Nat})
-        : async RBT.ScanLimitResult<Text, Nac.AttributeValue>
+    public query func scanLimitInner({innerKey: Nac.InnerSubDBKey; lowerBound: Nac.SK; upperBound: Nac.SK; dir: BTree.Direction; limit: Nat})
+        : async BTree.ScanLimitResult<Text, Nac.AttributeValue>
     {
         // ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         Nac.scanLimitInner({innerSuperDB = superDB; innerKey; lowerBound; upperBound; dir; limit});
     };
 
-    public shared func scanLimitOuter({outerKey: Nac.OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat})
-        : async RBT.ScanLimitResult<Text, Nac.AttributeValue>
+    public shared func scanLimitOuter({outerKey: Nac.OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: BTree.Direction; limit: Nat})
+        : async BTree.ScanLimitResult<Text, Nac.AttributeValue>
     {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         await* Nac.scanLimitOuter({outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
