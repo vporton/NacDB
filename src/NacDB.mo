@@ -68,9 +68,7 @@ module {
     public type InsertingItem2 = {
         var newInnerCanister: ?{
             canister: PartitionCanister;
-            var innerKey: ?{ // TODO: Simplify the structure.
-                key: InnerSubDBKey;
-            }
+            var innerKey: ?InnerSubDBKey;
         };
     };
 
@@ -346,17 +344,17 @@ module {
                     case (null) {
                         MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
                         let newCanister = await index.newCanister();
-                        let s = {canister = newCanister; var innerKey: ?{key: InnerSubDBKey} = null};
+                        let s = {canister = newCanister; var innerKey: ?InnerSubDBKey = null};
                         inserting2.newInnerCanister := ?s;
                         (newCanister, s);
                     };
                 };
                 let newInnerSubDBKey = switch (newCanister.innerKey) {
-                    case (?{key = newSubDBKey}) { newSubDBKey };
+                    case (?newSubDBKey) { newSubDBKey };
                     case (null) {
                         MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
                         let {inner} = await canister.rawInsertSubDB(BTree.toArray(subDB.map), null, subDB.userData);
-                        newCanister.innerKey := ?{key = inner};
+                        newCanister.innerKey := ?inner;
                         inner;
                     }
                 };
