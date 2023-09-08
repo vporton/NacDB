@@ -59,9 +59,8 @@ module {
         var needsMove: ?Bool;
         var insertingImplDone: Bool;
         var finishMovingSubDBDone: ?{
-            // new ones (TODO: name with the word "new")
-            innerPartition: PartitionCanister;
-            innerKey: OuterSubDBKey;
+            newInnerPartition: PartitionCanister;
+            newInnerKey: OuterSubDBKey;
         };
     };
 
@@ -618,7 +617,7 @@ module {
 
         // TODO: check `.moving`
         let (newInnerPartition, newInnerKey) = switch (inserting.finishMovingSubDBDone) {
-            case (?{innerPartition; innerKey}) { (innerPartition, innerKey) };
+            case (?{newInnerPartition; newInnerKey}) { (newInnerPartition, newInnerKey) };
             case (null) {
                 let needsMove = switch(inserting.needsMove) {
                     case(?needsMove) { needsMove };
@@ -645,8 +644,8 @@ module {
             };
         };
         inserting.finishMovingSubDBDone := ?{ // TODO: seems unnecessary
-            innerPartition = newInnerPartition;
-            innerKey = newInnerKey;
+            newInnerPartition;
+            newInnerKey;
         };
 
         SparseQueue.delete(options.outerSuperDB.inserting, options.guid);
