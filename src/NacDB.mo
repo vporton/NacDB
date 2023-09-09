@@ -729,7 +729,7 @@ module {
         let part3: PartitionCanister = switch (creating.canister) { // both inner and outer
             case (?part) { part };
             case (null) {
-                let canisters = StableBuffer.toArray(dbIndex.canisters); // TODO: a special function for this
+                let canisters = StableBuffer.toArray(dbIndex.canisters);
                 let part = canisters[canisters.size() - 1];
                 MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
                 let part2 = if (await part.isOverflowed({})) { // TODO: Join .isOverflowed and .newCanister into one call?
