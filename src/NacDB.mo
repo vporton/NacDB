@@ -652,7 +652,7 @@ module {
                 }
             };
         };
-        inserting.finishMovingSubDBDone := ?{ // TODO: seems unnecessary
+        inserting.finishMovingSubDBDone := ?{
             newInnerPartition;
             newInnerKey;
         };
