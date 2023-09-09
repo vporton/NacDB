@@ -225,7 +225,7 @@ actor StressTest {
                         };
                         case (null) {};
                     };
-                    // options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey)); // TODO: Uncomment.
+                    // options.outerToGUID := RBT.delete(options.outerToGUID, compareLocs, (part, outerKey)); // Uncomment?
                     options.recentOuter.add((part, outerKey));
                 };
                 case (null) {};
