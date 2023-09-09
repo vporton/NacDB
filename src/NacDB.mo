@@ -148,7 +148,7 @@ module {
 
         superDBSize: query () -> async Nat;
         deleteSubDB({outerKey: OuterSubDBKey; guid: GUID}) : async ();
-        deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
+        deleteSubDBInner({innerKey: InnerSubDBKey}) : async ();
         insert({
             guid: GUID;
             indexCanister: IndexCanister;
@@ -158,7 +158,7 @@ module {
             value: AttributeValue;
         }) : async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
         delete({outerKey: OuterSubDBKey; sk: SK; guid: GUID}): async ();
-        deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
+        deleteInner({innerKey: InnerSubDBKey; sk: SK}): async ();
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
         scanLimitOuter: shared({outerKey: OuterSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
@@ -684,7 +684,7 @@ module {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
-                await innerCanister.deleteInner(innerKey, options.sk);
+                await innerCanister.deleteInner({innerKey; sk = options.sk});
             };
             case (null) {};
         };
@@ -699,14 +699,14 @@ module {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
-                await innerCanister.deleteSubDBInner(innerKey);
+                await innerCanister.deleteSubDBInner({innerKey});
             };
             case (null) {};
         };
         ignore BTree.delete(options.outerSuperDB.locations, Nat.compare, options.outerKey);
     };
 
-    public func deleteSubDBInner(superDB: SuperDB, innerKey: InnerSubDBKey) : async* () {
+    public func deleteSubDBInner({superDB: SuperDB; innerKey: InnerSubDBKey}) : async* () {
         ignore BTree.delete(superDB.subDBs, Nat.compare, innerKey);
     };
 

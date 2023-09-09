@@ -53,9 +53,9 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.deleteSubDB({dbOptions; outerSuperDB = superDB; outerKey; guid});
     };
 
-    public shared func deleteSubDBInner(innerKey: Nac.InnerSubDBKey) : async () {
+    public shared func deleteSubDBInner({innerKey: Nac.InnerSubDBKey}) : async () {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await* Nac.deleteSubDBInner(superDB, innerKey);
+        await* Nac.deleteSubDBInner({superDB; innerKey});
     };
 
     public shared func finishMovingSubDBImpl({
@@ -113,7 +113,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.delete({outerSuperDB = superDB; outerKey; sk; guid});
     };
 
-    public shared func deleteInner(innerKey: Nac.InnerSubDBKey, sk: Nac.SK): async () {
+    public shared func deleteInner({innerKey: Nac.InnerSubDBKey; sk: Nac.SK}): async () {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         await* Nac.deleteInner({innerSuperDB = superDB; innerKey; sk});
     };
@@ -205,7 +205,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.getSubDBUserDataOuter({superDB; subDBKey = options.subDBKey});
     };
 
-    public func getSubDBUserDataInner(options: {subDBKey: Nac.OuterSubDBKey}) : async ?Text {
+    public func getSubDBUserDataInner(options: {subDBKey: Nac.InnerSubDBKey}) : async ?Text {
         Nac.getSubDBUserDataInner({superDB; subDBKey = options.subDBKey});
     };
 }
