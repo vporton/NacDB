@@ -76,9 +76,8 @@ module {
         var nextInnerKey: Nat;
         var nextOuterKey: Nat;
         subDBs: BTree.BTree<InnerSubDBKey, SubDB>;
-        /// The canister and the `SubDBKey` of this `RBT.Tree` is constant,
+        /// `inner` of this `RBT.Tree` is constant,
         /// even when the sub-DB to which it points moves to a different canister.
-        // TODO: Join the following two variables into one:
         var locations: BTree.BTree<OuterSubDBKey, {inner: (PartitionCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}>;
 
         // TODO: Which variables can be removed from `moving`?
