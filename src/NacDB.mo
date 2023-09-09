@@ -217,7 +217,7 @@ module {
     ) : {inner: InnerSubDBKey}
     {
         let inner2 = switch (superDB.moving) {
-            case (?_) { Debug.trap("DB is scaling") }; // TODO: needed?
+            case (?_) { Debug.trap("DB is scaling") };
             case (null) {
                 let key = switch (inner) {
                     case (?key) { key };
