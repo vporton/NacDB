@@ -106,7 +106,6 @@ module {
             -> async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
     };
 
-    // TODO: Can we have separate type for inner and outer canisters?
     // TODO: arguments as {...}, not (...).
     public type PartitionCanister = actor {
         // Mandatory //
