@@ -306,12 +306,6 @@ module {
                     oldInnerCanister;
                     oldInnerSuperDB;
                     oldInnerSubDBKey;
-                    // var newInnerCanister = do ? {
-                    //     {
-                    //         canister = newCanister!;
-                    //         var newSubDBKey = null;
-                    //     };
-                    // };
                 };
             };
         };
