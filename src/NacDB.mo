@@ -114,7 +114,6 @@ module {
         rawInsertSubDB(map: [(SK, AttributeValue)], inner: ?InnerSubDBKey, userData: Text)
             : async {inner: OuterSubDBKey};
         rawInsertSubDBAndSetOuter(
-            canister: PartitionCanister,
             map: [(SK, AttributeValue)],
             keys: ?{
                 inner: InnerSubDBKey;
@@ -212,7 +211,6 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     public func rawInsertSubDB(
         superDB: SuperDB,
-        innerCanister: PartitionCanister,
         map: [(SK, AttributeValue)],
         inner: ?InnerSubDBKey,
         userData: Text,
@@ -252,7 +250,7 @@ module {
         userData: Text,
     ) : {outer: OuterSubDBKey; inner: InnerSubDBKey}
     {
-        let {inner = inner2} = rawInsertSubDB(superDB, canister, map, do ? {keys!.inner}, userData);
+        let {inner = inner2} = rawInsertSubDB(superDB, map, do ? {keys!.inner}, userData);
         if (keys == null) {
             ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextOuterKey,
                 {inner = (canister, inner2); var busy: ?SparseQueue.GUID = null});
@@ -737,7 +735,7 @@ module {
                         case (?loc) { loc };
                         case (null) {
                             MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
-                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter(part, [], null, creating.userData);
+                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter([], null, creating.userData);
                             creating.loc := ?{inner = (part, inner); outer = (part, outer)};
                             {inner = (part, inner); outer = (part, outer)};
                         };
@@ -750,7 +748,7 @@ module {
             case (?loc) { loc };
             case (null) {
                 MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
-                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter(part3, [], null, creating.userData);
+                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter([], null, creating.userData);
                 creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
                 {inner = (part3, inner); outer = (part3, outer)};
             };
