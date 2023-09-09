@@ -172,6 +172,8 @@ module {
         subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
+        getSubDBUserDataOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Text;
+        getSubDBUserDataInner: shared (options: {subDBKey: InnerSubDBKey}) -> async ?Text;
     };
 
     public func createDBIndex(dbOptions: DBOptions) : DBIndex {
@@ -505,13 +507,21 @@ module {
         return true;
     };
 
-    // TODO: This inner and outer.
-    // public type GetUserDataOptions = {superDB: SuperDB; subDBKey: SubDBKey};
+    public type GetUserDataOuterOptions = {superDB: SuperDB; subDBKey: OuterSubDBKey};
 
-    // // TODO: Test this function
-    // public func getSubDBUserData(options: GetUserDataOptions) : ?Text {
-    //     do ? { BTree.get(options.superDB.subDBs, Nat.compare, options.subDBKey)!.userData };
-    // };
+    // TODO: Test this function
+    public func getSubDBUserDataOuter(options: GetUserDataInnerOptions) : async* ?Text {
+        let ?(part, inner) = getInner(options.superDB, options.subDBKey) else {
+            Debug.trap("no sub-DB");
+        };
+        await part.getSubDBUserDataInner({subDBKey = inner});
+    };
+
+    public type GetUserDataInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
+
+    public func getSubDBUserDataInner(options: GetUserDataInnerOptions) : ?Text {
+        do ? { BTree.get(options.superDB.subDBs, Nat.compare, options.subDBKey)!.userData };
+    };
 
     public func superDBSize(superDB: SuperDB): Nat = BTree.size(superDB.subDBs);
 

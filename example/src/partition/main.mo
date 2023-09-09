@@ -200,4 +200,12 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
             needsMove;
         });
     };
+
+    public func getSubDBUserDataOuter(options: {subDBKey: Nac.OuterSubDBKey}) : async ?Text {
+        await* Nac.getSubDBUserDataOuter({superDB; subDBKey = options.subDBKey});
+    };
+
+    public func getSubDBUserDataInner(options: {subDBKey: Nac.OuterSubDBKey}) : async ?Text {
+        Nac.getSubDBUserDataInner({superDB; subDBKey = options.subDBKey});
+    };
 }
