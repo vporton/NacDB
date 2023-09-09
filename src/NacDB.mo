@@ -165,14 +165,14 @@ module {
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
         getByInner: query (options: {innerKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByInner: query (options: {innerKey: InnerSubDBKey; sk: SK}) -> async Bool;
-        getByOuter: shared (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
-        hasByOuter: shared (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async Bool;
+        getByOuter: shared (options: {outerKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
+        hasByOuter: shared (options: {outerKey: OuterSubDBKey; sk: SK}) -> async Bool;
         hasSubDBByInner: query (options: {innerKey: InnerSubDBKey}) -> async Bool;
-        hasSubDBByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async Bool;
+        hasSubDBByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async Bool;
         subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
-        subDBSizeByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Nat;
+        subDBSizeByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, (InnerCanister, InnerSubDBKey))];
-        getSubDBUserDataOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Text;
+        getSubDBUserDataOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Text;
         getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
     };
 
@@ -287,7 +287,7 @@ module {
     };
 
     /// This function makes no sense, because it would return the entire sub-DB from another canister.
-    // public func getSubDBByOuter(superDB: SuperDB, subDBKey: OuterSubDBKey) : ?SubDB {
+    // public func getSubDBByOuter(superDB: SuperDB, outerKey: OuterSubDBKey) : ?SubDB {
     // };
 
     /// Moves to the specified `newCanister` or to a newly allocated canister, if null.

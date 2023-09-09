@@ -47,7 +47,7 @@ actor {
             sk = "name";
             value = #text name;
         });
-        let name2 = await part2.getByOuter({subDBKey = subDBKey2; sk = "name"});
+        let name2 = await part2.getByOuter({outerKey = subDBKey2; sk = "name"});
         let ?#text name3 = name2 else {
           Debug.trap("error");
         };

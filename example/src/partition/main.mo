@@ -147,19 +147,19 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.hasByInner({superDB; innerKey; sk});
     };
 
-    public shared func getByOuter({subDBKey: Nac.OuterSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
+    public shared func getByOuter({outerKey: Nac.OuterSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await* Nac.getByOuter({outerSuperDB = superDB; outerKey = subDBKey; sk});
+        await* Nac.getByOuter({outerSuperDB = superDB; outerKey; sk});
     };
 
-    public shared func hasByOuter({subDBKey: Nac.OuterSubDBKey; sk: Nac.SK}): async Bool {
+    public shared func hasByOuter({outerKey: Nac.OuterSubDBKey; sk: Nac.SK}): async Bool {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await* Nac.hasByOuter({outerSuperDB = superDB; outerKey = subDBKey; sk});
+        await* Nac.hasByOuter({outerSuperDB = superDB; outerKey; sk});
     };
 
-    public shared func hasSubDBByOuter(options: {subDBKey: Nac.OuterSubDBKey}): async Bool {
+    public shared func hasSubDBByOuter(options: {outerKey: Nac.OuterSubDBKey}): async Bool {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await* Nac.hasSubDBByOuter({outerSuperDB = superDB; outerKey = options.subDBKey});
+        await* Nac.hasSubDBByOuter({outerSuperDB = superDB; outerKey});
     };
 
     public query func hasSubDBByInner(options: {innerKey: Nac.InnerSubDBKey}): async Bool {
@@ -167,9 +167,9 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.hasSubDBByInner({innerSuperDB = superDB; innerKey = options.innerKey});
     };
 
-    public shared func subDBSizeByOuter({subDBKey: Nac.OuterSubDBKey}): async ?Nat {
+    public shared func subDBSizeByOuter({outerKey: Nac.OuterSubDBKey}): async ?Nat {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await* Nac.subDBSizeByOuter({outerSuperDB = superDB; outerKey = subDBKey});
+        await* Nac.subDBSizeByOuter({outerSuperDB = superDB; outerKey});
     };
 
     public query func subDBSizeByInner({innerKey: Nac.InnerSubDBKey}): async ?Nat {
