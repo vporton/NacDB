@@ -195,7 +195,6 @@ module {
         };
     };
 
-    // TODO: DBOptions should be saved rather than passed on function call.
     public type DBOptions = {
         hardCap: ?Nat;
         moveCap: MoveCap;
