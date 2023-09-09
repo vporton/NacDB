@@ -10,7 +10,8 @@ TODO:
 - review code, based on review simplify it and make it more secure
 - review and as necessary modify the API, then freeze the API
 
-The current stage of development is an MVP. API is not yet frozen, incompatible changes are possible.
+The current stage of development is an MVP.
+The public API is frozen, but incompatible changes in inter-canister calls are yet possible.
 
 It is usually recommended to use NacDB together with CanDB, because NacDB is strong
 in one specific point: seamless enumeration of its sub-databases. For example, in
