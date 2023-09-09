@@ -159,7 +159,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
 
     public shared func hasSubDBByOuter(options: {outerKey: Nac.OuterSubDBKey}): async Bool {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await* Nac.hasSubDBByOuter({outerSuperDB = superDB; outerKey});
+        await* Nac.hasSubDBByOuter({outerSuperDB = superDB; outerKey = options.outerKey});
     };
 
     public query func hasSubDBByInner(options: {innerKey: Nac.InnerSubDBKey}): async Bool {
@@ -201,8 +201,8 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         });
     };
 
-    public func getSubDBUserDataOuter(options: {subDBKey: Nac.OuterSubDBKey}) : async ?Text {
-        await* Nac.getSubDBUserDataOuter({superDB; subDBKey = options.subDBKey});
+    public func getSubDBUserDataOuter(options: {outerKey: Nac.OuterSubDBKey}) : async ?Text {
+        await* Nac.getSubDBUserDataOuter({superDB; outerKey = options.outerKey});
     };
 
     public func getSubDBUserDataInner(options: {innerKey: Nac.InnerSubDBKey}) : async ?Text {

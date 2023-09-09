@@ -504,11 +504,11 @@ module {
         return true;
     };
 
-    public type GetUserDataOuterOptions = {superDB: SuperDB; subDBKey: OuterSubDBKey};
+    public type GetUserDataOuterOptions = {superDB: SuperDB; outerKey: OuterSubDBKey};
 
     // TODO: Test this function
-    public func getSubDBUserDataOuter(options: GetUserDataInnerOptions) : async* ?Text {
-        let ?(part, innerKey) = getInner(options.superDB, options.subDBKey) else {
+    public func getSubDBUserDataOuter(options: GetUserDataOuterOptions) : async* ?Text {
+        let ?(part, innerKey) = getInner(options.superDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
         await part.getSubDBUserDataInner({innerKey});
