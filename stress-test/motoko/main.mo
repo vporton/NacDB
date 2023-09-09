@@ -137,7 +137,7 @@ actor StressTest {
 
         var brokenOuterCount = 0;
         // for (c in (await index.getCanisters()).vals()) {
-        //     for ((outerKey, (innerCanister, innerKey)) in (await c.partitionSubDBs()).vals()) {
+        //     for ((outerKey, (innerCanister, innerKey)) in (await c.scanSubDBs()).vals()) {
         //         if (not (await innerCanister.hasSubDBByInner({subDBKey = innerKey}))) {
         //             brokenOuterCount += 1;
         //         }
@@ -147,7 +147,7 @@ actor StressTest {
         let nThreads2 = Array.size(partitions);
         let threads2 : [var ?(async())] = Array.init(nThreads2, null);
         let runThread2 = func(outerPart: Nac.PartitionCanister) : async () {
-            for ((outerKey, (innerCanister, innerKey)) in (await outerPart.partitionSubDBs()).vals()) {
+            for ((outerKey, (innerCanister, innerKey)) in (await outerPart.scanSubDBs()).vals()) {
                 if (not (await innerCanister.hasSubDBByInner({subDBKey = innerKey}))) {
                     brokenOuterCount += 1;
                 }
@@ -166,7 +166,7 @@ actor StressTest {
     };
 
     // func runThread2(outerPart: Nac.PartitionCanister) : async () {
-    //     for ((outerKey, (innerCanister, innerKey)) in (await outerPart.partitionSubDBs()).vals()) {
+    //     for ((outerKey, (innerCanister, innerKey)) in (await outerPart.scanSubDBs()).vals()) {
     //         if (not (await innerCanister.hasSubDBByInner({subDBKey = innerKey}))) {
     //             brokenOuterCount += 1;
     //         }

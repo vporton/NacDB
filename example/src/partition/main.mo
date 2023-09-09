@@ -201,8 +201,4 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
             needsMove;
         });
     };
-
-    public shared func partitionSubDBs(): async [(Nac.OuterSubDBKey, (Nac.PartitionCanister, Nac.InnerSubDBKey))] {
-        Nac.partitionSubDBs({superDB});
-    };
 }

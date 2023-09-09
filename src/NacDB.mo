@@ -79,8 +79,7 @@ module {
         /// The canister and the `SubDBKey` of this `RBT.Tree` is constant,
         /// even when the sub-DB to which it points moves to a different canister.
         // TODO: Join the following two variables into one:
-        var locations: BTree.BTree<OuterSubDBKey, (PartitionCanister, InnerSubDBKey)>;
-        var busy: BTree.BTree<OuterSubDBKey, SparseQueue.GUID>; // TODO: Improve efficiency.
+        var locations: BTree.BTree<OuterSubDBKey, {inner: (PartitionCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}>;
 
         // TODO: Which variables can be removed from `moving`?
         var moving: ?{
@@ -176,10 +175,6 @@ module {
         subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
-
-        // Debugging facilities //
-
-        partitionSubDBs: shared () -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
     };
 
     public func createDBIndex(dbOptions: DBOptions) : DBIndex {
@@ -197,7 +192,6 @@ module {
             var nextOuterKey = 0;
             subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
             var locations = BTree.init(null);
-            var busy = BTree.init(null);
             var moving = null;
             var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var inserting2 = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
@@ -261,7 +255,8 @@ module {
     {
         let {inner = inner2} = rawInsertSubDB(superDB, canister, map, do ? {keys!.inner}, userData);
         if (keys == null) {
-            ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextOuterKey, (canister, inner2));
+            ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextOuterKey,
+                {inner = (canister, inner2); var busy: ?SparseQueue.GUID = null});
         };
         switch (keys) {
             case (?{inner; outer}) {
@@ -276,7 +271,9 @@ module {
     };
 
     public func getInner(superDB: SuperDB, outerKey: InnerSubDBKey) : ?(PartitionCanister, InnerSubDBKey) {
-        BTree.get(superDB.locations, Nat.compare, outerKey);
+        do ? {
+            BTree.get(superDB.locations, Nat.compare, outerKey)!.inner;
+        }
     };
 
     public func getSubDBByInner(superDB: SuperDB, subDBKey: InnerSubDBKey) : ?SubDB {
@@ -284,7 +281,8 @@ module {
     };
 
     public func putLocation(outerSuperDB: SuperDB, outerKey: OuterSubDBKey, innerCanister: PartitionCanister, innerKey: InnerSubDBKey) {
-        ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey, (innerCanister, innerKey));
+        ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
+            {inner = (innerCanister, innerKey); var busy: ?SparseQueue.GUID = null});
     };
 
     /// This function makes no sense, because it would return the entire sub-DB from another canister.
@@ -421,12 +419,23 @@ module {
     // TODO: More fine-tuned lock: for individual sub-DB entries.
     func trapMoving({superDB: SuperDB; subDBKey: OuterSubDBKey; guid: SparseQueue.GUID}) {
         // If we call it repeatedly (with the same GUID), allow despite the lock.
-        let v = BTree.get(superDB.busy, Nat.compare, subDBKey);
-        if (v != null and v != ?guid) {
+        let v0 = BTree.get(superDB.locations, Nat.compare, subDBKey);
+        let ?v = v0 else {
+            return; // FIXME: What to do?
+        };
+        if (v.busy != null and v.busy != ?guid) {
             Debug.trap("item busy");
         };
-        // TODO: Can be optimized:
-        ignore BTree.insert(superDB.busy, Nat.compare, subDBKey, guid);
+        v.busy := ?guid;
+    };
+
+    func releaseOuterKey(outerSuperDB: SuperDB, outerKey: OuterSubDBKey) {
+        switch (BTree.get(outerSuperDB.locations, Nat.compare, outerKey)) {
+            case (?item) {
+                item.busy := null;
+            };
+            case (null) {};
+        };
     };
 
     func removeLoosers({superDB: SuperDB; subDB: SubDB}) {
@@ -649,7 +658,7 @@ module {
         };
 
         SparseQueue.delete(options.outerSuperDB.inserting, options.guid);
-        ignore BTree.delete(options.outerSuperDB.busy, Nat.compare, options.outerKey); // TODO: Don't repeat this line.
+        releaseOuterKey(options.outerSuperDB, options.outerKey);
 
         {inner = (newInnerPartition, newInnerKey); outer = (options.outerCanister, options.outerKey)};
     };
@@ -677,7 +686,7 @@ module {
             };
             case (null) {};
         };
-        ignore BTree.delete(options.outerSuperDB.busy, Nat.compare, options.outerKey); // TODO: Don't repeat this line.
+        releaseOuterKey(options.outerSuperDB, options.outerKey);
     };
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
@@ -693,8 +702,6 @@ module {
             case (null) {};
         };
         ignore BTree.delete(options.outerSuperDB.locations, Nat.compare, options.outerKey);
-
-        ignore BTree.delete(options.outerSuperDB.busy, Nat.compare, options.outerKey); // TODO: Don't repeat this line.
     };
 
     public func deleteSubDBInner(superDB: SuperDB, innerKey: InnerSubDBKey) : async* () {
@@ -759,7 +766,8 @@ module {
     public func createOuter(outerSuperDB: SuperDB, part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
         : {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
     {
-        ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey, (part, innerKey));
+        ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
+            {inner = (part, innerKey); var busy: ?SparseQueue.GUID = null});
         {inner = (part, innerKey); outer = (part, outerKey)};
     };
 
@@ -838,7 +846,11 @@ module {
     };
 
     public func scanSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))] {
-        Iter.toArray(BTree.entries(superDB.locations));
+        let iter = Iter.map<(OuterSubDBKey, {inner: (PartitionCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}), (OuterSubDBKey, (PartitionCanister, InnerSubDBKey))>(
+            BTree.entries(superDB.locations),
+            func(e: (OuterSubDBKey, {inner: (PartitionCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID})) { (e.0, e.1.inner) },
+        );
+        Iter.toArray(iter);
     };
 
     /// Canisters
@@ -853,11 +865,4 @@ module {
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
         canister;
     };
-
-    /// Debugging features
-
-    /// Because, it's a debugging feature, I am reluctant to introduce pagination et al.
-    public func partitionSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))] {
-        Iter.toArray(BTree.entries(superDB.locations));
-    }
 };
