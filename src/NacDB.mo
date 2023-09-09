@@ -731,7 +731,7 @@ module {
                 let canisters = StableBuffer.toArray(dbIndex.canisters);
                 let part = canisters[canisters.size() - 1];
                 MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
-                let part2 = if (await part.isOverflowed({})) { // TODO: Join .isOverflowed and .newCanister into one call?
+                let part2 = if (await part.isOverflowed({})) {
                     let part2 = await* newCanister(dbIndex);
                     creating.canister := ?part;
                     part2;
