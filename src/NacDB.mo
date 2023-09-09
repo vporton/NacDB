@@ -111,7 +111,7 @@ module {
         // Mandatory //
 
         rawInsertSubDB(map: [(SK, AttributeValue)], inner: ?InnerSubDBKey, userData: Text)
-            : async {inner: OuterSubDBKey};
+            : async {inner: InnerSubDBKey};
         rawInsertSubDBAndSetOuter(
             map: [(SK, AttributeValue)],
             keys: ?{
