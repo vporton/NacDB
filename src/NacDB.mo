@@ -146,7 +146,6 @@ module {
 
         // Optional //
 
-        // TODO: Remove superfluous, if any.
         superDBSize: query () -> async Nat;
         deleteSubDB({outerKey: OuterSubDBKey; guid: GUID}) : async ();
         deleteSubDBInner(innerKey: InnerSubDBKey) : async ();
