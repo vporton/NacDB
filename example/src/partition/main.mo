@@ -4,7 +4,7 @@ import Nac "../../../src/NacDB";
 import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
 import Nat "mo:base/Nat";
-import MyCycles "../../../lib/Cycles";
+import MyCycles "../../../src/Cycles";
 import Text "mo:base/Text";
 import Debug "mo:base/Debug";
 

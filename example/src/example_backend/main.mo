@@ -8,7 +8,7 @@ import Debug "mo:base/Debug";
 import Array "mo:base/Array";
 
 actor {
-    public shared func constructor(dbOptions: Nac.DBOptions): async Partition.Partition {
+    func constructor(dbOptions: Nac.DBOptions): async* Partition.Partition {
         await Partition.Partition(dbOptions);
     };
 

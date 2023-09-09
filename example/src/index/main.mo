@@ -4,7 +4,7 @@ import Partition "../partition/main";
 import StableBuffer "mo:stable-buffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
-import MyCycles "../../../lib/Cycles";
+import MyCycles "../../../src/Cycles";
 
 shared actor class Index(dbOptions: Nac.DBOptions) = this {
     stable var dbIndex: Nac.DBIndex = Nac.createDBIndex(dbOptions);
