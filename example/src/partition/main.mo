@@ -137,14 +137,14 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         Nac.scanSubDBs({superDB});
     };
 
-    public query func getByInner({subDBKey: Nac.InnerSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
+    public query func getByInner({innerKey: Nac.InnerSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
         // ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        Nac.getByInner({superDB; subDBKey; sk});
+        Nac.getByInner({superDB; innerKey; sk});
     };
 
-    public query func hasByInner({subDBKey: Nac.InnerSubDBKey; sk: Nac.SK}): async Bool {
+    public query func hasByInner({innerKey: Nac.InnerSubDBKey; sk: Nac.SK}): async Bool {
         // ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        Nac.hasByInner({superDB; subDBKey; sk});
+        Nac.hasByInner({superDB; innerKey; sk});
     };
 
     public shared func getByOuter({subDBKey: Nac.OuterSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
@@ -162,9 +162,9 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.hasSubDBByOuter({outerSuperDB = superDB; outerKey = options.subDBKey});
     };
 
-    public query func hasSubDBByInner(options: {subDBKey: Nac.InnerSubDBKey}): async Bool {
+    public query func hasSubDBByInner(options: {innerKey: Nac.InnerSubDBKey}): async Bool {
         // ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        Nac.hasSubDBByInner({innerSuperDB = superDB; innerKey = options.subDBKey});
+        Nac.hasSubDBByInner({innerSuperDB = superDB; innerKey = options.innerKey});
     };
 
     public shared func subDBSizeByOuter({subDBKey: Nac.OuterSubDBKey}): async ?Nat {
@@ -172,9 +172,9 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.subDBSizeByOuter({outerSuperDB = superDB; outerKey = subDBKey});
     };
 
-    public query func subDBSizeByInner({subDBKey: Nac.InnerSubDBKey}): async ?Nat {
+    public query func subDBSizeByInner({innerKey: Nac.InnerSubDBKey}): async ?Nat {
         // ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        Nac.subDBSizeByInner({superDB; subDBKey});
+        Nac.subDBSizeByInner({superDB; innerKey});
     };
 
     public shared func startInsertingImpl({
@@ -205,7 +205,7 @@ shared({caller}) actor class Partition(dbOptions: Nac.DBOptions) = this {
         await* Nac.getSubDBUserDataOuter({superDB; subDBKey = options.subDBKey});
     };
 
-    public func getSubDBUserDataInner(options: {subDBKey: Nac.InnerSubDBKey}) : async ?Text {
-        Nac.getSubDBUserDataInner({superDB; subDBKey = options.subDBKey});
+    public func getSubDBUserDataInner(options: {innerKey: Nac.InnerSubDBKey}) : async ?Text {
+        Nac.getSubDBUserDataInner({superDB; subDBKey = options.innerKey});
     };
 }

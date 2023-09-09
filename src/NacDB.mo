@@ -163,17 +163,17 @@ module {
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
         scanLimitOuter: shared({outerKey: OuterSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
-        getByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
-        hasByInner: query (options: {subDBKey: InnerSubDBKey; sk: SK}) -> async Bool;
+        getByInner: query (options: {innerKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
+        hasByInner: query (options: {innerKey: InnerSubDBKey; sk: SK}) -> async Bool;
         getByOuter: shared (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
         hasByOuter: shared (options: {subDBKey: OuterSubDBKey; sk: SK}) -> async Bool;
-        hasSubDBByInner: query (options: {subDBKey: InnerSubDBKey}) -> async Bool;
+        hasSubDBByInner: query (options: {innerKey: InnerSubDBKey}) -> async Bool;
         hasSubDBByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async Bool;
-        subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
+        subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, (InnerCanister, InnerSubDBKey))];
         getSubDBUserDataOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Text;
-        getSubDBUserDataInner: shared (options: {subDBKey: InnerSubDBKey}) -> async ?Text;
+        getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
     };
 
     public type InnerCanister = PartitionCanister;
@@ -277,8 +277,8 @@ module {
         }
     };
 
-    public func getSubDBByInner(superDB: SuperDB, subDBKey: InnerSubDBKey) : ?SubDB {
-        BTree.get(superDB.subDBs, Nat.compare, subDBKey);
+    public func getSubDBByInner(superDB: SuperDB, innerKey: InnerSubDBKey) : ?SubDB {
+        BTree.get(superDB.subDBs, Nat.compare, innerKey);
     };
 
     public func putLocation(outerSuperDB: SuperDB, outerKey: OuterSubDBKey, innerCanister: InnerCanister, innerKey: InnerSubDBKey) {
@@ -453,10 +453,10 @@ module {
 
     // DB operations //
 
-    public type GetByInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey; sk: SK};
+    public type GetByInnerOptions = {superDB: SuperDB; innerKey: InnerSubDBKey; sk: SK};
 
     public func getByInner(options: GetByInnerOptions) : ?AttributeValue {
-        switch (getSubDBByInner(options.superDB, options.subDBKey)) {
+        switch (getSubDBByInner(options.superDB, options.innerKey)) {
             case (?subDB) {
                 BTree.get(subDB.map, Text.compare, options.sk);
             };
@@ -470,11 +470,11 @@ module {
 
     // Sometimes traps "missing sub-DB".
     public func getByOuter(options: GetByOuterOptions) : async* ?AttributeValue {
-        let ?(part, inner) = getInner(options.outerSuperDB, options.outerKey) else {
+        let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no entry");
         };
         MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
-        await part.getByInner({subDBKey = inner; sk = options.sk});
+        await part.getByInner({innerKey; sk = options.sk});
     };
 
     public type ExistsByInnerOptions = GetByInnerOptions;
@@ -508,10 +508,10 @@ module {
 
     // TODO: Test this function
     public func getSubDBUserDataOuter(options: GetUserDataInnerOptions) : async* ?Text {
-        let ?(part, inner) = getInner(options.superDB, options.subDBKey) else {
+        let ?(part, innerKey) = getInner(options.superDB, options.subDBKey) else {
             Debug.trap("no sub-DB");
         };
-        await part.getSubDBUserDataInner({subDBKey = inner});
+        await part.getSubDBUserDataInner({innerKey});
     };
 
     public type GetUserDataInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
@@ -522,11 +522,11 @@ module {
 
     public func superDBSize(superDB: SuperDB): Nat = BTree.size(superDB.subDBs);
 
-    public type SubDBSizeByInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
+    public type SubDBSizeByInnerOptions = {superDB: SuperDB; innerKey: InnerSubDBKey};
 
     public func subDBSizeByInner(options: SubDBSizeByInnerOptions): ?Nat {
         do ? {
-            BTree.size(getSubDBByInner(options.superDB, options.subDBKey)!.map);
+            BTree.size(getSubDBByInner(options.superDB, options.innerKey)!.map);
         }
     };
 
@@ -537,7 +537,7 @@ module {
             Debug.trap("no sub-DB");
         };
         MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
-        await part.subDBSizeByInner({subDBKey = innerKey});
+        await part.subDBSizeByInner({innerKey});
     };
 
     /// To be called in a partition where `innerSuperDB` resides.
