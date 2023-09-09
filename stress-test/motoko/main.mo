@@ -65,8 +65,8 @@ actor StressTest {
         var rng: Prng.Seiran128;
         index: Index.Index;
         guidGen: GUID.GUIDGenerator;
-        var recentOuter: Buffer.Buffer<(Nac.PartitionCanister, Nac.OuterSubDBKey)>;
-        var recentSKs: Buffer.Buffer<((Nac.PartitionCanister, Nac.OuterSubDBKey), Nac.SK)>;
+        var recentOuter: Buffer.Buffer<(Nac.OuterCanister, Nac.OuterSubDBKey)>;
+        var recentSKs: Buffer.Buffer<((Nac.OuterCanister, Nac.OuterSubDBKey), Nac.SK)>;
         var dbInserts: Nat;
         var dbDeletions: Nat;
         var eltInserts: Nat;
@@ -146,7 +146,7 @@ actor StressTest {
         let partitions = await index.getCanisters();
         let nThreads2 = Array.size(partitions);
         let threads2 : [var ?(async())] = Array.init(nThreads2, null);
-        let runThread2 = func(outerPart: Nac.PartitionCanister) : async () {
+        let runThread2 = func(outerPart: Nac.OuterCanister) : async () {
             for ((outerKey, (innerCanister, innerKey)) in (await outerPart.scanSubDBs()).vals()) {
                 if (not (await innerCanister.hasSubDBByInner({subDBKey = innerKey}))) {
                     brokenOuterCount += 1;
@@ -165,7 +165,7 @@ actor StressTest {
         Debug.print("Broken outer links: " # debug_show(brokenOuterCount));
     };
 
-    // func runThread2(outerPart: Nac.PartitionCanister) : async () {
+    // func runThread2(outerPart: Nac.OuterCanister) : async () {
     //     for ((outerKey, (innerCanister, innerKey)) in (await outerPart.scanSubDBs()).vals()) {
     //         if (not (await innerCanister.hasSubDBByInner({subDBKey = innerKey}))) {
     //             brokenOuterCount += 1;

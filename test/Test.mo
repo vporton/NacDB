@@ -156,7 +156,7 @@ let success = run([
             }),
             it("create a new partition canister", do {
                 let dbOptions2 = {moveCap = #usedMemory 500_000; hardCap = ?1000; constructor; partitionCycles = 10_000_000_000};
-                let index = await Index.Index(dbOptions2);
+                let index = await Index.Index({dbOptions = dbOptions2});
                 await index.init();
                 ignore await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions = dbOptions2; userData = ""});
                 ignore await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions = dbOptions2; userData = ""});

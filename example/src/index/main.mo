@@ -32,7 +32,7 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
     };
 
     public shared func createSubDB({guid: Nac.GUID; userData: Text})
-        : async {inner: (Nac.PartitionCanister, Nac.InnerSubDBKey); outer: (Nac.PartitionCanister, Nac.OuterSubDBKey)}
+        : async {inner: (Nac.InnerCanister, Nac.InnerSubDBKey); outer: (Nac.OuterCanister, Nac.OuterSubDBKey)}
     {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         await* Nac.createSubDB({guid; dbIndex; dbOptions; userData});

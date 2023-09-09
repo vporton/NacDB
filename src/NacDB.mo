@@ -49,7 +49,7 @@ module {
 
     public type CreatingSubDB = {
         var canister: ?PartitionCanister; // Immediately after creation of sub-DB, this is both inner and outer.
-        var loc: ?{inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, InnerSubDBKey)};
+        var loc: ?{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, InnerSubDBKey)};
         userData: Text;
     };
 
@@ -59,14 +59,14 @@ module {
         var needsMove: ?Bool;
         var insertingImplDone: Bool;
         var finishMovingSubDBDone: ?{
-            newInnerPartition: PartitionCanister;
+            newInnerPartition: InnerCanister;
             newInnerKey: OuterSubDBKey;
         };
     };
 
     public type InsertingItem2 = {
         var newInnerCanister: ?{
-            canister: PartitionCanister;
+            canister: InnerCanister;
             var innerKey: ?InnerSubDBKey;
         };
     };
@@ -78,14 +78,14 @@ module {
         subDBs: BTree.BTree<InnerSubDBKey, SubDB>;
         /// `inner` of this `RBT.Tree` is constant,
         /// even when the sub-DB to which it points moves to a different canister.
-        var locations: BTree.BTree<OuterSubDBKey, {inner: (PartitionCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}>;
+        var locations: BTree.BTree<OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}>;
 
         // TODO: Which variables can be removed from `moving`?
         var moving: ?{
             // outerSuperDB: SuperDB; // cannot be passed together with `oldInnerSuperDB`...
-            outerCanister: PartitionCanister; // ... so, this instead.
+            outerCanister: OuterCanister; // ... so, this instead.
             outerKey: OuterSubDBKey;
-            oldInnerCanister: PartitionCanister;
+            oldInnerCanister: InnerCanister;
             oldInnerSuperDB: SuperDB;
             oldInnerSubDBKey: InnerSubDBKey;
         };
@@ -103,7 +103,7 @@ module {
         getCanisters: query () -> async [PartitionCanister];
         newCanister(): async PartitionCanister;
         createSubDB: shared({guid: GUID; userData: Text})
-            -> async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
+            -> async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
     };
 
     // TODO: Can we have separate type for inner and outer canisters?
@@ -126,17 +126,18 @@ module {
         finishMovingSubDBImpl({
             guid: GUID;
             index: IndexCanister;
-            outerCanister: PartitionCanister;
+            outerCanister: OuterCanister;
             outerKey: OuterSubDBKey;
             oldInnerKey: InnerSubDBKey;
-        }) : async (PartitionCanister, InnerSubDBKey);
-        putLocation(outerKey: OuterSubDBKey, innerCanister: PartitionCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
+        }) : async (InnerCanister, InnerSubDBKey);
+        putLocation(outerKey: OuterSubDBKey, innerCanister: InnerCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
+        // In the current version two partition canister are always the same.
         createOuter(part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
-            : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
+            : async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
         startInsertingImpl(options: {
             guid: GUID;
             indexCanister: IndexCanister;
-            outerCanister: PartitionCanister;
+            outerCanister: OuterCanister;
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
@@ -152,11 +153,11 @@ module {
         insert({
             guid: GUID;
             indexCanister: IndexCanister;
-            outerCanister: PartitionCanister;
+            outerCanister: OuterCanister;
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
-        }) : async {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)};
+        }) : async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
         delete({outerKey: OuterSubDBKey; sk: SK; guid: GUID}): async ();
         deleteInner(innerKey: InnerSubDBKey, sk: SK): async ();
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
@@ -171,10 +172,14 @@ module {
         hasSubDBByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async Bool;
         subDBSizeByInner: query (options: {subDBKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Nat;
-        scanSubDBs: query() -> async [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))];
+        scanSubDBs: query() -> async [(OuterSubDBKey, (InnerCanister, InnerSubDBKey))];
         getSubDBUserDataOuter: shared (options: {subDBKey: OuterSubDBKey}) -> async ?Text;
         getSubDBUserDataInner: shared (options: {subDBKey: InnerSubDBKey}) -> async ?Text;
     };
+
+    public type InnerCanister = PartitionCanister;
+
+    public type OuterCanister = PartitionCanister;
 
     public func createDBIndex(dbOptions: DBOptions) : DBIndex {
         {
@@ -241,7 +246,7 @@ module {
     /// Use only if sure that outer and inner canisters coincide.
     public func rawInsertSubDBAndSetOuter(
         superDB: SuperDB,
-        canister: PartitionCanister,
+        canister: InnerCanister,
         map: [(SK, AttributeValue)],
         keys: ?{
             inner: InnerSubDBKey;
@@ -267,7 +272,7 @@ module {
         };
     };
 
-    public func getInner(superDB: SuperDB, outerKey: InnerSubDBKey) : ?(PartitionCanister, InnerSubDBKey) {
+    public func getInner(superDB: SuperDB, outerKey: InnerSubDBKey) : ?(InnerCanister, InnerSubDBKey) {
         do ? {
             BTree.get(superDB.locations, Nat.compare, outerKey)!.inner;
         }
@@ -277,7 +282,7 @@ module {
         BTree.get(superDB.subDBs, Nat.compare, subDBKey);
     };
 
-    public func putLocation(outerSuperDB: SuperDB, outerKey: OuterSubDBKey, innerCanister: PartitionCanister, innerKey: InnerSubDBKey) {
+    public func putLocation(outerSuperDB: SuperDB, outerKey: OuterSubDBKey, innerCanister: InnerCanister, innerKey: InnerSubDBKey) {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
             {inner = (innerCanister, innerKey); var busy: ?SparseQueue.GUID = null});
     };
@@ -290,12 +295,11 @@ module {
     ///
     /// This is meant to be called without checking user identity.
     func startMovingSubDBImpl({
-        outerCanister: PartitionCanister;
+        outerCanister: OuterCanister;
         outerKey: OuterSubDBKey;
-        oldInnerCanister: PartitionCanister;
+        oldInnerCanister: InnerCanister;
         oldInnerSuperDB: SuperDB;
         oldInnerSubDBKey: InnerSubDBKey;
-        newCanister: ?PartitionCanister;
     }) {
         switch (oldInnerSuperDB.moving) {
             case (?_) { Debug.trap("already moving") };
@@ -315,11 +319,11 @@ module {
     public func finishMovingSubDBImpl({
         guid: GUID;
         index: IndexCanister;
-        outerCanister: PartitionCanister;
+        outerCanister: OuterCanister;
         outerKey: OuterSubDBKey;
         oldInnerSuperDB: SuperDB;
         oldInnerKey: InnerSubDBKey;
-    }) : async* (PartitionCanister, InnerSubDBKey)
+    }) : async* (InnerCanister, InnerSubDBKey)
     {
         let inserting2 = SparseQueue.add<InsertingItem2>(oldInnerSuperDB.inserting2, guid, {
             var newInnerCanister = null;
@@ -365,9 +369,9 @@ module {
 
     func startMovingSubDB(options: {
         index: IndexCanister;
-        outerCanister: PartitionCanister;
+        outerCanister: OuterCanister;
         outerKey: OuterSubDBKey;
-        oldCanister: PartitionCanister;
+        oldCanister: InnerCanister;
         oldInnerSuperDB: SuperDB;
         oldInnerSubDBKey: InnerSubDBKey; // TODO: redundant (or preserve for efficiency?)
     }) : async* () {
@@ -541,7 +545,7 @@ module {
     public func startInsertingImpl(options: {
         guid: GUID;
         indexCanister: IndexCanister;
-        outerCanister: PartitionCanister;
+        outerCanister: OuterCanister;
         outerKey: OuterSubDBKey;
         sk: SK;
         value: AttributeValue;
@@ -574,7 +578,7 @@ module {
     public type InsertOptions = {
         guid: GUID;
         indexCanister: IndexCanister;
-        outerCanister: PartitionCanister;
+        outerCanister: OuterCanister;
         outerSuperDB: SuperDB;
         outerKey: OuterSubDBKey;
         sk: SK;
@@ -583,7 +587,7 @@ module {
 
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
     public func insert(options: InsertOptions)
-        : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)} // TODO: need to return this value?
+        : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
         let ?(oldInnerCanister, oldInnerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("missing sub-DB");
@@ -718,7 +722,7 @@ module {
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
     public func createSubDB({guid: GUID; dbIndex: DBIndex; userData: Text})
-        : async* {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
+        : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}
     {
         let creating0: CreatingSubDB = {var canister = null; var loc = null; userData};
         let creating = SparseQueue.add(dbIndex.creatingSubDB, guid, creating0);
@@ -763,7 +767,7 @@ module {
     ///
     /// `superDB` should reside in `part`.
     public func createOuter(outerSuperDB: SuperDB, part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
-        : {inner: (PartitionCanister, InnerSubDBKey); outer: (PartitionCanister, OuterSubDBKey)}
+        : {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}
     {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
             {inner = (part, innerKey); var busy: ?SparseQueue.GUID = null});
@@ -844,10 +848,10 @@ module {
         await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
     };
 
-    public func scanSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (PartitionCanister, InnerSubDBKey))] {
-        let iter = Iter.map<(OuterSubDBKey, {inner: (PartitionCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}), (OuterSubDBKey, (PartitionCanister, InnerSubDBKey))>(
+    public func scanSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (InnerCanister, InnerSubDBKey))] {
+        let iter = Iter.map<(OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}), (OuterSubDBKey, (InnerCanister, InnerSubDBKey))>(
             BTree.entries(superDB.locations),
-            func(e: (OuterSubDBKey, {inner: (PartitionCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID})) { (e.0, e.1.inner) },
+            func(e: (OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID})) { (e.0, e.1.inner) },
         );
         Iter.toArray(iter);
     };
