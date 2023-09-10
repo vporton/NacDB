@@ -8,15 +8,10 @@ import Debug "mo:base/Debug";
 import Array "mo:base/Array";
 
 actor {
-    func constructor(dbOptions: Nac.DBOptions): async Nac.PartitionCanister {
-        await Partition.Partition(dbOptions);
-    };
-
     let dbOptions = {
         moveCap = #usedMemory 500_000;
         hardCap = ?1000;
         partitionCycles = 10_000_000_000;
-        constructor = constructor;
         timeout = 20 * 1_000_000_000; // 20 sec
         createDBQueueLength = 60;
         insertQueueLength = 60;

@@ -22,17 +22,10 @@ import Int64 "mo:base/Int64";
 import BTree "mo:btree/BTree";
 
 actor StressTest {
-    // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
-    public shared func constructor(dbOptions: Nac.DBOptions): async Partition.Partition {
-        MyCycles.addPart(dbOptions.partitionCycles);
-        await Partition.Partition(dbOptions);
-    };
-
     let dbOptions = {
         moveCap = #usedMemory 300_000;
         hardCap = null;
         partitionCycles = 28_000_000_000;
-        constructor = constructor;
         timeout = 3600 * 1_000_000_000; // 1 hour
         createDBQueueLength = 60;
         insertQueueLength = 60;
@@ -84,7 +77,7 @@ actor StressTest {
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
-        MyCycles.addPart(dbOptions.partitionCycles);
+        MyCycles.addPart(dbOptions.partitionCycles * 10_000); // FIXME: Should work without this multiplier!
         let index = await Index.Index(dbOptions);
         MyCycles.addPart(dbOptions.partitionCycles);
         await index.init();
@@ -192,7 +185,7 @@ actor StressTest {
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await options.index.createSubDB({guid; userData = debug_show(guid)});
                 } catch(e) {
-                    Debug.print("repeat createSubDB: " # Error.message(e));
+                    // Debug.print("repeat createSubDB: " # Error.message(e));
                     continue R;
                 };
                 v := ?(part, outerKey);

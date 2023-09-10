@@ -100,8 +100,10 @@ module {
     };
 
     public type IndexCanister = actor {
+        createPartition: shared(dbOptions: DBOptions) -> async PartitionCanister;
         getCanisters: query () -> async [PartitionCanister];
-        newCanister(): async PartitionCanister;
+        // FIXME: Both createPartition() and newCanister()?
+        newCanister: shared() -> async PartitionCanister;
         createSubDB: shared({guid: GUID; userData: Text})
             -> async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
     };
@@ -204,7 +206,6 @@ module {
     public type DBOptions = {
         hardCap: ?Nat;
         moveCap: MoveCap;
-        constructor: shared(dbOptions: DBOptions) -> async PartitionCanister;
         partitionCycles: Nat;
         timeout: Time.Time;
         createDBQueueLength: Nat;
@@ -720,7 +721,7 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
-    public func createSubDB({guid: GUID; dbIndex: DBIndex; userData: Text})
+    public func createSubDB({guid: GUID; index: IndexCanister; dbIndex: DBIndex; userData: Text})
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}
     {
         let creating0: CreatingSubDB = {var canister = null; var loc = null; userData};
@@ -732,7 +733,7 @@ module {
                 let part = canisters[canisters.size() - 1];
                 MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
                 let part2 = if (await part.isOverflowed({})) {
-                    let part2 = await* newCanister(dbIndex);
+                    let part2 = await newCanister(index, dbIndex);
                     creating.canister := ?part;
                     part2;
                 } else {
@@ -861,9 +862,9 @@ module {
         StableBuffer.toArray(dbIndex.canisters);
     };
 
-    public func newCanister(dbIndex: DBIndex): async* PartitionCanister {
-        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
-        let canister = await dbIndex.dbOptions.constructor(dbIndex.dbOptions);
+    public func newCanister(index: IndexCanister, dbIndex: DBIndex): async PartitionCanister {
+        MyCycles.addPart(dbIndex.dbOptions.partitionCycles); // FIXME
+        let canister = await index.createPartition(dbIndex.dbOptions);
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
         canister;
     };
