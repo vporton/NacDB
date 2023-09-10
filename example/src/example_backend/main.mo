@@ -1,14 +1,14 @@
 import Cycles "mo:base/ExperimentalCycles";
 import Nac "../../../src/NacDB";
-import GUID "../../../lib/GUID";
-import MyCycles "../../../lib/Cycles";
+import GUID "../../../src/GUID";
+import MyCycles "../../../src/Cycles";
 import Index "../index/main";
 import Partition "../partition/main";
 import Debug "mo:base/Debug";
 import Array "mo:base/Array";
 
 actor {
-    func constructor(dbOptions: Nac.DBOptions): async* Partition.Partition {
+    func constructor(dbOptions: Nac.DBOptions): async Nac.PartitionCanister {
         await Partition.Partition(dbOptions);
     };
 

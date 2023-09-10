@@ -5,9 +5,9 @@ import Index "../example/src/index/main";
 import Partition "../example/src/partition/main";
 import Principal "mo:base/Principal";
 import Array "mo:base/Array";
-import SparseQueue "../lib/SparseQueue";
-import GUID "../lib/GUID";
-import MyCycles "../lib/Cycles";
+import SparseQueue "../src/SparseQueue";
+import GUID "../src/GUID";
+import MyCycles "../src/Cycles";
 
 type Group = ActorSpec.Group;
 
