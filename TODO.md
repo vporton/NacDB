@@ -1,5 +1,7 @@
 TODO:
 
+- Decrease amount of cycles for partition canisters?
+
 - It can be abused by calling with the same GUID after complete accomplishing
   of an operation.
 
