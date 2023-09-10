@@ -11,7 +11,7 @@ actor {
     let dbOptions = {
         moveCap = #usedMemory 500_000;
         hardCap = ?1000;
-        partitionCycles = 10_000_000_000;
+        partitionCycles = 28_000_000_000;
         timeout = 20 * 1_000_000_000; // 20 sec
         createDBQueueLength = 60;
         insertQueueLength = 60;
@@ -20,6 +20,7 @@ actor {
     stable var index : ?Index.Index = null;
 
     public shared func init() : async () {
+        ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
         MyCycles.addPart(dbOptions.partitionCycles);
         let index0 = await Index.Index(dbOptions);
         index := ?index0;

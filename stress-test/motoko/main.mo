@@ -77,7 +77,7 @@ actor StressTest {
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
-        MyCycles.addPart(dbOptions.partitionCycles * 10_000); // FIXME: Should work without this multiplier!
+        MyCycles.addPart(dbOptions.partitionCycles);
         let index = await Index.Index(dbOptions);
         MyCycles.addPart(dbOptions.partitionCycles);
         await index.init();
