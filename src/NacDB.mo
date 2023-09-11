@@ -863,7 +863,7 @@ module {
     };
 
     public func createPartitionImpl(index: IndexCanister, dbIndex: DBIndex): async PartitionCanister {
-        MyCycles.addPart(dbIndex.dbOptions.partitionCycles); // FIXME
+        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
         let canister = await index.createPartition();
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
         canister;
