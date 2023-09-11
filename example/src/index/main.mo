@@ -32,9 +32,9 @@ shared actor class Index(dbOptions: Nac.DBOptions) = this {
         Nac.getCanisters(dbIndex);
     };
 
-    public shared func newCanister(): async Nac.PartitionCanister {
+    public shared func createPartitionImpl(): async Nac.PartitionCanister {
         ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await Nac.newCanister(this, dbIndex);
+        await Nac.createPartitionImpl(this, dbIndex);
     };
 
     public shared func createSubDB({guid: Nac.GUID; userData: Text})
