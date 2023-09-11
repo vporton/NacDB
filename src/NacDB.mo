@@ -102,7 +102,7 @@ module {
     public type IndexCanister = actor {
         // TODO: Can we make createPartitionImpl() a non-shared function?
         createPartitionImpl: shared() -> async PartitionCanister;
-        createPartition: shared(dbOptions: DBOptions) -> async PartitionCanister;
+        createPartition: shared() -> async PartitionCanister;
         getCanisters: query () -> async [PartitionCanister];
         createSubDB: shared({guid: GUID; userData: Text})
             -> async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
@@ -864,7 +864,7 @@ module {
 
     public func createPartitionImpl(index: IndexCanister, dbIndex: DBIndex): async PartitionCanister {
         MyCycles.addPart(dbIndex.dbOptions.partitionCycles); // FIXME
-        let canister = await index.createPartition(dbIndex.dbOptions);
+        let canister = await index.createPartition();
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
         canister;
     };

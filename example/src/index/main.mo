@@ -5,42 +5,43 @@ import StableBuffer "mo:stable-buffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 import MyCycles "../../../src/Cycles";
+import Common "../common";
 
-shared actor class Index(dbOptions: Nac.DBOptions) = this {
-    stable var dbIndex: Nac.DBIndex = Nac.createDBIndex(dbOptions);
+shared actor class Index() = this {
+    stable var dbIndex: Nac.DBIndex = Nac.createDBIndex(Common.dbOptions);
 
     stable var initialized = false;
 
     public shared func init() : async () {
-        ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         if (initialized) {
             Debug.trap("already initialized");
         };
-        MyCycles.addPart(dbOptions.partitionCycles);
-        StableBuffer.add(dbIndex.canisters, await Partition.Partition(dbOptions));
+        MyCycles.addPart(Common.dbOptions.partitionCycles);
+        StableBuffer.add(dbIndex.canisters, await Partition.Partition());
         initialized := true;
     };
 
-    public shared func createPartition(dbOptions: Nac.DBOptions): async Nac.PartitionCanister {
-        ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        MyCycles.addPart(dbOptions.partitionCycles);
-        await Partition.Partition(dbOptions);
+    public shared func createPartition(): async Nac.PartitionCanister {
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        MyCycles.addPart(Common.dbOptions.partitionCycles);
+        await Partition.Partition();
     };
 
     public query func getCanisters(): async [Nac.PartitionCanister] {
-        // ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
+        // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.getCanisters(dbIndex);
     };
 
     public shared func createPartitionImpl(): async Nac.PartitionCanister {
-        ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await Nac.createPartitionImpl(this, dbIndex);
     };
 
     public shared func createSubDB({guid: Nac.GUID; userData: Text})
         : async {inner: (Nac.InnerCanister, Nac.InnerSubDBKey); outer: (Nac.OuterCanister, Nac.OuterSubDBKey)}
     {
-        ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        await* Nac.createSubDB({guid; index = this; dbIndex; dbOptions; userData});
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        await* Nac.createSubDB({guid; index = this; dbIndex; dbOptions = Common.dbOptions; userData});
     };
 }

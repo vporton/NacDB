@@ -6,25 +6,18 @@ import Index "../index/main";
 import Partition "../partition/main";
 import Debug "mo:base/Debug";
 import Array "mo:base/Array";
+import Common "../common";
 
 actor {
-    let dbOptions = {
-        moveCap = #usedMemory 500_000;
-        hardCap = ?1000;
-        partitionCycles = 28_000_000_000;
-        timeout = 20 * 1_000_000_000; // 20 sec
-        createDBQueueLength = 60;
-        insertQueueLength = 60;
-    };
 
     stable var index : ?Index.Index = null;
 
     public shared func init() : async () {
-        ignore MyCycles.topUpCycles(dbOptions.partitionCycles);
-        MyCycles.addPart(dbOptions.partitionCycles);
-        let index0 = await Index.Index(dbOptions);
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        MyCycles.addPart(Common.dbOptions.partitionCycles);
+        let index0 = await Index.Index();
         index := ?index0;
-        MyCycles.addPart(dbOptions.partitionCycles);
+        MyCycles.addPart(Common.dbOptions.partitionCycles);
         await index0.init();
     };
 
