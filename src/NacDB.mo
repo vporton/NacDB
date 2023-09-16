@@ -18,6 +18,7 @@ import MyCycles "./Cycles";
 import Blob "mo:base/Blob";
 import Array "mo:base/Array";
 import Time "mo:base/Time";
+import Order "mo:base/Order";
 
 module {
     public type GUID = Blob;
@@ -28,7 +29,8 @@ module {
     /// Constant (regarding moving a sub-DB to another canister) key mapped to `InnerSubDBKey`.
     public type OuterSubDBKey = Nat;
 
-    public type SK = Text;
+    public type OrderKey = Text;
+    public type ItemKey = Nat;
 
     public type AttributeKey = Text;
 
@@ -41,7 +43,8 @@ module {
     public type AttributeValue = AttributeValuePrimitive or AttributeValueBlob or AttributeValueTuple or AttributeValueArray or AttributeValueRBTree;
 
     public type SubDB = {
-        var map: BTree.BTree<SK, AttributeValue>;
+        var map: BTree.BTree<OrderKey, (ItemKey, AttributeValue)>;
+        var map2: BTree.BTree<ItemKey, OrderKey>;
         var userData: Text; // useful to have a back reference to "locator" of our sub-DB in another database
     };
 
@@ -112,10 +115,10 @@ module {
     public type PartitionCanister = actor {
         // Mandatory //
 
-        rawInsertSubDB(map: [(SK, AttributeValue)], inner: ?InnerSubDBKey, userData: Text)
+        rawInsertSubDB(map: [(OrderKey, (ItemKey, AttributeValue))], inner: ?InnerSubDBKey, userData: Text)
             : async {inner: InnerSubDBKey};
         rawInsertSubDBAndSetOuter(
-            map: [(SK, AttributeValue)],
+            map: [(OrderKey, AttributeValue)],
             keys: ?{
                 inner: InnerSubDBKey;
                 outer: OuterSubDBKey;
@@ -140,7 +143,7 @@ module {
             indexCanister: IndexCanister;
             outerCanister: OuterCanister;
             outerKey: OuterSubDBKey;
-            sk: SK;
+            sk: OrderKey;
             value: AttributeValue;
             innerKey: InnerSubDBKey;
             needsMove: Bool;
@@ -156,19 +159,19 @@ module {
             indexCanister: IndexCanister;
             outerCanister: OuterCanister;
             outerKey: OuterSubDBKey;
-            sk: SK;
+            sk: OrderKey;
             value: AttributeValue;
         }) : async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
-        delete({outerKey: OuterSubDBKey; sk: SK; guid: GUID}): async ();
-        deleteInner({innerKey: InnerSubDBKey; sk: SK}): async ();
-        scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
+        delete({outerKey: OuterSubDBKey; sk: OrderKey; guid: GUID}): async ();
+        deleteInner({innerKey: InnerSubDBKey; sk: OrderKey}): async ();
+        scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: OrderKey; upperBound: OrderKey; dir: RBT.Direction; limit: Nat})
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
-        scanLimitOuter: shared({outerKey: OuterSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
+        scanLimitOuter: shared({outerKey: OuterSubDBKey; lowerBound: OrderKey; upperBound: OrderKey; dir: RBT.Direction; limit: Nat})
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
-        getByInner: query (options: {innerKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
-        hasByInner: query (options: {innerKey: InnerSubDBKey; sk: SK}) -> async Bool;
-        getByOuter: shared (options: {outerKey: OuterSubDBKey; sk: SK}) -> async ?AttributeValue;
-        hasByOuter: shared (options: {outerKey: OuterSubDBKey; sk: SK}) -> async Bool;
+        getByInner: query (options: {innerKey: InnerSubDBKey; sk: OrderKey}) -> async ?AttributeValue;
+        hasByInner: query (options: {innerKey: InnerSubDBKey; sk: OrderKey}) -> async Bool;
+        getByOuter: shared (options: {outerKey: OuterSubDBKey; sk: OrderKey}) -> async ?AttributeValue;
+        hasByOuter: shared (options: {outerKey: OuterSubDBKey; sk: OrderKey}) -> async Bool;
         hasSubDBByInner: query (options: {innerKey: InnerSubDBKey}) -> async Bool;
         hasSubDBByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async Bool;
         subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
@@ -216,7 +219,7 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     public func rawInsertSubDB(
         superDB: SuperDB,
-        map: [(SK, AttributeValue)],
+        map: [(OrderKey, (ItemKey, AttributeValue))],
         inner: ?InnerSubDBKey,
         userData: Text,
     ) : {inner: InnerSubDBKey}
@@ -232,8 +235,13 @@ module {
                         key;
                     };
                 };                    
+                var m2 = Iter.map<(OrderKey, (ItemKey, AttributeValue)), (ItemKey, OrderKey)>(
+                    map.vals(),
+                    func(v: (OrderKey, (ItemKey, AttributeValue))): (ItemKey, OrderKey) { (v.1.0, v.0) }
+                );
                 let subDB : SubDB = {
                     var map = BTree.fromArray(8, Text.compare, map);
+                    var map2 = BTree.fromArray(8, Nat.compare, Iter.toArray(m2));
                     var userData = userData;
                 };
                 ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
@@ -247,7 +255,7 @@ module {
     public func rawInsertSubDBAndSetOuter(
         superDB: SuperDB,
         canister: InnerCanister,
-        map: [(SK, AttributeValue)],
+        map: [(OrderKey, (ItemKey, AttributeValue))],
         keys: ?{
             inner: InnerSubDBKey;
             outer: OuterSubDBKey;
@@ -454,12 +462,12 @@ module {
 
     // DB operations //
 
-    public type GetByInnerOptions = {superDB: SuperDB; innerKey: InnerSubDBKey; sk: SK};
+    public type GetByInnerOptions = {superDB: SuperDB; innerKey: InnerSubDBKey; sk: OrderKey};
 
     public func getByInner(options: GetByInnerOptions) : ?AttributeValue {
         switch (getSubDBByInner(options.superDB, options.innerKey)) {
             case (?subDB) {
-                BTree.get(subDB.map, Text.compare, options.sk);
+                do ? { BTree.get(subDB.map, Text.compare, options.sk)!.1 };
             };
             case (null) {
                 Debug.trap("missing sub-DB")
@@ -467,7 +475,7 @@ module {
         }
     };
 
-    public type GetByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
+    public type GetByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: OrderKey};
 
     // Sometimes traps "missing sub-DB".
     public func getByOuter(options: GetByOuterOptions) : async* ?AttributeValue {
@@ -547,7 +555,7 @@ module {
         indexCanister: IndexCanister;
         outerCanister: OuterCanister;
         outerKey: OuterSubDBKey;
-        sk: SK;
+        sk: OrderKey;
         value: AttributeValue;
         innerSuperDB: SuperDB;
         innerKey: InnerSubDBKey;
@@ -581,7 +589,7 @@ module {
         outerCanister: OuterCanister;
         outerSuperDB: SuperDB;
         outerKey: OuterSubDBKey;
-        sk: SK;
+        sk: OrderKey;
         value: AttributeValue;
     };
 
@@ -666,7 +674,7 @@ module {
         {inner = (newInnerPartition, newInnerKey); outer = (options.outerCanister, options.outerKey)};
     };
 
-    public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: SK}): async* () {
+    public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: OrderKey}): async* () {
         switch (BTree.get(innerSuperDB.subDBs, Nat.compare, innerKey)) {
             case (?subDB) {
                 ignore BTree.delete<Text, AttributeValue>(subDB.map, Text.compare, sk);
@@ -677,7 +685,7 @@ module {
         }
     };
 
-    type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK; guid: GUID};
+    type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: OrderKey; guid: GUID};
     
     /// idempotent
     public func delete(options: DeleteOptions): async* () {
