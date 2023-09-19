@@ -32,13 +32,14 @@ module {
 
     public type AttributeKey = Text;
 
+    // TODO: I've commented out some types due to https://github.com/dfinity/motoko/issues/4213
     public type AttributeValuePrimitive = {#text : Text; #int : Int; #bool : Bool; #float : Float};
-    public type AttributeValueBlob = {#blob : Blob};
+    // public type AttributeValueBlob = {#blob : Blob};
     public type AttributeValueTuple = {#tuple : [AttributeValuePrimitive]};
     public type AttributeValueArray = {#arrayText : [Text]; #arrayInt : [Int]; #arrayBool : [Bool]; #arrayFloat : [Float]};
-    public type AttributeValueRBTreeValue = AttributeValuePrimitive or AttributeValueBlob or AttributeValueTuple or AttributeValueArray;
-    public type AttributeValueRBTree = {#tree : RBT.Tree<Text, AttributeValueRBTreeValue>};
-    public type AttributeValue = AttributeValuePrimitive or AttributeValueBlob or AttributeValueTuple or AttributeValueArray or AttributeValueRBTree;
+    // public type AttributeValueRBTreeValue = AttributeValuePrimitive or /*AttributeValueBlob or*/ AttributeValueTuple or AttributeValueArray;
+    // public type AttributeValueRBTree = {#tree : RBT.Tree<Text, AttributeValueRBTreeValue>};
+    public type AttributeValue = AttributeValuePrimitive or /*AttributeValueBlob or*/ AttributeValueTuple or AttributeValueArray /*or AttributeValueRBTree*/;
 
     public type SubDB = {
         var map: BTree.BTree<SK, AttributeValue>;
