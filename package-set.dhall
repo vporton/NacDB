@@ -21,16 +21,6 @@ let
       , version = "v0.6.1"
       , dependencies = [ "base" ]
       },
-      { name = "encoding"
-      , version = "main"
-      , repo = "https://github.com/aviate-labs/encoding.mo"
-      , dependencies = [ "base-0.7.3" ]
-      },
-      { name = "base-0.7.3"
-      , version = "master"
-      , repo = "https://github.com/dfinity/motoko-base"
-      , dependencies = [] : List Text
-      },
       { name = "sha"
       , version = "master"
       , repo = "https://github.com/enzoh/motoko-sha"

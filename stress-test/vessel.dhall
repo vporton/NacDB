@@ -1,4 +1,4 @@
 {
-  dependencies = [ "base", "base-0.7.3", "btree", "stable-rbtree", "stable-buffer", "matchers", "prng", "encoding", "sha" ],
+  dependencies = [ "base", "btree", "stable-rbtree", "stable-buffer", "matchers", "prng", "sha" ],
   compiler = Some "0.9.1"
 }
