@@ -183,7 +183,7 @@ actor StressTest {
             label R loop {
                 let {outer = (part, outerKey)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
-                    await options.index.createSubDB({guid; userData = debug_show(guid)});
+                    await options.index.createSubDB({guid = Blob.toArray(guid); userData = debug_show(guid)});
                 } catch(e) {
                     // Debug.print("repeat createSubDB: " # Error.message(e));
                     continue R;
@@ -205,7 +205,7 @@ actor StressTest {
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            await part.deleteSubDB({outerKey; guid});
+                            await part.deleteSubDB({outerKey; guid = Blob.toArray(guid)});
                         } catch(e) {
                             // Debug.print("repeat deleteSubDB: " # Error.message(e));
                             continue R;
@@ -236,7 +236,7 @@ actor StressTest {
                 let {outer = (part2, outerKey2)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await part.insert({
-                        guid;
+                        guid = Blob.toArray(guid);
                         dbOptions;
                         indexCanister = options.index;
                         outerCanister = part;
@@ -277,7 +277,7 @@ actor StressTest {
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            await part.delete({outerKey; sk; guid});
+                            await part.delete({outerKey; sk; guid = Blob.toArray(guid)});
                         } catch(e) {
                             // Debug.print("repeat delete: " # Error.message(e));
                             continue R;

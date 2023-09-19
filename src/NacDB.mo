@@ -105,7 +105,7 @@ module {
         createPartitionImpl: shared() -> async PartitionCanister;
         createPartition: shared() -> async PartitionCanister;
         getCanisters: query () -> async [PartitionCanister];
-        createSubDB: shared({guid: GUID; userData: Text})
+        createSubDB: shared({guid: [Nat8]; userData: Text})
             -> async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
     };
 
@@ -126,7 +126,7 @@ module {
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
         isOverflowed: shared ({}) -> async Bool;
         finishMovingSubDBImpl({
-            guid: GUID;
+            guid: [Nat8];
             index: IndexCanister;
             outerCanister: OuterCanister;
             outerKey: OuterSubDBKey;
@@ -137,7 +137,7 @@ module {
         createOuter(part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
             : async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
         startInsertingImpl(options: {
-            guid: GUID;
+            guid: [Nat8];
             indexCanister: IndexCanister;
             outerCanister: OuterCanister;
             outerKey: OuterSubDBKey;
@@ -150,17 +150,17 @@ module {
         // Optional //
 
         superDBSize: query () -> async Nat;
-        deleteSubDB({outerKey: OuterSubDBKey; guid: GUID}) : async ();
+        deleteSubDB({outerKey: OuterSubDBKey; guid: [Nat8]}) : async ();
         deleteSubDBInner({innerKey: InnerSubDBKey}) : async ();
         insert({
-            guid: GUID;
+            guid: [Nat8];
             indexCanister: IndexCanister;
             outerCanister: OuterCanister;
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
         }) : async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
-        delete({outerKey: OuterSubDBKey; sk: SK; guid: GUID}): async ();
+        delete({outerKey: OuterSubDBKey; sk: SK; guid: [Nat8]}): async ();
         deleteInner({innerKey: InnerSubDBKey; sk: SK}): async ();
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
@@ -616,7 +616,7 @@ module {
             };
             MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
             await oldInnerCanister.startInsertingImpl({
-                guid = options.guid;
+                guid = Blob.toArray(options.guid);
                 indexCanister = options.indexCanister;
                 outerCanister = options.outerCanister;
                 outerKey = options.outerKey;
@@ -644,7 +644,7 @@ module {
                 if (needsMove) {
                     MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
                     let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
-                        guid = options.guid; index = options.indexCanister;
+                        guid = Blob.toArray(options.guid); index = options.indexCanister;
                         oldInnerKey;
                         outerCanister = options.outerCanister;
                         outerKey = options.outerKey;

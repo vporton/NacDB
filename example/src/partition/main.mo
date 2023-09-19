@@ -7,6 +7,7 @@ import Nat "mo:base/Nat";
 import MyCycles "../../../src/Cycles";
 import Text "mo:base/Text";
 import Debug "mo:base/Debug";
+import Blob "mo:base/Blob";
 import Common "../common";
 
 shared({caller}) actor class Partition() = this {
@@ -49,9 +50,9 @@ shared({caller}) actor class Partition() = this {
         Nac.superDBSize(superDB);
     };
 
-    public shared func deleteSubDB({outerKey: Nac.OuterSubDBKey; guid: Nac.GUID}) : async () {
+    public shared func deleteSubDB({outerKey: Nac.OuterSubDBKey; guid: [Nat8]}) : async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        await* Nac.deleteSubDB({dbOptions = Common.dbOptions; outerSuperDB = superDB; outerKey; guid});
+        await* Nac.deleteSubDB({dbOptions = Common.dbOptions; outerSuperDB = superDB; outerKey; guid = Blob.fromArray(guid)});
     };
 
     public shared func deleteSubDBInner({innerKey: Nac.InnerSubDBKey}) : async () {
@@ -60,7 +61,7 @@ shared({caller}) actor class Partition() = this {
     };
 
     public shared func finishMovingSubDBImpl({
-        guid: Nac.GUID;
+        guid: [Nat8];
         index: Nac.IndexCanister;
         outerCanister: Nac.OuterCanister;
         outerKey: Nac.OuterSubDBKey;
@@ -69,7 +70,7 @@ shared({caller}) actor class Partition() = this {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.finishMovingSubDBImpl({
             oldInnerSuperDB = superDB;
-            guid;
+            guid = Blob.fromArray(guid);
             index;
             outerCanister;
             outerKey;
@@ -78,7 +79,7 @@ shared({caller}) actor class Partition() = this {
     };
 
     public shared func insert({
-        guid: Nac.GUID;
+        guid: [Nat8];
         indexCanister: Nac.IndexCanister;
         outerCanister: Nac.OuterCanister;
         outerKey: Nac.OuterSubDBKey;
@@ -87,7 +88,7 @@ shared({caller}) actor class Partition() = this {
     }) : async {inner: (Nac.InnerCanister, Nac.InnerSubDBKey); outer: (Nac.OuterCanister, Nac.OuterSubDBKey)} {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.insert({
-            guid;
+            guid = Blob.fromArray(guid);
             indexCanister;
             outerCanister;
             outerSuperDB = superDB;
@@ -109,9 +110,9 @@ shared({caller}) actor class Partition() = this {
         Nac.createOuter(superDB, part, outerKey, innerKey);
     };
 
-    public shared func delete({outerKey: Nac.OuterSubDBKey; sk: Nac.SK; guid: Nac.GUID}): async () {
+    public shared func delete({outerKey: Nac.OuterSubDBKey; sk: Nac.SK; guid: [Nat8]}): async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        await* Nac.delete({outerSuperDB = superDB; outerKey; sk; guid});
+        await* Nac.delete({outerSuperDB = superDB; outerKey; sk; guid = Blob.fromArray(guid)});
     };
 
     public shared func deleteInner({innerKey: Nac.InnerSubDBKey; sk: Nac.SK}): async () {
@@ -179,7 +180,7 @@ shared({caller}) actor class Partition() = this {
     };
 
     public shared func startInsertingImpl({
-        guid: Nac.GUID;
+        guid: [Nat8];
         indexCanister: Nac.IndexCanister;
         outerCanister: Nac.OuterCanister;
         outerKey: Nac.OuterSubDBKey;
@@ -190,7 +191,7 @@ shared({caller}) actor class Partition() = this {
     }): async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.startInsertingImpl({
-            guid;
+            guid = Blob.fromArray(guid);
             indexCanister;
             outerCanister;
             outerKey;

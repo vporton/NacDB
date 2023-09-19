@@ -4,6 +4,7 @@ import Partition "../partition/main";
 import StableBuffer "mo:stable-buffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
+import Blob "mo:base/Blob";
 import MyCycles "../../../src/Cycles";
 import Common "../common";
 
@@ -38,10 +39,10 @@ shared actor class Index() = this {
         await Nac.createPartitionImpl(this, dbIndex);
     };
 
-    public shared func createSubDB({guid: Nac.GUID; userData: Text})
+    public shared func createSubDB({guid: [Nat8]; userData: Text})
         : async {inner: (Nac.InnerCanister, Nac.InnerSubDBKey); outer: (Nac.OuterCanister, Nac.OuterSubDBKey)}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        await* Nac.createSubDB({guid; index = this; dbIndex; dbOptions = Common.dbOptions; userData});
+        await* Nac.createSubDB({guid = Blob.fromArray(guid); index = this; dbIndex; dbOptions = Common.dbOptions; userData});
     };
 }
