@@ -30,7 +30,7 @@ actor {
         let location = await index0.createSubDB({guid = Blob.toArray(GUID.nextGuid(guidGen)); index = index0; userData = ""});
         let {outer = (part, subDBKey)} = location;
         let {outer = (part2, subDBKey2)} = await part.insert({
-            guid = GUID.nextGuid(guidGen);
+            guid = Blob.toArray(GUID.nextGuid(guidGen));
             indexCanister = index0;
             outerCanister = part;
             outerKey = subDBKey;
