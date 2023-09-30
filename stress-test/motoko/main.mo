@@ -141,13 +141,15 @@ actor StressTest {
         let threads2 : [var ?(async())] = Array.init(nThreads2, null);
         let runThread2 = func(outerPart: Nac.OuterCanister) : async () {
             for ((outerKey, (innerCanister, innerKey)) in (await outerPart.scanSubDBs()).vals()) {
-                if (not (await innerCanister.hasSubDBByInner({innerKey}))) {
+                let innerCanister2: Nac.InnerCanister = actor(Principal.toText(innerCanister));
+                if (not (await innerCanister2.hasSubDBByInner({innerKey}))) {
                     brokenOuterCount += 1;
                 }
             }
         };
         for (threadNum in threads2.keys()) {
-            threads2[threadNum] := ?runThread2(partitions[threadNum]);
+            let partitions2: Nac.PartitionCanister = actor(Principal.toText(partitions[threadNum]));
+            threads2[threadNum] := ?runThread2(partitions2);
         };
         for (topt in threads2.vals()) {
             let ?t = topt else {
@@ -252,7 +254,8 @@ actor StressTest {
                     // Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
-                v := ?(part2, outerKey2);
+                let part3: Nac.PartitionCanister = actor(Principal.toText(part2));
+                v := ?(part3, outerKey2);
                 break R;
             };
             let ?(part3, outerKey3) = v else {
@@ -388,12 +391,14 @@ actor StressTest {
         var result: ReferenceTree = RBT.init();
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
-            label L for ((outerKey, (innerCanister, innerKey)) in (await part.scanSubDBs()).vals()) {
-                let ?guid = RBT.get(outerToGUID, compareLocs, (part, outerKey)) else {
-                    Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part)) # " " # debug_show(outerKey));
+            let part2: Nac.PartitionCanister = actor(Principal.toText(part));
+            label L for ((outerKey, (innerCanister, innerKey)) in (await part2.scanSubDBs()).vals()) {
+                let ?guid = RBT.get(outerToGUID, compareLocs, (part2, outerKey)) else {
+                    Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part2)) # " " # debug_show(outerKey));
                 };
                 var subtree = RBT.init<Text, Nat>();
-                let scanned = await innerCanister.scanLimitInner({
+                let innerCanister2: Nac.PartitionCanister = actor(Principal.toText(innerCanister));
+                let scanned = await innerCanister2.scanLimitInner({
                     innerKey; lowerBound = ""; upperBound = "\u{ffff}\u{ffff}\u{ffff}\u{ffff}"; dir = #fwd; limit = 1_000_000_000});
                 for ((sk, v) in scanned.results.vals()) {
                     let #int v2 = v else {

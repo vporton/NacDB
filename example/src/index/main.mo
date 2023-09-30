@@ -5,6 +5,8 @@ import StableBuffer "mo:stable-buffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 import Blob "mo:base/Blob";
+import Array "mo:base/Array";
+import Iter "mo:base/Iter";
 import MyCycles "../../../src/Cycles";
 import Common "../common";
 
@@ -26,12 +28,13 @@ shared actor class Index() = this {
     public shared func createPartition(): async Principal {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         MyCycles.addPart(Common.dbOptions.partitionCycles);
-        await Partition.Partition();
+        Principal.fromActor(await Partition.Partition());
     };
 
     public query func getCanisters(): async [Principal] {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        Nac.getCanisters(dbIndex);
+        let iter = Iter.map(Nac.getCanisters(dbIndex).vals(), func (x: Nac.PartitionCanister): Principal {Principal.fromActor(x)});
+        Iter.toArray(iter);
     };
 
     public shared func createPartitionImpl(): async Principal {

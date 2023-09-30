@@ -128,19 +128,19 @@ module {
         isOverflowed: shared ({}) -> async Bool;
         finishMovingSubDBImpl({
             guid: [Nat8];
-            index: IndexCanister;
-            outerCanister: OuterCanister;
+            index: Principal;
+            outerCanister: Principal;
             outerKey: OuterSubDBKey;
             oldInnerKey: InnerSubDBKey;
         }) : async (Principal, InnerSubDBKey);
         putLocation(outerKey: OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: InnerSubDBKey) : async ();
         // In the current version two partition canister are always the same.
-        createOuter(part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
+        createOuter(part: Principal, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
             : async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
         startInsertingImpl(options: {
             guid: [Nat8];
-            indexCanister: IndexCanister;
-            outerCanister: OuterCanister;
+            indexCanister: Principal;
+            outerCanister: Principal;
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
@@ -356,7 +356,7 @@ module {
 
                 // There was `isOverflowed`, change the outer.
                 MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
-                await outerCanister.putLocation(outerKey, canister, newInnerSubDBKey);
+                await outerCanister.putLocation(outerKey, Principal.fromActor(canister), newInnerSubDBKey);
                 ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
 
                 (canister, newInnerSubDBKey);
@@ -383,7 +383,8 @@ module {
         };
         MyCycles.addPart(options.oldInnerSuperDB.dbOptions.partitionCycles);
         let pks = await options.index.getCanisters();
-        let lastCanister = pks[pks.size()-1];
+        let lastCanister0 = pks[pks.size()-1];
+        let lastCanister: PartitionCanister = actor(Principal.toText(lastCanister0));
         MyCycles.addPart(options.oldInnerSuperDB.dbOptions.partitionCycles);
         if (lastCanister == options.oldCanister and (await lastCanister.isOverflowed({}))) {
             startMovingSubDBImpl({
@@ -619,8 +620,8 @@ module {
             MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
             await oldInnerCanister.startInsertingImpl({
                 guid = Blob.toArray(options.guid);
-                indexCanister = options.indexCanister;
-                outerCanister = options.outerCanister;
+                indexCanister = Principal.fromActor(options.indexCanister);
+                outerCanister = Principal.fromActor(options.outerCanister);
                 outerKey = options.outerKey;
                 sk = options.sk;
                 value = options.value;
@@ -646,13 +647,15 @@ module {
                 if (needsMove) {
                     MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
                     let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
-                        guid = Blob.toArray(options.guid); index = options.indexCanister;
+                        guid = Blob.toArray(options.guid);
+                        index = Principal.fromActor(options.indexCanister);
                         oldInnerKey;
-                        outerCanister = options.outerCanister;
+                        outerCanister = Principal.fromActor(options.outerCanister);
                         outerKey = options.outerKey;
                     });
                     options.outerSuperDB.moving := null;
-                    (innerPartition, innerKey);
+                    let innerPartition2: PartitionCanister = actor(Principal.toText(innerPartition));
+                    (innerPartition2, innerKey);
                 } else {
                     (oldInnerCanister, oldInnerKey);
                 }
@@ -869,7 +872,8 @@ module {
     public func createPartitionImpl(index: IndexCanister, dbIndex: DBIndex): async Principal {
         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
         let canister = await index.createPartition();
-        StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
-        Principal.fromActor(canister);
+        let can2: PartitionCanister = actor(Principal.toText(canister));
+        StableBuffer.add(dbIndex.canisters, can2); // TODO: too low level
+        canister;
     };
 };
