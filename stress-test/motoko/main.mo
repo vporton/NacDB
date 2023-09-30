@@ -240,8 +240,8 @@ actor StressTest {
                     await part.insert({
                         guid = Blob.toArray(guid);
                         dbOptions;
-                        indexCanister = options.index;
-                        outerCanister = part;
+                        indexCanister = Principal.fromActor(options.index);
+                        outerCanister = Principal.fromActor(part);
                         outerKey;
                         sk = debug_show(sk);
                         value = #int randomValue;

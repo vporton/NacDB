@@ -155,8 +155,8 @@ module {
         deleteSubDBInner({innerKey: InnerSubDBKey}) : async ();
         insert({
             guid: [Nat8];
-            indexCanister: IndexCanister;
-            outerCanister: OuterCanister;
+            indexCanister: Principal;
+            outerCanister: Principal;
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
@@ -581,8 +581,8 @@ module {
 
     public type InsertOptions = {
         guid: GUID;
-        indexCanister: IndexCanister;
-        outerCanister: OuterCanister;
+        indexCanister: Principal;
+        outerCanister: Principal;
         outerSuperDB: SuperDB;
         outerKey: OuterSubDBKey;
         sk: SK;
@@ -620,8 +620,8 @@ module {
             MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
             await oldInnerCanister.startInsertingImpl({
                 guid = Blob.toArray(options.guid);
-                indexCanister = Principal.fromActor(options.indexCanister);
-                outerCanister = Principal.fromActor(options.outerCanister);
+                indexCanister = options.indexCanister;
+                outerCanister = options.outerCanister;
                 outerKey = options.outerKey;
                 sk = options.sk;
                 value = options.value;
@@ -648,9 +648,9 @@ module {
                     MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
                     let (innerPartition, innerKey) = await oldInnerCanister.finishMovingSubDBImpl({
                         guid = Blob.toArray(options.guid);
-                        index = Principal.fromActor(options.indexCanister);
+                        index = options.indexCanister;
                         oldInnerKey;
-                        outerCanister = Principal.fromActor(options.outerCanister);
+                        outerCanister = options.outerCanister;
                         outerKey = options.outerKey;
                     });
                     options.outerSuperDB.moving := null;
@@ -669,7 +669,8 @@ module {
         SparseQueue.delete(options.outerSuperDB.inserting, options.guid);
         releaseOuterKey(options.outerSuperDB, options.outerKey);
 
-        {inner = (newInnerPartition, newInnerKey); outer = (options.outerCanister, options.outerKey)};
+        let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
+        {inner = (newInnerPartition, newInnerKey); outer = (outer, options.outerKey)};
     };
 
     public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: SK}): async* () {
