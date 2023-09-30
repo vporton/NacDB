@@ -185,7 +185,6 @@ actor StressTest {
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await options.index.createSubDB({guid = Blob.toArray(guid); userData = debug_show(guid)});
                 } catch(e) {
-                    // Debug.print("repeat createSubDB: " # Error.message(e));
                     continue R;
                 };
                 v := ?(part, outerKey);
