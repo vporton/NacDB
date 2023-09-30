@@ -178,7 +178,7 @@ actor StressTest {
         let variants = 4+2;
         if (random < Nat64.fromNat(rngBound / variants * (1+1))) { // two times greater probability
             options.dbInserts += 1;
-            var v: ?(Partition.Partition, Nat) = null;
+            var v: ?(Principal, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
                 let {outer = (part, outerKey)} = try {
@@ -190,9 +190,10 @@ actor StressTest {
                 v := ?(part, outerKey);
                 break R;
             };
-            let ?(part, subDBKey) = v else {
+            let ?(part0, subDBKey) = v else {
                 Debug.trap("programming error: createSubDB");
             };
+            let part: Partition.Partition = actor(Principal.toText(part0));
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
             options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
             options.recentOuter.add((part, subDBKey));
