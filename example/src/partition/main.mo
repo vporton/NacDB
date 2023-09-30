@@ -84,17 +84,19 @@ shared({caller}) actor class Partition() = this {
 
     public shared func insert({
         guid: [Nat8];
-        indexCanister: Nac.IndexCanister;
-        outerCanister: Nac.OuterCanister;
+        indexCanister: Principal;
+        outerCanister: Principal;
         outerKey: Nac.OuterSubDBKey;
         sk: Nac.SK;
         value: Nac.AttributeValue;
     }) : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)} {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        let indexX: Nac.IndexCanister = actor(Principal.toText(indexCanister));
+        let outerX: Nac.OuterCanister = actor(Principal.toText(outerCanister));
         let { inner; outer } = await* Nac.insert({
             guid = Blob.fromArray(guid);
-            indexCanister;
-            outerCanister;
+            indexCanister = indexX;
+            outerCanister = outerX;
             outerSuperDB = superDB;
             outerKey;
             sk;
