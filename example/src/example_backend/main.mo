@@ -7,6 +7,7 @@ import Partition "../partition/main";
 import Debug "mo:base/Debug";
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
+import Principal "mo:base/Principal";
 import Common "../common";
 
 actor {
@@ -29,10 +30,11 @@ actor {
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
         let location = await index0.createSubDB({guid = Blob.toArray(GUID.nextGuid(guidGen)); index = index0; userData = ""});
         let {outer = (part, subDBKey)} = location;
-        let {outer = (part2, subDBKey2)} = await part.insert({
+        let partx: Nac.PartitionCanister = actor(Principal.toText(part));
+        let {outer = (part2, subDBKey2)} = await partx.insert({
             guid = Blob.toArray(GUID.nextGuid(guidGen));
             indexCanister = index0;
-            outerCanister = part;
+            outerCanister = partx;
             outerKey = subDBKey;
             sk = "name";
             value = #text name;

@@ -34,7 +34,7 @@ shared actor class Index() = this {
         Nac.getCanisters(dbIndex);
     };
 
-    public shared func createPartitionImpl(): async Nac.PartitionCanister {
+    public shared func createPartitionImpl(): async Principal {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await Nac.createPartitionImpl(this, dbIndex);
     };

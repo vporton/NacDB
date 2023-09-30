@@ -103,7 +103,7 @@ module {
     // FIXME: Here and in other places `Principal` instead of actor types?
     public type IndexCanister = actor {
         // TODO: Can we make createPartitionImpl() a non-shared function?
-        createPartitionImpl: shared() -> async PartitionCanister;
+        createPartitionImpl: shared() -> async Principal;
         createPartition: shared() -> async PartitionCanister;
         getCanisters: query () -> async [PartitionCanister];
         createSubDB: shared({guid: [Nat8]; userData: Text})
@@ -337,7 +337,8 @@ module {
                     case (?newCanister) { (newCanister.canister, newCanister) };
                     case (null) {
                         MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
-                        let newCanister = await index.createPartitionImpl();
+                        let newCanister0 = await index.createPartitionImpl();
+                        let newCanister: PartitionCanister = actor(Principal.toText(newCanister0));
                         let s = {canister = newCanister; var innerKey: ?InnerSubDBKey = null};
                         inserting2.newInnerCanister := ?s;
                         (newCanister, s);
@@ -735,7 +736,8 @@ module {
                 let part = canisters[canisters.size() - 1];
                 MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
                 let part2 = if (await part.isOverflowed({})) {
-                    let part2 = await createPartitionImpl(index, dbIndex);
+                    let part20 = await createPartitionImpl(index, dbIndex);
+                    let part2: PartitionCanister = actor(Principal.toText(part20));
                     creating.canister := ?part;
                     part2;
                 } else {
@@ -864,10 +866,10 @@ module {
         StableBuffer.toArray(dbIndex.canisters);
     };
 
-    public func createPartitionImpl(index: IndexCanister, dbIndex: DBIndex): async PartitionCanister {
+    public func createPartitionImpl(index: IndexCanister, dbIndex: DBIndex): async Principal {
         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
         let canister = await index.createPartition();
         StableBuffer.add(dbIndex.canisters, canister); // TODO: too low level
-        canister;
+        Principal.fromActor(canister);
     };
 };
