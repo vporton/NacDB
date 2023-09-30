@@ -104,8 +104,8 @@ module {
     public type IndexCanister = actor {
         // TODO: Can we make createPartitionImpl() a non-shared function?
         createPartitionImpl: shared() -> async Principal;
-        createPartition: shared() -> async PartitionCanister;
-        getCanisters: query () -> async [PartitionCanister];
+        createPartition: shared() -> async Principal;
+        getCanisters: query () -> async [Principal];
         createSubDB: shared({guid: [Nat8]; userData: Text})
             -> async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
     };
@@ -132,11 +132,11 @@ module {
             outerCanister: OuterCanister;
             outerKey: OuterSubDBKey;
             oldInnerKey: InnerSubDBKey;
-        }) : async (InnerCanister, InnerSubDBKey);
-        putLocation(outerKey: OuterSubDBKey, innerCanister: InnerCanister, newInnerSubDBKey: InnerSubDBKey) : async ();
+        }) : async (Principal, InnerSubDBKey);
+        putLocation(outerKey: OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: InnerSubDBKey) : async ();
         // In the current version two partition canister are always the same.
         createOuter(part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
-            : async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
+            : async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
         startInsertingImpl(options: {
             guid: [Nat8];
             indexCanister: IndexCanister;
@@ -160,7 +160,7 @@ module {
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
-        }) : async {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
+        }) : async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
         delete({outerKey: OuterSubDBKey; sk: SK; guid: [Nat8]}): async ();
         deleteInner({innerKey: InnerSubDBKey; sk: SK}): async ();
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
@@ -175,7 +175,7 @@ module {
         hasSubDBByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async Bool;
         subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Nat;
-        scanSubDBs: query() -> async [(OuterSubDBKey, (InnerCanister, InnerSubDBKey))];
+        scanSubDBs: query() -> async [(OuterSubDBKey, (Principal, InnerSubDBKey))];
         getSubDBUserDataOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Text;
         getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
     };

@@ -19,7 +19,7 @@ let pending = ActorSpec.pending;
 let run = ActorSpec.run;
 
 // TODO: https://forum.dfinity.org/t/why-is-actor-class-constructor-not-shared/21424
-shared func createPartition(dbOptions: Nac.DBOptions): async Partition.Partition {
+shared func createPartition(dbOptions: Nac.DBOptions): async Principal {
     await Partition.Partition(dbOptions);
 };
 

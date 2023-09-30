@@ -66,7 +66,7 @@ shared({caller}) actor class Partition() = this {
         outerCanister: Nac.OuterCanister;
         outerKey: Nac.OuterSubDBKey;
         oldInnerKey: Nac.InnerSubDBKey;
-    }) : async (Nac.InnerCanister, Nac.InnerSubDBKey) {
+    }) : async (Principal, Nac.InnerSubDBKey) {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.finishMovingSubDBImpl({
             oldInnerSuperDB = superDB;
@@ -85,7 +85,7 @@ shared({caller}) actor class Partition() = this {
         outerKey: Nac.OuterSubDBKey;
         sk: Nac.SK;
         value: Nac.AttributeValue;
-    }) : async {inner: (Nac.InnerCanister, Nac.InnerSubDBKey); outer: (Nac.OuterCanister, Nac.OuterSubDBKey)} {
+    }) : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)} {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.insert({
             guid = Blob.fromArray(guid);
@@ -98,13 +98,13 @@ shared({caller}) actor class Partition() = this {
         });
     };
 
-    public shared func putLocation(outerKey: Nac.OuterSubDBKey, innerCanister: Nac.InnerCanister, newInnerSubDBKey: Nac.InnerSubDBKey) : async () {
+    public shared func putLocation(outerKey: Nac.OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: Nac.InnerSubDBKey) : async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.putLocation(superDB, outerKey, innerCanister, newInnerSubDBKey);
     };
 
     public shared func createOuter(part: Nac.PartitionCanister, outerKey: Nac.OuterSubDBKey, innerKey: Nac.InnerSubDBKey)
-        : async {inner: (Nac.InnerCanister, Nac.InnerSubDBKey); outer: (Nac.OuterCanister, Nac.OuterSubDBKey)}
+        : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.createOuter(superDB, part, outerKey, innerKey);
@@ -134,7 +134,7 @@ shared({caller}) actor class Partition() = this {
         await* Nac.scanLimitOuter({outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
     };
 
-    public query func scanSubDBs(): async [(Nac.OuterSubDBKey, (Nac.InnerCanister, Nac.InnerSubDBKey))] {
+    public query func scanSubDBs(): async [(Nac.OuterSubDBKey, (Principal, Nac.InnerSubDBKey))] {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.scanSubDBs({superDB});
     };
@@ -181,8 +181,8 @@ shared({caller}) actor class Partition() = this {
 
     public shared func startInsertingImpl({
         guid: [Nat8];
-        indexCanister: Nac.IndexCanister;
-        outerCanister: Nac.OuterCanister;
+        indexCanister: Principal;
+        outerCanister: Principal;
         outerKey: Nac.OuterSubDBKey;
         sk: Nac.SK;
         value: Nac.AttributeValue;

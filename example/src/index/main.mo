@@ -23,13 +23,13 @@ shared actor class Index() = this {
         initialized := true;
     };
 
-    public shared func createPartition(): async Nac.PartitionCanister {
+    public shared func createPartition(): async Principal {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         MyCycles.addPart(Common.dbOptions.partitionCycles);
         await Partition.Partition();
     };
 
-    public query func getCanisters(): async [Nac.PartitionCanister] {
+    public query func getCanisters(): async [Principal] {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.getCanisters(dbIndex);
     };
