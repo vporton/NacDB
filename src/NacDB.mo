@@ -274,7 +274,7 @@ module {
         };
     };
 
-    public func getInner(superDB: SuperDB, outerKey: InnerSubDBKey) : ?(InnerCanister, InnerSubDBKey) {
+    public func getInner(superDB: SuperDB, outerKey: OuterSubDBKey) : ?(InnerCanister, InnerSubDBKey) {
         do ? {
             BTree.get(superDB.locations, Nat.compare, outerKey)!.inner;
         }
