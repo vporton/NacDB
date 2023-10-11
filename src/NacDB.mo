@@ -317,6 +317,7 @@ module {
     };
 
     /// Called only if `isOverflowed`.
+    /// FIXME: Error because of security consideration of calling from a canister.
     public func finishMovingSubDBImpl({
         guid: GUID;
         index: IndexCanister;
@@ -369,6 +370,7 @@ module {
         result;
     };
 
+    /// FIXME: Error because of security consideration of calling from a canister.
     func startMovingSubDB(options: {
         index: IndexCanister;
         outerCanister: OuterCanister;
@@ -472,6 +474,7 @@ module {
 
     public type GetByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
 
+    /// FIXME: Error because of security consideration of calling from a canister.
     // Sometimes traps "missing sub-DB".
     public func getByOuter(options: GetByOuterOptions) : async* ?AttributeValue {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
@@ -489,6 +492,7 @@ module {
 
     public type ExistsByOuterOptions = GetByOuterOptions;
 
+    /// FIXME: Error because of security consideration of calling from a canister.
     public func hasByOuter(options: ExistsByOuterOptions) : async* Bool {
         (await* getByOuter(options)) != null;
     };
@@ -511,6 +515,7 @@ module {
     public type GetUserDataOuterOptions = {superDB: SuperDB; outerKey: OuterSubDBKey};
 
     // TODO: Test this function
+    /// FIXME: Error because of security consideration of calling from a canister.
     public func getSubDBUserDataOuter(options: GetUserDataOuterOptions) : async* ?Text {
         let ?(part, innerKey) = getInner(options.superDB, options.outerKey) else {
             Debug.trap("no sub-DB");
@@ -536,6 +541,7 @@ module {
 
     public type SubDBSizeByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
+    /// FIXME: Error because of security consideration of calling from a canister.
     public func subDBSizeByOuter(options: SubDBSizeByOuterOptions): async* ?Nat {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
@@ -545,6 +551,7 @@ module {
     };
 
     /// To be called in a partition where `innerSuperDB` resides.
+    /// FIXME: Error because of security consideration of calling from a canister.
     public func startInsertingImpl(options: {
         guid: GUID;
         indexCanister: IndexCanister;
@@ -589,6 +596,7 @@ module {
     };
 
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
+    /// FIXME: Error because of security consideration of calling from a canister.
     public func insert(options: InsertOptions)
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
@@ -686,6 +694,7 @@ module {
     type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK; guid: GUID};
     
     /// idempotent
+    /// FIXME: Error because of security consideration of calling from a canister.
     public func delete(options: DeleteOptions): async* () {
         trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
         switch(getInner(options.outerSuperDB, options.outerKey)) {
@@ -700,6 +709,7 @@ module {
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
     
+    /// FIXME: Error because of security consideration of calling from a canister.
     public func deleteSubDB(options: DeleteDBOptions): async* () {
         trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
 
@@ -847,6 +857,7 @@ module {
 
     type ScanLimitOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
+    /// FIXME: Error because of security consideration of calling from a canister.
     public func scanLimitOuter(options: ScanLimitOuterOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
