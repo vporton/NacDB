@@ -112,6 +112,7 @@ module {
             index: Principal;
             outerCanister: Principal;
             outerKey: OuterSubDBKey;
+            oldInnerCanister: Principal;
             oldInnerKey: InnerSubDBKey;
         }) : async (Principal, InnerSubDBKey);
         insert({
@@ -678,6 +679,7 @@ module {
                         oldInnerKey;
                         outerCanister = options.outerCanister;
                         outerKey = options.outerKey;
+                        oldInnerCanister = Principal.fromActor(oldInnerCanister);
                     });
                     options.outerSuperDB.moving := null;
                     let innerPartition2: PartitionCanister = actor(Principal.toText(innerPartition));
