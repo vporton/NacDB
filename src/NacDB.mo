@@ -112,7 +112,7 @@ module {
     // TODO: arguments as {...}, not (...).
     public type PartitionCanister = actor {
         // Mandatory //
-
+        rawGetSubDB: query ({innerKey: InnerSubDBKey}) -> async ?[(SK, AttributeValue)];
         rawInsertSubDB(map: [(SK, AttributeValue)], inner: ?InnerSubDBKey, userData: Text)
             : async {inner: InnerSubDBKey};
         rawInsertSubDBAndSetOuter(
@@ -211,6 +211,14 @@ module {
         timeout: Time.Time;
         createDBQueueLength: Nat;
         insertQueueLength: Nat;
+    };
+
+    public func rawGetSubDB(
+        superDB: SuperDB,
+        innerKey: InnerSubDBKey,
+    ) : ?[(SK, AttributeValue)]
+    {
+        do ? { BTree.toArray(BTree.get(superDB.subDBs, Nat.compare, innerKey)!.map) };
     };
 
     /// The "real" returned value is `outer`, but `inner` can be used for caching

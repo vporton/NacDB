@@ -18,6 +18,11 @@ shared({caller}) actor class Partition() = this {
 
     // Mandatory methods //
 
+    public query func rawGetSubDB({innerKey: Nac.InnerSubDBKey}): async ?[(Nac.SK, Nac.AttributeValue)] {
+        // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        Nac.rawGetSubDB(superDB, innerKey);
+    };
+
     public shared func rawInsertSubDB(map: [(Nac.SK, Nac.AttributeValue)], inner: ?Nac.InnerSubDBKey, userData: Text)
         : async {inner: Nac.OuterSubDBKey}
     {
