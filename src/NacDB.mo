@@ -604,6 +604,7 @@ module {
         };
     };
 
+    // FIXME: Having both `outerCanister` and `outerCanister` in options is a bug.
     public type InsertOptions = {
         guid: GUID;
         indexCanister: Principal;
