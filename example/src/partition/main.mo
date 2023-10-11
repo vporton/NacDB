@@ -18,7 +18,7 @@ shared({caller}) actor class Partition() = this {
 
     // Mandatory methods //
 
-    public query func rawGetSubDB({innerKey: Nac.InnerSubDBKey}): async ?[(Nac.SK, Nac.AttributeValue)] {
+    public query func rawGetSubDB({innerKey: Nac.InnerSubDBKey}): async ?{map: [(SK, AttributeValue)]; userData: Text} {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.rawGetSubDB(superDB, innerKey);
     };
@@ -28,6 +28,11 @@ shared({caller}) actor class Partition() = this {
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.rawInsertSubDB(superDB, map, inner, userData);
+    };
+
+    public query func rawDeleteSubDB({innerKey: Nac.InnerSubDBKey}): async () {
+        // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        Nac.rawDeleteSubDB(superDB, innerKey);
     };
 
     public shared func rawInsertSubDBAndSetOuter(
@@ -64,27 +69,6 @@ shared({caller}) actor class Partition() = this {
     public shared func deleteSubDBInner({innerKey: Nac.InnerSubDBKey}) : async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.deleteSubDBInner({superDB; innerKey});
-    };
-
-    public shared func finishMovingSubDBImpl({
-        guid: [Nat8];
-        index: Principal;
-        outerCanister: Principal;
-        outerKey: Nac.OuterSubDBKey;
-        oldInnerKey: Nac.InnerSubDBKey;
-    }) : async (Principal, Nac.InnerSubDBKey) {
-        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        let index2: Nac.IndexCanister = actor(Principal.toText(index));
-        let outerCanister2: Nac.OuterCanister = actor(Principal.toText(outerCanister));
-        let (inner, key) = await* Nac.finishMovingSubDBImpl({
-            oldInnerSuperDB = superDB;
-            guid = Blob.fromArray(guid);
-            index = index2;
-            outerCanister = outerCanister2;
-            outerKey;
-            oldInnerKey;
-        });
-        (Principal.fromActor(inner), key);
     };
 
     public shared func insert({

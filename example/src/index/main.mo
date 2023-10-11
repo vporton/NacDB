@@ -39,7 +39,7 @@ shared actor class Index() = this {
 
     public shared func createPartitionImpl(): async Principal {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        await Nac.createPartitionImpl(this, dbIndex);
+        await* Nac.createPartitionImpl(this, dbIndex);
     };
 
     public shared func createSubDB({guid: [Nat8]; userData: Text})
@@ -48,5 +48,26 @@ shared actor class Index() = this {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         let r = await* Nac.createSubDB({guid = Blob.fromArray(guid); index = this; dbIndex; dbOptions = Common.dbOptions; userData});
         { inner = (Principal.fromActor(r.inner.0), r.inner.1); outer = (Principal.fromActor(r.outer.0), r.outer.1) };
+    };
+
+    public shared func finishMovingSubDBImpl({
+        guid: [Nat8];
+        index: Principal;
+        outerCanister: Principal;
+        outerKey: Nac.OuterSubDBKey;
+        oldInnerKey: Nac.InnerSubDBKey;
+    }) : async (Principal, Nac.InnerSubDBKey) {
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        let index2: Nac.IndexCanister = actor(Principal.toText(index));
+        let outerCanister2: Nac.OuterCanister = actor(Principal.toText(outerCanister));
+        let (inner, key) = await* Nac.finishMovingSubDBImpl({
+            dbIndex;
+            guid = Blob.fromArray(guid);
+            index = index2;
+            outerCanister = outerCanister2;
+            outerKey;
+            oldInnerKey;
+        });
+        (Principal.fromActor(inner), key);
     };
 }

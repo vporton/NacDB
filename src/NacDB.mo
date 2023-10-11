@@ -91,13 +91,13 @@ module {
             oldInnerSubDBKey: InnerSubDBKey;
         };
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
-        var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
     };
 
     public type DBIndex = {
         dbOptions: DBOptions;
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
+        var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
     };
 
     public type IndexCanister = actor {
@@ -107,12 +107,20 @@ module {
         getCanisters: query () -> async [Principal];
         createSubDB: shared({guid: [Nat8]; userData: Text})
             -> async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
+        finishMovingSubDBImpl({
+            guid: [Nat8];
+            index: Principal;
+            outerCanister: Principal;
+            outerKey: OuterSubDBKey;
+            oldInnerKey: InnerSubDBKey;
+        }) : async (Principal, InnerSubDBKey);
     };
 
     // TODO: arguments as {...}, not (...).
     public type PartitionCanister = actor {
         // Mandatory //
-        rawGetSubDB: query ({innerKey: InnerSubDBKey}) -> async ?[(SK, AttributeValue)];
+        rawGetSubDB: query ({innerKey: InnerSubDBKey}) -> async ?{map: [(SK, AttributeValue)]; userData: Text};
+        rawDeleteSubDB: ({innerKey: InnerSubDBKey}) -> async ();
         rawInsertSubDB(map: [(SK, AttributeValue)], inner: ?InnerSubDBKey, userData: Text)
             : async {inner: InnerSubDBKey};
         rawInsertSubDBAndSetOuter(
@@ -124,14 +132,7 @@ module {
             userData: Text,
         )
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
-        isOverflowed: shared ({}) -> async Bool;
-        finishMovingSubDBImpl({
-            guid: [Nat8];
-            index: Principal;
-            outerCanister: Principal;
-            outerKey: OuterSubDBKey;
-            oldInnerKey: InnerSubDBKey;
-        }) : async (Principal, InnerSubDBKey);
+        isOverflowed: shared ({}) -> async Bool; // TODO: query
         putLocation(outerKey: OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: InnerSubDBKey) : async ();
         // In the current version two partition canister are always the same.
         createOuter(part: Principal, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
@@ -152,7 +153,7 @@ module {
         superDBSize: query () -> async Nat;
         deleteSubDB({outerKey: OuterSubDBKey; guid: [Nat8]}) : async ();
         deleteSubDBInner({innerKey: InnerSubDBKey}) : async ();
-        insert({
+        insert({ // FIXME: Move to index canister.
             guid: [Nat8];
             indexCanister: Principal;
             outerCanister: Principal;
@@ -188,6 +189,7 @@ module {
             var canisters = StableBuffer.init<PartitionCanister>();
             var creatingSubDB = SparseQueue.init(dbOptions.createDBQueueLength, dbOptions.timeout);
             dbOptions;
+            var inserting2 = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
         };
     };
 
@@ -200,7 +202,6 @@ module {
             var locations = BTree.init(null);
             var moving = null;
             var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
-            var inserting2 = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
         };
     };
 
@@ -216,9 +217,12 @@ module {
     public func rawGetSubDB(
         superDB: SuperDB,
         innerKey: InnerSubDBKey,
-    ) : ?[(SK, AttributeValue)]
+    ) : ?{map: [(SK, AttributeValue)]; userData: Text}
     {
-        do ? { BTree.toArray(BTree.get(superDB.subDBs, Nat.compare, innerKey)!.map) };
+        do ? {
+            let e = BTree.get(superDB.subDBs, Nat.compare, innerKey)!;
+            {map = BTree.toArray(e.map); userData = e.userData}
+        };
     };
 
     /// The "real" returned value is `outer`, but `inner` can be used for caching
@@ -250,6 +254,10 @@ module {
             };
         };
         {inner = inner2};
+    };
+
+    public func rawDeleteSubDB(superDB: SuperDB, innerKey: InnerSubDBKey) : () {
+        ignore BTree.delete(superDB.subDBs, Nat.compare, innerKey);
     };
 
     /// Use only if sure that outer and inner canisters coincide.
@@ -328,24 +336,26 @@ module {
     /// FIXME: Error because of security consideration of calling from a partition canister.
     public func finishMovingSubDBImpl({
         guid: GUID;
-        index: IndexCanister;
+        dbIndex: DBIndex;
+        index: IndexCanister; // TODO: needed?
         outerCanister: OuterCanister;
         outerKey: OuterSubDBKey;
-        oldInnerSuperDB: SuperDB;
+        oldInnerCanister: InnerCanister;
         oldInnerKey: InnerSubDBKey;
     }) : async* (InnerCanister, InnerSubDBKey)
     {
-        let inserting2 = SparseQueue.add<InsertingItem2>(oldInnerSuperDB.inserting2, guid, {
+        // TODO: would better have `inserting2` in `SuperDB` for less blocking?
+        let inserting2 = SparseQueue.add<InsertingItem2>(dbIndex.inserting2, guid, {
             var newInnerCanister = null;
         });
         
-        let result = switch (BTree.get(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey)) {
+        let result = switch (await oldInnerCanister.rawGetSubDB({innerKey = oldInnerKey})) {
             case (?subDB) {
                 let (canister, newCanister) = switch (inserting2.newInnerCanister) {
                     case (?newCanister) { (newCanister.canister, newCanister) };
                     case (null) {
-                        MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
-                        let newCanister0 = await index.createPartitionImpl();
+                        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+                        let newCanister0 = await* createPartitionImpl(index, dbIndex);
                         let newCanister: PartitionCanister = actor(Principal.toText(newCanister0));
                         let s = {canister = newCanister; var innerKey: ?InnerSubDBKey = null};
                         inserting2.newInnerCanister := ?s;
@@ -355,17 +365,17 @@ module {
                 let newInnerSubDBKey = switch (newCanister.innerKey) {
                     case (?newSubDBKey) { newSubDBKey };
                     case (null) {
-                        MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
-                        let {inner} = await canister.rawInsertSubDB(BTree.toArray(subDB.map), null, subDB.userData);
+                        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+                        let {inner} = await canister.rawInsertSubDB(subDB.map, null, subDB.userData);
                         newCanister.innerKey := ?inner;
                         inner;
                     }
                 };
 
                 // There was `isOverflowed`, change the outer.
-                MyCycles.addPart(oldInnerSuperDB.dbOptions.partitionCycles);
+                MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
                 await outerCanister.putLocation(outerKey, Principal.fromActor(canister), newInnerSubDBKey);
-                ignore BTree.delete(oldInnerSuperDB.subDBs, Nat.compare, oldInnerKey);
+                await oldInnerCanister.rawDeleteSubDB({innerKey = oldInnerKey});
 
                 (canister, newInnerSubDBKey);
             };
@@ -374,7 +384,7 @@ module {
             };
         };
 
-        SparseQueue.delete(oldInnerSuperDB.inserting2, guid);
+        SparseQueue.delete(dbIndex.inserting2, guid);
         result;
     };
 
@@ -888,7 +898,7 @@ module {
         StableBuffer.toArray(dbIndex.canisters);
     };
 
-    public func createPartitionImpl(index: IndexCanister, dbIndex: DBIndex): async Principal {
+    public func createPartitionImpl(index: IndexCanister, dbIndex: DBIndex): async* Principal {
         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
         let canister = await index.createPartition();
         let can2: PartitionCanister = actor(Principal.toText(canister));
