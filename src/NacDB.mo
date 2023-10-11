@@ -100,7 +100,6 @@ module {
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
     };
 
-    // FIXME: Here and in other places `Principal` instead of actor types?
     public type IndexCanister = actor {
         // TODO: Can we make createPartitionImpl() a non-shared function?
         createPartitionImpl: shared() -> async Principal;
