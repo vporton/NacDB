@@ -18,7 +18,7 @@ shared({caller}) actor class Partition() = this {
 
     // Mandatory methods //
 
-    public query func rawGetSubDB({innerKey: Nac.InnerSubDBKey}): async ?{map: [(SK, AttributeValue)]; userData: Text} {
+    public query func rawGetSubDB({innerKey: Nac.InnerSubDBKey}): async ?{map: [(Nac.SK, Nac.AttributeValue)]; userData: Text} {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.rawGetSubDB(superDB, innerKey);
     };
@@ -30,7 +30,7 @@ shared({caller}) actor class Partition() = this {
         Nac.rawInsertSubDB(superDB, map, inner, userData);
     };
 
-    public query func rawDeleteSubDB({innerKey: Nac.InnerSubDBKey}): async () {
+    public func rawDeleteSubDB({innerKey: Nac.InnerSubDBKey}): async () {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.rawDeleteSubDB(superDB, innerKey);
     };
@@ -69,27 +69,6 @@ shared({caller}) actor class Partition() = this {
     public shared func deleteSubDBInner({innerKey: Nac.InnerSubDBKey}) : async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.deleteSubDBInner({superDB; innerKey});
-    };
-
-    public shared func insert({
-        guid: [Nat8];
-        indexCanister: Principal;
-        outerCanister: Principal;
-        outerKey: Nac.OuterSubDBKey;
-        sk: Nac.SK;
-        value: Nac.AttributeValue;
-    }) : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)} {
-        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        let { inner; outer } = await* Nac.insert({
-            guid = Blob.fromArray(guid);
-            indexCanister = indexCanister;
-            outerCanister = outerCanister;
-            outerSuperDB = superDB;
-            outerKey;
-            sk;
-            value;
-        });
-        { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
     };
 
     public shared func putLocation(outerKey: Nac.OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: Nac.InnerSubDBKey) : async () {

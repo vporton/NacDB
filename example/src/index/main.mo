@@ -70,4 +70,24 @@ shared actor class Index() = this {
         });
         (Principal.fromActor(inner), key);
     };
+
+    public shared func insert({
+        guid: [Nat8];
+        outerCanister: Principal;
+        outerKey: Nac.OuterSubDBKey;
+        sk: Nac.SK;
+        value: Nac.AttributeValue;
+    }) : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)} {
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        let { inner; outer } = await* Nac.insert({
+            guid = Blob.fromArray(guid);
+            indexCanister = this;
+            outerCanister = outerCanister;
+            outerSuperDB = superDB;
+            outerKey;
+            sk;
+            value;
+        });
+        { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
+    };
 }
