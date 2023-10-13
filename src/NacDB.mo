@@ -143,6 +143,7 @@ module {
         )
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
         getInner: query (outerKey: OuterSubDBKey) -> async ?(InnerCanister, InnerSubDBKey);
+        trapMoving: shared ({subDBKey: OuterSubDBKey; guid: [Nat8]}) -> async ();
         isOverflowed: shared ({}) -> async Bool; // TODO: query
         putLocation(outerKey: OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: InnerSubDBKey) : async ();
         // In the current version two partition canister are always the same.
@@ -438,7 +439,7 @@ module {
     };
 
     // TODO: More fine-tuned lock: for individual sub-DB entries.
-    func trapMoving({superDB: SuperDB; subDBKey: OuterSubDBKey; guid: SparseQueue.GUID}) {
+    public func trapMoving({superDB: SuperDB; subDBKey: OuterSubDBKey; guid: SparseQueue.GUID}): async* () {
         // If we call it repeatedly (with the same GUID), allow despite the lock.
         let v0 = BTree.get(superDB.locations, Nat.compare, subDBKey);
         let ?v = v0 else {
@@ -612,7 +613,7 @@ module {
         indexCanister: Principal; // FIXME: Remove?
         dbIndex: DBIndex;
         outerCanister: Principal;
-        outerSuperDB: SuperDB;
+        // outerSuperDB: SuperDB;
         outerKey: OuterSubDBKey;
         sk: SK;
         value: AttributeValue;
@@ -636,19 +637,19 @@ module {
             var finishMovingSubDBDone = null;
         });
 
-        trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
+        await outer.trapMoving({subDBKey = options.outerKey; guid = Blob.toArray(options.guid)});
 
         if (not inserting.insertingImplDone) {
             let needsMove = switch(inserting.needsMove) {
                 case(?needsMove) { needsMove };
                 case(null) {
-                    MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+                    MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                     let needsMove = await oldInnerCanister.isOverflowed({});
                     inserting.needsMove := ?needsMove;
                     needsMove;
                 };
             };
-            MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+            MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
             await oldInnerCanister.startInsertingImpl({
                 guid = Blob.toArray(options.guid);
                 indexCanister = options.indexCanister;
@@ -669,14 +670,14 @@ module {
                 let needsMove = switch(inserting.needsMove) {
                     case(?needsMove) { needsMove };
                     case(null) {
-                        MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+                        MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles); // FIXME: here and in other places don't pass dbOptions
                         let needsMove = await oldInnerCanister.isOverflowed({});
                         inserting.needsMove := ?needsMove;
                         needsMove;
                     };
                 };
                 if (needsMove) {
-                    MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+                    MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                     let index: IndexCanister = actor(Principal.toText(options.indexCanister));
                     let (innerPartition, innerKey) = await index.finishMovingSubDBImpl({
                         guid = Blob.toArray(options.guid);
@@ -721,7 +722,7 @@ module {
     /// idempotent
     /// FIXME: Error because of security consideration of calling from a partition canister.
     public func delete(options: DeleteOptions): async* () {
-        trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
+        await* trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid}); // FIXME: right canister
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
@@ -736,7 +737,7 @@ module {
     
     /// FIXME: Error because of security consideration of calling from a partition canister.
     public func deleteSubDB(options: DeleteDBOptions): async* () {
-        trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid});
+        await* trapMoving({superDB = options.outerSuperDB; subDBKey = options.outerKey; guid = options.guid}); // FIXME: right canister
 
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
