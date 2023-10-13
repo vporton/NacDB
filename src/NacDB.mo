@@ -90,13 +90,14 @@ module {
             oldInnerSuperDB: SuperDB;
             oldInnerSubDBKey: InnerSubDBKey;
         };
-        var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
     };
 
     public type DBIndex = {
         dbOptions: DBOptions;
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
+        // TODO: Now it blocks the entire DB, but we need to block only the sub-DB.
+        var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
     };
 
@@ -141,6 +142,7 @@ module {
             userData: Text,
         )
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
+        getInner: query (outerKey: OuterSubDBKey) -> async ?(InnerCanister, InnerSubDBKey);
         isOverflowed: shared ({}) -> async Bool; // TODO: query
         putLocation(outerKey: OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: InnerSubDBKey) : async ();
         // In the current version two partition canister are always the same.
@@ -190,6 +192,7 @@ module {
             var canisters = StableBuffer.init<PartitionCanister>();
             var creatingSubDB = SparseQueue.init(dbOptions.createDBQueueLength, dbOptions.timeout);
             dbOptions;
+            var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var inserting2 = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
         };
     };
@@ -202,7 +205,6 @@ module {
             subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
             var locations = BTree.init(null);
             var moving = null;
-            var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
         };
     };
 
@@ -607,7 +609,8 @@ module {
     // FIXME: Having both `outerCanister` and `outerCanister` in options is a bug.
     public type InsertOptions = {
         guid: GUID;
-        indexCanister: Principal;
+        indexCanister: Principal; // FIXME: Remove?
+        dbIndex: DBIndex;
         outerCanister: Principal;
         outerSuperDB: SuperDB;
         outerKey: OuterSubDBKey;
@@ -620,11 +623,12 @@ module {
     public func insert(options: InsertOptions)
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
-        let ?(oldInnerCanister, oldInnerKey) = getInner(options.outerSuperDB, options.outerKey) else {
+        let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
+        let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
             Debug.trap("missing sub-DB");
         };
 
-        let inserting = SparseQueue.add<InsertingItem>(options.outerSuperDB.inserting, options.guid, {
+        let inserting = SparseQueue.add<InsertingItem>(options.dbIndex.inserting, options.guid, {
             part = options.outerCanister;
             subDBKey = options.outerKey;
             var needsMove = null;
@@ -695,10 +699,9 @@ module {
             newInnerKey;
         };
 
-        SparseQueue.delete(options.outerSuperDB.inserting, options.guid);
+        SparseQueue.delete(options.dbIndex.inserting, options.guid);
         releaseOuterKey(options.outerSuperDB, options.outerKey);
 
-        let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
         {inner = (newInnerPartition, newInnerKey); outer = (outer, options.outerKey)};
     };
 

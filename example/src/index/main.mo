@@ -85,6 +85,7 @@ shared actor class Index() = this {
         let { inner; outer } = await* Nac.insert({
             guid = Blob.fromArray(guid);
             indexCanister = Principal.fromActor(this);
+            dbIndex;
             outerCanister = outerCanister;
             outerKey;
             sk;
