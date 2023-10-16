@@ -338,6 +338,7 @@ module {
 
     /// Called only if `isOverflowed`.
     /// FIXME: Error because of security consideration of calling from a partition canister.
+    /// TODO: No need to present this in shared API.
     public func finishMovingSubDBImpl({
         guid: GUID;
         dbIndex: DBIndex;
@@ -679,17 +680,17 @@ module {
                 if (needsMove) {
                     MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                     let index: IndexCanister = actor(Principal.toText(options.indexCanister));
-                    let (innerPartition, innerKey) = await index.finishMovingSubDBImpl({
-                        guid = Blob.toArray(options.guid);
-                        index = options.indexCanister;
+                    let (innerPartition, innerKey) = await* finishMovingSubDBImpl({
+                        guid = options.guid;
+                        dbIndex = options.dbIndex;
+                        index = actor(Principal.toText(options.indexCanister));
                         oldInnerKey;
-                        outerCanister = options.outerCanister;
+                        outerCanister = actor(Principal.toText(options.outerCanister));
                         outerKey = options.outerKey;
-                        oldInnerCanister = Principal.fromActor(oldInnerCanister);
+                        oldInnerCanister;
                     });
                     options.outerSuperDB.moving := null;
-                    let innerPartition2: PartitionCanister = actor(Principal.toText(innerPartition));
-                    (innerPartition2, innerKey);
+                    (innerPartition, innerKey);
                 } else {
                     (oldInnerCanister, oldInnerKey);
                 }
