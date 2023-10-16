@@ -17,6 +17,7 @@ module {
         var order: BTree.BTree<Time.Time, RBT.Tree<GUID, ()>>;
         maxSize: Nat;
         timeout: Time.Time; // When to clear old items.
+        // FIXME: We should not allow new entries instead of deleting old ones, because if we delete an old one, we can't complete an operation.
     };
 
     public func init<T>(maxSize: Nat, timeout: Time.Time): SparseQueue<T> {
