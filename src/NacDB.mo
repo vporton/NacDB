@@ -364,24 +364,6 @@ module {
         result;
     };
 
-    /// FIXME: Error because of security consideration of calling from a partition canister.
-    func startMovingSubDB(options: {
-        index: IndexCanister;
-        outerCanister: OuterCanister;
-        outerKey: OuterSubDBKey;
-        oldCanister: InnerCanister;
-        oldInnerSuperDB: SuperDB;
-        oldInnerSubDBKey: InnerSubDBKey; // TODO: redundant (or preserve for efficiency?)
-    }) : async* () {
-        let ?item = BTree.get(options.oldInnerSuperDB.subDBs, Nat.compare, options.oldInnerSubDBKey) else {
-            Debug.trap("item must exist");
-        };
-        MyCycles.addPart(options.oldInnerSuperDB.dbOptions.partitionCycles);
-        let pks = await options.index.getCanisters();
-        let lastCanister0 = pks[pks.size()-1];
-        let lastCanister: PartitionCanister = actor(Principal.toText(lastCanister0));
-    };
-
     public func isOverflowed({superDB: SuperDB}) : Bool {
         switch (superDB.dbOptions.moveCap) {
             case (#usedMemory mem) {
@@ -494,7 +476,7 @@ module {
         let ?(part, innerKey) = getInner(options.superDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
-        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+        MyCycles.addPart(options.superDB.dbOptions.partitionCycles);
         await part.getSubDBUserDataInner({innerKey});
     };
 
@@ -606,21 +588,9 @@ module {
                 needsMove;
             });
             if (needsMove) {
-                await* startMovingSubDB({
-                    index = actor(Principal.toText(options.indexCanister));
-                    outerCanister = actor(Principal.toText(options.outerCanister));
-                    outerKey = options.outerKey;
-                    oldCanister = actor(Principal.toText(options.outerCanister)); // having the same inner and outer canister in `insert`
-                    oldInnerSuperDB = options.innerSuperDB;
-                    oldInnerSubDBKey = options.innerKey;
-                });
-                switch (BTree.has(options.dbIndex.moving, compareLocs, (options.outerCanister, options.outerKey))) {
-                    case (?_) { Debug.trap("already moving") };
-                    case (null) {
-                        BTree.put(options.dbIndex.moving, compareLocs, ((outerCanister, outerKey), ()));
-                    };
+                if (BTree.has(options.dbIndex.moving, compareLocs, (options.outerCanister, options.outerKey))) {
+                    Debug.trap("already moving");
                 };
-
             };
             inserting.insertingImplDone := true;
         };
