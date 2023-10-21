@@ -350,6 +350,7 @@ module {
     }) : async* (InnerCanister, InnerSubDBKey)
     {
         // TODO: would better have `inserting2` in `SuperDB` for less blocking?
+        // TODO: No need for separate allocation of `InsertingItem2`, can put the value directly in `InsertingItem`.
         let inserting2 = SparseQueue.add<InsertingItem2>(dbIndex.inserting2, guid, {
             var newInnerCanister = null;
         });
