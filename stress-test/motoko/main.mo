@@ -280,7 +280,7 @@ actor StressTest {
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            await part.delete({outerKey; sk; guid = Blob.toArray(guid)});
+                            await options.index.delete({outerCanister = Principal.fromActor(part); outerKey; sk; guid = Blob.toArray(guid)});
                         } catch(e) {
                             // Debug.print("repeat delete: " # Error.message(e));
                             continue R;

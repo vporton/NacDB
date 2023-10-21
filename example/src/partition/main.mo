@@ -91,11 +91,6 @@ shared({caller}) actor class Partition() = this {
         { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
     };
 
-    public shared func delete({outerKey: Nac.OuterSubDBKey; sk: Nac.SK; guid: [Nat8]}): async () {
-        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        await* Nac.delete({outerSuperDB = superDB; outerKey; sk; guid = Blob.fromArray(guid)});
-    };
-
     public shared func deleteInner({innerKey: Nac.InnerSubDBKey; sk: Nac.SK}): async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.deleteInner({innerSuperDB = superDB; innerKey; sk});

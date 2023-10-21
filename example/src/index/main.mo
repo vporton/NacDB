@@ -93,4 +93,10 @@ shared actor class Index() = this {
         });
         { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
     };
+
+    public shared func delete({outerCanister: Principal; outerKey: Nac.OuterSubDBKey; sk: Nac.SK; guid: [Nat8]}): async () {
+        let outer: Partition.Partition = actor(Principal.toText(outerCanister));
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        await* Nac.delete({dbIndex; outerCanister = outer; outerKey; sk; guid = Blob.fromArray(guid)});
+    };
 }

@@ -117,6 +117,7 @@ module {
             sk: SK;
             value: AttributeValue;
         }) : async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
+        delete({outerCanister: Principal; outerKey: OuterSubDBKey; sk: SK; guid: [Nat8]}): async ();
     };
 
     // TODO: arguments as {...}, not (...).
@@ -157,7 +158,6 @@ module {
         superDBSize: query () -> async Nat;
         deleteSubDB({outerKey: OuterSubDBKey; guid: [Nat8]}) : async ();
         deleteSubDBInner({innerKey: InnerSubDBKey}) : async ();
-        delete({outerKey: OuterSubDBKey; sk: SK; guid: [Nat8]}): async ();
         deleteInner({innerKey: InnerSubDBKey; sk: SK}): async ();
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
@@ -631,14 +631,13 @@ module {
         }
     };
 
-    type DeleteOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK; guid: GUID};
+    type DeleteOptions = {dbIndex: DBIndex; outerCanister: OuterCanister; outerKey: OuterSubDBKey; sk: SK; guid: GUID};
     
     /// idempotent
-    /// FIXME: Error because of security consideration of calling from a partition canister.
     public func delete(options: DeleteOptions): async* () {
-        switch(getInner(options.outerSuperDB, options.outerKey)) {
+        switch(await options.outerCanister.getInner(options.outerKey)) {
             case (?(innerCanister, innerKey)) {
-                MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+                MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                 await innerCanister.deleteInner({innerKey; sk = options.sk});
             };
             case (null) {};
