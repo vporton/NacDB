@@ -90,7 +90,6 @@ module {
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
-        // TODO: Which variables can be removed from `moving`?
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
     };
 
