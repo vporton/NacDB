@@ -81,7 +81,7 @@ module {
         subDBs: BTree.BTree<InnerSubDBKey, SubDB>;
         /// `inner` of this `RBT.Tree` is constant,
         /// even when the sub-DB to which it points moves to a different canister.
-        var locations: BTree.BTree<OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}>;
+        var locations: BTree.BTree<OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?SparseQueue.GUID*/}>;
     };
 
     public type DBIndex = {
@@ -267,7 +267,7 @@ module {
         let {inner = inner2} = rawInsertSubDB(superDB, map, do ? {keys!.inner}, userData);
         if (keys == null) {
             ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextOuterKey,
-                {inner = (canister, inner2); var busy: ?SparseQueue.GUID = null});
+                {inner = (canister, inner2); /*var busy: ?SparseQueue.GUID = null*/});
         };
         switch (keys) {
             case (?{inner; outer}) {
@@ -293,7 +293,7 @@ module {
 
     public func putLocation(outerSuperDB: SuperDB, outerKey: OuterSubDBKey, innerCanister: InnerCanister, innerKey: InnerSubDBKey) {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
-            {inner = (innerCanister, innerKey); var busy: ?SparseQueue.GUID = null});
+            {inner = (innerCanister, innerKey); /*var busy: ?SparseQueue.GUID = null*/});
     };
 
     /// This function makes no sense, because it would return the entire sub-DB from another canister.
@@ -379,10 +379,10 @@ module {
         let ?v = v0 else {
             return; // FIXME: What to do?
         };
-        if (v.busy != null and v.busy != ?guid) {
-            Debug.trap("item busy");
-        };
-        v.busy := ?guid;
+        // if (v.busy != null and v.busy != ?guid) {
+        //     Debug.trap("item busy");
+        // };
+        // v.busy := ?guid;
     };
 
     // func releaseOuterKey(outerSuperDB: SuperDB, outerKey: OuterSubDBKey) {
@@ -745,7 +745,7 @@ module {
         : {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}
     {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
-            {inner = (part, innerKey); var busy: ?SparseQueue.GUID = null});
+            {inner = (part, innerKey); /*var busy: ?SparseQueue.GUID = null*/});
         {inner = (part, innerKey); outer = (part, outerKey)};
     };
 
@@ -825,9 +825,9 @@ module {
     };
 
     public func scanSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (InnerCanister, InnerSubDBKey))] {
-        let iter = Iter.map<(OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}), (OuterSubDBKey, (InnerCanister, InnerSubDBKey))>(
+        let iter = Iter.map<(OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?SparseQueue.GUID*/}), (OuterSubDBKey, (InnerCanister, InnerSubDBKey))>(
             BTree.entries(superDB.locations),
-            func(e: (OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID})) { (e.0, e.1.inner) },
+            func(e: (OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?SparseQueue.GUID*/})) { (e.0, e.1.inner) },
         );
         Iter.toArray(iter);
     };
