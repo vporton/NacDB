@@ -199,9 +199,4 @@ shared({caller}) actor class Partition() = this {
     public shared func getSubDBUserDataInner(options: {innerKey: Nac.InnerSubDBKey}) : async ?Text {
         Nac.getSubDBUserDataInner({superDB; subDBKey = options.innerKey});
     };
-
-    public shared func trapMoving({subDBKey: Nac.OuterSubDBKey; guid: [Nat8]}): async () {
-        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        await* Nac.trapMoving({superDB; subDBKey; guid = Blob.fromArray(guid)});
-    };
 }
