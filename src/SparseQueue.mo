@@ -12,91 +12,32 @@ import RBT "mo:stable-rbtree/StableRBTree";
 module {
     public type GUID = Blob;
 
+    // TODO: Rename.
     public type SparseQueue<T> = {
-        var tree: BTree.BTree<GUID, (T, Time.Time)>;
-        var order: BTree.BTree<Time.Time, RBT.Tree<GUID, ()>>;
+        var tree: BTree.BTree<GUID, T>;
         maxSize: Nat;
-        timeout: Time.Time; // When to clear old items.
-        // FIXME: We should not allow new entries instead of deleting old ones, because if we delete an old one, we can't complete an operation.
     };
 
     public func init<T>(maxSize: Nat, timeout: Time.Time): SparseQueue<T> {
         {
             var tree = BTree.init(null);
-            var order = BTree.init(null);
             maxSize;
-            timeout;
         }
     };
 
-    private func clearOld<T>(queue: SparseQueue<T>, before: Time.Time) {
-        label outer loop {
-            let ?(time, subtree) = BTree.entries(queue.order).next() else {
-                break outer;
-            };
-            if (time < before) {
-                var i = RBT.entries<GUID, ()>(subtree);
-                label inner loop {
-                    let ?(guid, _) = i.next() else {
-                        break inner;
-                    };
-                    ignore BTree.delete(queue.tree, Blob.compare, guid);
-                };
-                ignore BTree.delete(queue.order, Int.compare, time);
-            } else {
-                break outer;
-            };
+    public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T) {
+        if (BTree.size(queue.tree) == queue.maxSize) {
+            Debug.trap("queue is full");
+            return;
         };
+        ignore BTree.insert(queue.tree, Blob.compare, guid, value);
     };
 
-    /// It returns `value` or an old value. TODO: It is error prone.
-    public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T): T {
-        clearOld(queue, Time.now() - queue.timeout);
-
-        switch (BTree.get(queue.tree, Blob.compare, guid)) {
-            case (?v) return v.0; // already there is
-            case (null) {};
-        };
-        if (BTree.size(queue.order) >= queue.maxSize) {
-            Debug.print("QUEUE OVERFLOW");
-            Debug.trap("QUEUE OVERFLOW");
-            // let i = RBT.iter(queue.order, #fwd);
-            // let ?(number, _) = i.next() else {
-            //     Debug.trap("empty queue");
-            // };
-            // let ?guid2 = RBT.get(queue.order, Nat.compare, number) else {
-            //     Debug.trap("programming error")
-            // };
-            // queue.order := RBT.delete(queue.order, Nat.compare, number);
-            // queue.tree := RBT.delete<Blob, T>(queue.tree, Blob.compare, guid2);
-        };
-        let time = Time.now();
-        ignore BTree.insert(queue.tree, Blob.compare, guid, (value, time));
-        let subtree = switch (BTree.get(queue.order, Int.compare, time)) {
-            case (?subtree) { subtree };
-            case (null) { RBT.init() };
-        };
-        let newSubtree = RBT.put(subtree, Blob.compare, guid, ());
-        ignore BTree.insert(queue.order, Int.compare, time, newSubtree);
-        value;
-    };
-
-    public func delete<T>(queue: SparseQueue<T>, key: GUID) {
-        let v0 = BTree.get(queue.tree, Blob.compare, key);
-        let ?(_, time) = v0 else {
-            Debug.trap("programming error");
-        };
-        let ?subtree = BTree.get(queue.order, Int.compare, time) else {
-            Debug.trap("programming error");
-        };
-        let subtree2 = RBT.delete(subtree, Blob.compare, key);
-        if (RBT.size(subtree2) == 0) {
-            ignore BTree.delete(queue.order, Int.compare, time);
-        };
-        ignore BTree.delete(queue.tree, Blob.compare, key);
+    public func delete<T>(queue: SparseQueue<T>, guid: GUID) {
+        ignore BTree.delete(queue.tree, Blob.compare, guid);
     };
 
     public func get<T>(queue: SparseQueue<T>, key: GUID): ?T {
-        do ? { BTree.get(queue.tree, Blob.compare, key)!.0 };
+        BTree.get(queue.tree, Blob.compare, key);
     };
 }
