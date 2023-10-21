@@ -88,7 +88,6 @@ module {
         dbOptions: DBOptions;
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
-        // TODO: Now it blocks the entire DB, but we need to block only the sub-DB.
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
         // TODO: Which variables can be removed from `moving`?
