@@ -92,16 +92,7 @@ module {
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
         // TODO: Which variables can be removed from `moving`?
-        var moving: BTree.BTree<{
-            // outerSuperDB: SuperDB; // cannot be passed together with `oldInnerSuperDB`...
-            outerCanister: OuterCanister; // ... so, this instead.
-            outerKey: OuterSubDBKey;
-        },
-        {
-            oldInnerCanister: InnerCanister;
-            oldInnerSuperDB: SuperDB;
-            oldInnerSubDBKey: InnerSubDBKey;
-        }>;
+        var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
     };
 
     public type IndexCanister = actor {
@@ -329,6 +320,7 @@ module {
         };
         SparseQueue.add(dbIndex.inserting2, guid, inserting2);
         
+        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
         let result = switch (await oldInnerCanister.rawGetSubDB({innerKey = oldInnerKey})) {
             case (?subDB) {
                 let (canister, newCanister) = switch (inserting2.newInnerCanister) {
@@ -345,11 +337,10 @@ module {
                 let newInnerSubDBKey = switch (newCanister.innerKey) {
                     case (?newSubDBKey) { newSubDBKey };
                     case (null) {
-                        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
-                        switch (BTree.has(dbIndex.moving, compareLocs, (outerCanister, outerKey))) { // TODO: duplicate code
-                            case (?_) { Debug.trap("DB is scaling") };
-                            case (null) {}
+                        if (BTree.has(dbIndex.moving, compareLocs, (outerCanister, outerKey))) {
+                            Debug.trap("DB is scaling");
                         };
+                        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
                         let {inner} = await canister.rawInsertSubDB(subDB.map, null, subDB.userData);
                         newCanister.innerKey := ?inner;
                         inner;
@@ -359,6 +350,7 @@ module {
                 // There was `isOverflowed`, change the outer.
                 MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
                 await outerCanister.putLocation(outerKey, Principal.fromActor(canister), newInnerSubDBKey);
+                MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
                 await oldInnerCanister.rawDeleteSubDB({innerKey = oldInnerKey});
 
                 (canister, newInnerSubDBKey);
@@ -388,7 +380,6 @@ module {
         let pks = await options.index.getCanisters();
         let lastCanister0 = pks[pks.size()-1];
         let lastCanister: PartitionCanister = actor(Principal.toText(lastCanister0));
-        MyCycles.addPart(options.oldInnerSuperDB.dbOptions.partitionCycles);
     };
 
     public func isOverflowed({superDB: SuperDB}) : Bool {
@@ -503,6 +494,7 @@ module {
         let ?(part, innerKey) = getInner(options.superDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
+        MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
         await part.getSubDBUserDataInner({innerKey});
     };
 
@@ -575,6 +567,7 @@ module {
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
+        MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
             Debug.trap("missing sub-DB");
         };
@@ -588,6 +581,7 @@ module {
         };
         SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
 
+        MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         await outer.trapMoving({subDBKey = options.outerKey; guid = Blob.toArray(options.guid)});
 
         if (not inserting.insertingImplDone) {
@@ -613,35 +607,17 @@ module {
             });
             if (needsMove) {
                 await* startMovingSubDB({
-                    index = options.indexCanister;
-                    outerCanister = options.outerCanister;
+                    index = actor(Principal.toText(options.indexCanister));
+                    outerCanister = actor(Principal.toText(options.outerCanister));
                     outerKey = options.outerKey;
-                    oldCanister = options.outerCanister; // having the same inner and outer canister in `insert`
+                    oldCanister = actor(Principal.toText(options.outerCanister)); // having the same inner and outer canister in `insert`
                     oldInnerSuperDB = options.innerSuperDB;
                     oldInnerSubDBKey = options.innerKey;
-                });
-                startMovingSubDBImpl({
-                    outerCanister = options.outerCanister;
-                    outerKey = options.outerKey;
-                    oldInnerCanister = options.oldCanister;
-                    oldInnerSuperDB = options.oldInnerSuperDB;
-                    oldInnerSubDBKey = options.oldInnerSubDBKey;
-                    newCanister = if (lastCanister == options.oldCanister and (await lastCanister.isOverflowed({}))) {
-                        null;
-                    } else {
-                        ?lastCanister;
-                    }
                 });
                 switch (BTree.has(options.dbIndex.moving, compareLocs, (options.outerCanister, options.outerKey))) {
                     case (?_) { Debug.trap("already moving") };
                     case (null) {
-                        BTree.put(options.dbIndex.moving, compareLocs, ({outerCanister; outerKey}, {
-                            outerCanister;
-                            outerKey;
-                            oldInnerCanister;
-                            oldInnerSuperDB;
-                            oldInnerSubDBKey;
-                        }));
+                        BTree.put(options.dbIndex.moving, compareLocs, ((outerCanister, outerKey), ()));
                     };
                 };
 
