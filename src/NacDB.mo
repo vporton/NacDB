@@ -340,7 +340,7 @@ module {
     /// FIXME: Error because of security consideration of calling from a partition canister.
     /// TODO: No need to present this in shared API.
     public func finishMovingSubDBImpl({
-        guid: GUID;
+        guid: GUID; // TODO: superfluous argument
         dbIndex: DBIndex;
         index: IndexCanister; // TODO: needed?
         outerCanister: OuterCanister;
@@ -351,9 +351,10 @@ module {
     {
         // TODO: would better have `inserting2` in `SuperDB` for less blocking?
         // TODO: No need for separate allocation of `InsertingItem2`, can put the value directly in `InsertingItem`.
-        let inserting2 = SparseQueue.add<InsertingItem2>(dbIndex.inserting2, guid, {
+        let inserting2: InsertingItem2 = {
             var newInnerCanister = null;
-        });
+        };
+        SparseQueue.add(dbIndex.inserting2, guid, inserting2);
         
         let result = switch (await oldInnerCanister.rawGetSubDB({innerKey = oldInnerKey})) {
             case (?subDB) {
@@ -631,13 +632,14 @@ module {
             Debug.trap("missing sub-DB");
         };
 
-        let inserting = SparseQueue.add<InsertingItem>(options.dbIndex.inserting, options.guid, {
+        let inserting: InsertingItem = {
             part = options.outerCanister;
             subDBKey = options.outerKey;
             var needsMove = null;
             var insertingImplDone = false;
             var finishMovingSubDBDone = null;
-        });
+        };
+        SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
 
         await outer.trapMoving({subDBKey = options.outerKey; guid = Blob.toArray(options.guid)});
 
