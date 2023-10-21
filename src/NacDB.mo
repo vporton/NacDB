@@ -385,14 +385,14 @@ module {
         v.busy := ?guid;
     };
 
-    func releaseOuterKey(outerSuperDB: SuperDB, outerKey: OuterSubDBKey) {
-        switch (BTree.get(outerSuperDB.locations, Nat.compare, outerKey)) {
-            case (?item) {
-                item.busy := null;
-            };
-            case (null) {};
-        };
-    };
+    // func releaseOuterKey(outerSuperDB: SuperDB, outerKey: OuterSubDBKey) {
+    //     switch (BTree.get(outerSuperDB.locations, Nat.compare, outerKey)) {
+    //         case (?item) {
+    //             item.busy := null;
+    //         };
+    //         case (null) {};
+    //     };
+    // };
 
     func removeLoosers({superDB: SuperDB; subDB: SubDB}) {
         switch (superDB.dbOptions.hardCap) {
@@ -588,7 +588,7 @@ module {
                 needsMove;
             });
             if (needsMove) {
-                if (BTree.has(options.dbIndex.moving, compareLocs, (options.outerCanister, options.outerKey))) {
+                if (BTree.has(options.dbIndex.moving, compareLocs, (actor(Principal.toText(options.outerCanister)): OuterCanister, options.outerKey))) {
                     Debug.trap("already moving");
                 };
             };
@@ -620,7 +620,7 @@ module {
                         outerKey = options.outerKey;
                         oldInnerCanister;
                     });
-                    options.outerSuperDB.moving := null;
+                    ignore BTree.delete(options.dbIndex.moving, compareLocs, (actor(Principal.toText(options.outerCanister)): OuterCanister, options.outerKey));
                     (innerPartition, innerKey);
                 } else {
                     (oldInnerCanister, oldInnerKey);
@@ -633,7 +633,7 @@ module {
         };
 
         SparseQueue.delete(options.dbIndex.inserting, options.guid);
-        releaseOuterKey(options.outerSuperDB, options.outerKey);
+        // releaseOuterKey(options.outerSuperDB, options.outerKey);
 
         {inner = (newInnerPartition, newInnerKey); outer = (outer, options.outerKey)};
     };
@@ -662,7 +662,7 @@ module {
             };
             case (null) {};
         };
-        releaseOuterKey(options.outerSuperDB, options.outerKey);
+        // releaseOuterKey(options.outerSuperDB, options.outerKey);
     };
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
@@ -844,6 +844,10 @@ module {
         let can2: PartitionCanister = actor(Principal.toText(canister));
         StableBuffer.add(dbIndex.canisters, can2); // TODO: too low level
         canister;
+    };
+
+    func comparePartition(x: PartitionCanister, y: PartitionCanister): {#equal; #greater; #less} {
+        Principal.compare(Principal.fromActor(x), Principal.fromActor(y));
     };
 
     func compareLocs(x: (PartitionCanister, SubDBKey), y: (PartitionCanister, SubDBKey)): {#less; #equal; #greater} {

@@ -237,7 +237,7 @@ actor StressTest {
             label R loop {
                 let {outer = (part2, outerKey2)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
-                    await part.insert({
+                    await options.index.insert({
                         guid = Blob.toArray(guid);
                         dbOptions;
                         indexCanister = Principal.fromActor(options.index);
