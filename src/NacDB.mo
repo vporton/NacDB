@@ -22,11 +22,13 @@ import Time "mo:base/Time";
 module {
     public type GUID = Blob;
 
+    public type SubDBKey = Nat;
+
     /// The key under which a sub-DB stored in a canister.
-    public type InnerSubDBKey = Nat;
+    public type InnerSubDBKey = SubDBKey;
 
     /// Constant (regarding moving a sub-DB to another canister) key mapped to `InnerSubDBKey`.
-    public type OuterSubDBKey = Nat;
+    public type OuterSubDBKey = SubDBKey;
 
     public type SK = Text;
 
@@ -80,16 +82,6 @@ module {
         /// `inner` of this `RBT.Tree` is constant,
         /// even when the sub-DB to which it points moves to a different canister.
         var locations: BTree.BTree<OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); var busy: ?SparseQueue.GUID}>;
-
-        // TODO: Which variables can be removed from `moving`?
-        var moving: ?{
-            // outerSuperDB: SuperDB; // cannot be passed together with `oldInnerSuperDB`...
-            outerCanister: OuterCanister; // ... so, this instead.
-            outerKey: OuterSubDBKey;
-            oldInnerCanister: InnerCanister;
-            oldInnerSuperDB: SuperDB;
-            oldInnerSubDBKey: InnerSubDBKey;
-        };
     };
 
     public type DBIndex = {
@@ -99,6 +91,17 @@ module {
         // TODO: Now it blocks the entire DB, but we need to block only the sub-DB.
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
+        // TODO: Which variables can be removed from `moving`?
+        var moving: BTree.BTree<{
+            // outerSuperDB: SuperDB; // cannot be passed together with `oldInnerSuperDB`...
+            outerCanister: OuterCanister; // ... so, this instead.
+            outerKey: OuterSubDBKey;
+        },
+        {
+            oldInnerCanister: InnerCanister;
+            oldInnerSuperDB: SuperDB;
+            oldInnerSubDBKey: InnerSubDBKey;
+        }>;
     };
 
     public type IndexCanister = actor {
@@ -195,6 +198,7 @@ module {
             dbOptions;
             var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var inserting2 = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
+            var moving = BTree.init(null);
         };
     };
 
@@ -205,7 +209,6 @@ module {
             var nextOuterKey = 0;
             subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
             var locations = BTree.init(null);
-            var moving = null;
         };
     };
 
@@ -238,26 +241,20 @@ module {
         userData: Text,
     ) : {inner: InnerSubDBKey}
     {
-        let inner2 = switch (superDB.moving) {
-            case (?_) { Debug.trap("DB is scaling") };
+        let key = switch (inner) {
+            case (?key) { key };
             case (null) {
-                let key = switch (inner) {
-                    case (?key) { key };
-                    case (null) {
-                        let key = superDB.nextInnerKey;
-                        superDB.nextInnerKey += 1;
-                        key;
-                    };
-                };                    
-                let subDB : SubDB = {
-                    var map = BTree.fromArray(8, Text.compare, map);
-                    var userData = userData;
-                };
-                ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
+                let key = superDB.nextInnerKey;
+                superDB.nextInnerKey += 1;
                 key;
             };
+        };                    
+        let subDB : SubDB = {
+            var map = BTree.fromArray(8, Text.compare, map);
+            var userData = userData;
         };
-        {inner = inner2};
+        ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
+        {inner = key};
     };
 
     public func rawDeleteSubDB(superDB: SuperDB, innerKey: InnerSubDBKey) : () {
@@ -312,30 +309,6 @@ module {
     // public func getSubDBByOuter(superDB: SuperDB, outerKey: OuterSubDBKey) : ?SubDB {
     // };
 
-    /// Moves to the specified `newCanister` or to a newly allocated canister, if null.
-    ///
-    /// This is meant to be called without checking user identity.
-    func startMovingSubDBImpl({
-        outerCanister: OuterCanister;
-        outerKey: OuterSubDBKey;
-        oldInnerCanister: InnerCanister;
-        oldInnerSuperDB: SuperDB;
-        oldInnerSubDBKey: InnerSubDBKey;
-    }) {
-        switch (oldInnerSuperDB.moving) {
-            case (?_) { Debug.trap("already moving") };
-            case (null) {
-                oldInnerSuperDB.moving := ?{
-                    outerCanister;
-                    outerKey;
-                    oldInnerCanister;
-                    oldInnerSuperDB;
-                    oldInnerSubDBKey;
-                };
-            };
-        };
-    };
-
     /// Called only if `isOverflowed`.
     /// FIXME: Error because of security consideration of calling from a partition canister.
     /// TODO: No need to present this in shared API.
@@ -373,6 +346,10 @@ module {
                     case (?newSubDBKey) { newSubDBKey };
                     case (null) {
                         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+                        switch (BTree.has(dbIndex.moving, compareLocs, (outerCanister, outerKey))) { // TODO: duplicate code
+                            case (?_) { Debug.trap("DB is scaling") };
+                            case (null) {}
+                        };
                         let {inner} = await canister.rawInsertSubDB(subDB.map, null, subDB.userData);
                         newCanister.innerKey := ?inner;
                         inner;
@@ -412,25 +389,6 @@ module {
         let lastCanister0 = pks[pks.size()-1];
         let lastCanister: PartitionCanister = actor(Principal.toText(lastCanister0));
         MyCycles.addPart(options.oldInnerSuperDB.dbOptions.partitionCycles);
-        if (lastCanister == options.oldCanister and (await lastCanister.isOverflowed({}))) {
-            startMovingSubDBImpl({
-                outerCanister = options.outerCanister;
-                outerKey = options.outerKey;
-                oldInnerCanister = options.oldCanister;
-                oldInnerSuperDB = options.oldInnerSuperDB;
-                oldInnerSubDBKey = options.oldInnerSubDBKey;
-                newCanister = null;
-            });
-        } else {
-            startMovingSubDBImpl({
-                outerCanister = options.outerCanister;
-                outerKey = options.outerKey;
-                oldInnerCanister = options.oldCanister;
-                oldInnerSuperDB = options.oldInnerSuperDB;
-                oldInnerSubDBKey = options.oldInnerSubDBKey;
-                newCanister = ?lastCanister;
-            });
-        };
     };
 
     public func isOverflowed({superDB: SuperDB}) : Bool {
@@ -592,17 +550,6 @@ module {
             case (?subDB) {
                 ignore BTree.insert(subDB.map, Text.compare, options.sk, options.value);
                 removeLoosers({superDB = options.innerSuperDB; subDB});
-
-                if (options.needsMove) {
-                    await* startMovingSubDB({
-                        index = options.indexCanister;
-                        outerCanister = options.outerCanister;
-                        outerKey = options.outerKey;
-                        oldCanister = options.outerCanister; // having the same inner and outer canister in `insert`
-                        oldInnerSuperDB = options.innerSuperDB;
-                        oldInnerSubDBKey = options.innerKey;
-                    });
-                }
             };
             case (null) {
                 Debug.trap("missing sub-DB");
@@ -664,6 +611,41 @@ module {
                 innerKey = oldInnerKey;
                 needsMove;
             });
+            if (needsMove) {
+                await* startMovingSubDB({
+                    index = options.indexCanister;
+                    outerCanister = options.outerCanister;
+                    outerKey = options.outerKey;
+                    oldCanister = options.outerCanister; // having the same inner and outer canister in `insert`
+                    oldInnerSuperDB = options.innerSuperDB;
+                    oldInnerSubDBKey = options.innerKey;
+                });
+                startMovingSubDBImpl({
+                    outerCanister = options.outerCanister;
+                    outerKey = options.outerKey;
+                    oldInnerCanister = options.oldCanister;
+                    oldInnerSuperDB = options.oldInnerSuperDB;
+                    oldInnerSubDBKey = options.oldInnerSubDBKey;
+                    newCanister = if (lastCanister == options.oldCanister and (await lastCanister.isOverflowed({}))) {
+                        null;
+                    } else {
+                        ?lastCanister;
+                    }
+                });
+                switch (BTree.has(options.dbIndex.moving, compareLocs, (options.outerCanister, options.outerKey))) {
+                    case (?_) { Debug.trap("already moving") };
+                    case (null) {
+                        BTree.put(options.dbIndex.moving, compareLocs, ({outerCanister; outerKey}, {
+                            outerCanister;
+                            outerKey;
+                            oldInnerCanister;
+                            oldInnerSuperDB;
+                            oldInnerSubDBKey;
+                        }));
+                    };
+                };
+
+            };
             inserting.insertingImplDone := true;
         };
 
@@ -770,8 +752,8 @@ module {
     public func createSubDB({guid: GUID; index: IndexCanister; dbIndex: DBIndex; userData: Text})
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}
     {
-        let creating0: CreatingSubDB = {var canister = null; var loc = null; userData};
-        let creating = SparseQueue.add(dbIndex.creatingSubDB, guid, creating0);
+        let creating: CreatingSubDB = {var canister = null; var loc = null; userData};
+        SparseQueue.add(dbIndex.creatingSubDB, guid, creating);
         let part3: PartitionCanister = switch (creating.canister) { // both inner and outer
             case (?part) { part };
             case (null) {
@@ -916,5 +898,14 @@ module {
         let can2: PartitionCanister = actor(Principal.toText(canister));
         StableBuffer.add(dbIndex.canisters, can2); // TODO: too low level
         canister;
+    };
+
+    func compareLocs(x: (PartitionCanister, SubDBKey), y: (PartitionCanister, SubDBKey)): {#less; #equal; #greater} {
+        let c = comparePartition(x.0, y.0);
+        if (c != #equal) {
+            c;
+        } else {
+            Nat.compare(x.1, y.1);
+        }
     };
 };
