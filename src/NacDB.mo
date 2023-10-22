@@ -91,7 +91,7 @@ module {
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
-        var deleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
+        var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
     };
 
     public type IndexCanister = actor {
@@ -188,7 +188,7 @@ module {
             var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var inserting2 = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var moving = BTree.init(null);
-            var deleting = BTree.init(null);
+            var blockDeleting = BTree.init(null);
         };
     };
 
@@ -535,9 +535,7 @@ module {
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
-        if (BTree.has(options.dbIndex.deleting, compareLocs, (outer, options.outerKey))) {
-            Debug.trap("already deleting");
-        };
+        ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
         MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
             Debug.trap("missing sub-DB");
@@ -620,6 +618,7 @@ module {
 
         SparseQueue.delete(options.dbIndex.inserting, options.guid);
         // releaseOuterKey(options.outerSuperDB, options.outerKey);
+        ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
 
         {inner = (newInnerPartition, newInnerKey); outer = (outer, options.outerKey)};
     };
@@ -643,10 +642,11 @@ module {
             case (?(innerCanister, innerKey)) {
                 // FIXME: Do we need here to check `has()` before `insert()`?
                 // Can we block here on inner key instead of outer one?
-                ignore BTree.insert(options.dbIndex.deleting, compareLocs, (options.outerCanister, options.outerKey), ());
+                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
+                    Debug.trap("deleting is blocked");
+                };
                 MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                 await innerCanister.deleteInner({innerKey; sk = options.sk});
-                ignore BTree.delete(options.dbIndex.deleting, compareLocs, (options.outerCanister, options.outerKey));
 
             };
             case (null) {};
