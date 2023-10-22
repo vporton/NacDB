@@ -7,6 +7,7 @@ import Debug "mo:base/Debug";
 import Blob "mo:base/Blob";
 import Array "mo:base/Array";
 import Iter "mo:base/Iter";
+import Result "mo:base/Result";
 import MyCycles "../../../src/Cycles";
 import Common "../common";
 
@@ -80,9 +81,9 @@ shared actor class Index() = this {
         outerKey: Nac.OuterSubDBKey;
         sk: Nac.SK;
         value: Nac.AttributeValue;
-    }) : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)} {
+    }) : async Result.Result<{inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)}, Text> {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        let { inner; outer } = await* Nac.insert({
+        let res = await* Nac.insert({
             guid = Blob.fromArray(guid);
             indexCanister = Principal.fromActor(this);
             dbIndex;
@@ -91,7 +92,12 @@ shared actor class Index() = this {
             sk;
             value;
         });
-        { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
+        switch (res) {
+            case (#ok) { inner; outer } {
+                { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
+            };
+            case (#err err) { err };
+        };
     };
 
     public shared func delete({outerCanister: Principal; outerKey: Nac.OuterSubDBKey; sk: Nac.SK; guid: [Nat8]}): async () {

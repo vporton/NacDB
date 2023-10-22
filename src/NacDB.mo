@@ -1,3 +1,4 @@
+import Result "mo:base/Result";
 import Cycles "mo:base/ExperimentalCycles";
 import I "mo:base/Iter";
 import Principal "mo:base/Principal";
@@ -534,8 +535,10 @@ module {
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
     /// FIXME: To remove stored changes, sometimes should return Result.Error instead of trapping.
     ///        (Need to ensure not called function traps.)
+    /// TODO: Other functions should also return `Result`.
+    /// FIXME: Modify TypeScript code accordingly.
     public func insert(options: InsertOptions)
-        : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)} // TODO: need to return this value?
+        : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
         Debug.print("guid: " # debug_show(options.guid) # " blockDeleting: " #
@@ -637,7 +640,7 @@ module {
         // releaseOuterKey(options.outerSuperDB, options.outerKey);
         ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
 
-        {inner = (newInnerPartition, newInnerKey); outer = (outer, options.outerKey)};
+        #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, options.outerKey)};
     };
 
     public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: SK}): async* () {
