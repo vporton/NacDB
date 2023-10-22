@@ -532,6 +532,8 @@ module {
     };
 
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
+    /// FIXME: To remove stored changes, sometimes should return Result.Error instead of trapping.
+    ///        (Need to ensure not called function traps.)
     public func insert(options: InsertOptions)
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
@@ -553,16 +555,14 @@ module {
                 if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
                     Debug.trap("block deleting"); // TODO: better message
                 };
-                Debug.print("TURN ON blockDeleting and inserting");
+                Debug.trap("TURN ON blockDeleting and inserting");
                 ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
                 SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
-                Debug.print("IMMEDIATE hasGUID: " # debug_show(SparseQueue.has(options.dbIndex.inserting, options.guid)));
                 inserting;
             };
         };
         MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
-            // FIXME: (here and in other places?) we need to release `blockDeleting` and `inserting`.
             Debug.trap("missing sub-DB");
         };
 
@@ -580,7 +580,7 @@ module {
             await oldInnerCanister.startInsertingImpl({
                 guid = Blob.toArray(options.guid);
                 indexCanister = options.indexCanister;
-                    outerCanister = options.outerCanister;
+                outerCanister = options.outerCanister;
                 outerKey = options.outerKey;
                 sk = options.sk;
                 value = options.value;
@@ -589,6 +589,7 @@ module {
             });
             if (needsMove) {
                 if (BTree.has(options.dbIndex.moving, compareLocs, (actor(Principal.toText(options.outerCanister)): OuterCanister, options.outerKey))) {
+                    // ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
                     Debug.trap("already moving");
                 };
             };
@@ -632,7 +633,6 @@ module {
             newInnerKey;
         };
 
-        Debug.print("TURN OFF blockDeleting and inserting");
         SparseQueue.delete(options.dbIndex.inserting, options.guid);
         // releaseOuterKey(options.outerSuperDB, options.outerKey);
         ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
