@@ -640,7 +640,6 @@ module {
     public func delete(options: DeleteOptions): async* () {
         switch(await options.outerCanister.getInner(options.outerKey)) {
             case (?(innerCanister, innerKey)) {
-                // FIXME: Do we need here to check `has()` before `insert()`?
                 // Can we block here on inner key instead of outer one?
                 if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
                     Debug.trap("deleting is blocked");
