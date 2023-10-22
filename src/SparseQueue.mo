@@ -40,4 +40,8 @@ module {
     public func get<T>(queue: SparseQueue<T>, key: GUID): ?T {
         BTree.get(queue.tree, Blob.compare, key);
     };
+
+    public func has<T>(queue: SparseQueue<T>, key: GUID): Bool {
+        BTree.has(queue.tree, Blob.compare, key);
+    };
 }

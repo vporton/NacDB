@@ -535,7 +535,12 @@ module {
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
-        ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
+        if (not SparseQueue.has(options.dbIndex.creatingSubDB, options.guid)) {
+            if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
+                Debug.trap("deleting is blocked"); // FIXME: another message
+            };
+            ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
+        };
         MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
             Debug.trap("missing sub-DB");
