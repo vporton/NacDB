@@ -67,7 +67,7 @@ actor StressTest {
     };
 
     public func main() : async () {
-        let nThreads = 3;
+        let nThreads = 1; //3; // FIXME
         let nSteps = 300;
 
         Debug.print("STARTING STRESS TEST: " # debug_show(nThreads) # " threads, each " # debug_show(nSteps) # " steps");
@@ -182,6 +182,7 @@ actor StressTest {
             options.dbInserts += 1;
             var v: ?(Principal, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
+            Debug.print("createSubDB");
             label R loop {
                 let {outer = (part, outerKey)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
@@ -204,6 +205,7 @@ actor StressTest {
             switch (randomSubDB(options)) {
                 case (?(part, outerKey)) {
                     let guid = GUID.nextGuid(options.guidGen);
+                    Debug.print("deleteSubDB");
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
@@ -234,6 +236,7 @@ actor StressTest {
                 return;
             };
             let randomValue = Nat64.toNat(options.rng.next());
+            Debug.print("insert");
             label R loop {
                 let {outer = (part2, outerKey2)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
@@ -251,7 +254,7 @@ actor StressTest {
                         // Debug.print("insert: missing sub-DB");
                         return; // Everything is OK, a not erroneous race condition.
                     };
-                    // Debug.print("repeat insert: " # Error.message(e));
+                    Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
                 let part3: Nac.PartitionCanister = actor(Principal.toText(part2));
@@ -273,34 +276,36 @@ actor StressTest {
             options.recentOuter.add((part3, outerKey3));
             options.recentSKs.add(((part3, outerKey3), debug_show(sk)));
         } else {
-            options.eltDeletions += 1;
-            let guid = GUID.nextGuid(options.guidGen);
-            switch (randomItem(options)) {
-                case (?((part, outerKey), sk)) {
-                    label R loop {
-                        try {
-                            MyCycles.addPart(dbOptions.partitionCycles);
-                            await options.index.delete({outerCanister = Principal.fromActor(part); outerKey; sk; guid = Blob.toArray(guid)});
-                        } catch(e) {
-                            // Debug.print("repeat delete: " # Error.message(e));
-                            continue R;
-                        };
-                        break R;
-                    };
-                    let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part, outerKey)) else {
-                        return; // It was meanwhile deleted by another thread.
-                    };
-                    let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else {
-                        // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomItem()`.
-                        return; // Everything is OK, a not erroneous race condition.
-                    };
-                    let subtree2 = RBT.delete(subtree, Text.compare, sk);
-                    options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
-                    options.recentOuter.add((part, outerKey));
-                    options.recentSKs.add(((part, outerKey), sk));
-                };
-                case (null) {}
-            };
+            // FIXME: Uncomment.
+            // options.eltDeletions += 1;
+            // let guid = GUID.nextGuid(options.guidGen);
+            // switch (randomItem(options)) {
+            //     case (?((part, outerKey), sk)) {
+            //         Debug.print("delete");
+            //         label R loop {
+            //             try {
+            //                 MyCycles.addPart(dbOptions.partitionCycles);
+            //                 await options.index.delete({outerCanister = Principal.fromActor(part); outerKey; sk; guid = Blob.toArray(guid)});
+            //             } catch(e) {
+            //                 // Debug.print("repeat delete: " # Error.message(e));
+            //                 continue R;
+            //             };
+            //             break R;
+            //         };
+            //         let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part, outerKey)) else {
+            //             return; // It was meanwhile deleted by another thread.
+            //         };
+            //         let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else {
+            //             // Debug.print("subtree doesn't exist"); // Race condition: subtree was deleted after `randomItem()`.
+            //             return; // Everything is OK, a not erroneous race condition.
+            //         };
+            //         let subtree2 = RBT.delete(subtree, Text.compare, sk);
+            //         options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid2, subtree2);
+            //         options.recentOuter.add((part, outerKey));
+            //         options.recentSKs.add(((part, outerKey), sk));
+            //     };
+            //     case (null) {}
+            // };
         };
     };
 

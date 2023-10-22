@@ -90,6 +90,7 @@ module {
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
+        var deleting: SparseQueue.SparseQueue<()>; // TODO: Do we need both deletng and blockDeleting?
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
         var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
     };
@@ -185,8 +186,9 @@ module {
             var canisters = StableBuffer.init<PartitionCanister>();
             var creatingSubDB = SparseQueue.init(dbOptions.createDBQueueLength, dbOptions.timeout);
             dbOptions;
-            var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
+            var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout); // TODO: We don't need timeouts.
             var inserting2 = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
+            var deleting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var moving = BTree.init(null);
             var blockDeleting = BTree.init(null);
         };
@@ -530,30 +532,42 @@ module {
     };
 
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
-    /// FIXME: Error because of security consideration of calling from a partition canister.
     public func insert(options: InsertOptions)
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)} // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
-        if (not SparseQueue.has(options.dbIndex.creatingSubDB, options.guid)) {
-            if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
-                Debug.trap("deleting is blocked"); // FIXME: another message
+        // Debug.print("guid: " # debug_show(options.guid) # " blockDeleting: " #
+        //     debug_show(BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey)))
+        //     # " hasGUID: " # debug_show(SparseQueue.has(options.dbIndex.inserting, options.guid)));
+        let inserting = switch (SparseQueue.get(options.dbIndex.inserting, options.guid)) {
+            case (?inserting) { inserting };
+            case (null) {
+                let inserting: InsertingItem = {
+                    part = options.outerCanister;
+                    subDBKey = options.outerKey;
+                    var needsMove = null;
+                    var insertingImplDone = false;
+                    var finishMovingSubDBDone = null;
+                };
+
+                // Debug.print("INSERT for guid" # debug_show(options.guid));
+
+                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
+                    // FIXME: This is not executed due to the trap:
+                    SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
+                    Debug.trap("block deleting"); // TODO: better message
+                };
+                ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
+
+                SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
+                inserting;
             };
-            ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
         };
         MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
+            ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
             Debug.trap("missing sub-DB");
         };
-
-        let inserting: InsertingItem = {
-            part = options.outerCanister;
-            subDBKey = options.outerKey;
-            var needsMove = null;
-            var insertingImplDone = false;
-            var finishMovingSubDBDone = null;
-        };
-        SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
 
         if (not inserting.insertingImplDone) {
             let needsMove = switch(inserting.needsMove) {
@@ -578,6 +592,7 @@ module {
             });
             if (needsMove) {
                 if (BTree.has(options.dbIndex.moving, compareLocs, (actor(Principal.toText(options.outerCanister)): OuterCanister, options.outerKey))) {
+                    ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
                     Debug.trap("already moving");
                 };
             };
@@ -646,8 +661,12 @@ module {
         switch(await options.outerCanister.getInner(options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 // Can we block here on inner key instead of outer one?
-                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
-                    Debug.trap("deleting is blocked");
+                if (not SparseQueue.has(options.dbIndex.deleting, options.guid)) {
+                    if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
+                        Debug.trap("deleting is blocked");
+                    };
+                    ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
+                    SparseQueue.add(options.dbIndex.deleting, options.guid, ());
                 };
                 MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                 await innerCanister.deleteInner({innerKey; sk = options.sk});
