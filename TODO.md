@@ -4,6 +4,8 @@ TODO:
   in the map from GUID, to ensure that a hacker cannot cause ill-effects
   by changing a part of the arguments in a repeated call.
 
+- Almost certainly we have too many locks, causing performance degradatiom.
+
 - Decrease amount of cycles for partition canisters?
 
 - It can be abused by calling with the same GUID after complete accomplishing
