@@ -657,24 +657,23 @@ module {
     
     /// idempotent
     public func delete(options: DeleteOptions): async* () {
+        if (not SparseQueue.has(options.dbIndex.deleting, options.guid)) {
+            if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
+                Debug.trap("deleting is blocked");
+            };
+            ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
+            SparseQueue.add(options.dbIndex.deleting, options.guid, ());
+        };
         switch(await options.outerCanister.getInner(options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 // Can we block here on inner key instead of outer one?
-                if (not SparseQueue.has(options.dbIndex.deleting, options.guid)) {
-                    if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
-                        Debug.trap("deleting is blocked");
-                    };
-                    ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
-                    SparseQueue.add(options.dbIndex.deleting, options.guid, ());
-                };
                 MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                 await innerCanister.deleteInner({innerKey; sk = options.sk});
-                SparseQueue.delete(options.dbIndex.deleting, options.guid);
-                ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))
             };
             case (null) {};
         };
-        // releaseOuterKey(options.outerSuperDB, options.outerKey);
+        SparseQueue.delete(options.dbIndex.deleting, options.guid);
+        ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))
     };
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
