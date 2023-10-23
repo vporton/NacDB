@@ -250,10 +250,6 @@ actor StressTest {
                         value = #int randomValue;
                     });
                 } catch(e) {
-                    if (Text.endsWith(Error.message(e), #text " trapped explicitly: missing sub-DB")) {
-                        // Debug.print("insert: missing sub-DB");
-                        return; // Everything is OK, a not erroneous race condition.
-                    };
                     Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
@@ -263,7 +259,13 @@ actor StressTest {
                         let part3: Nac.PartitionCanister = actor(Principal.toText(part2));
                         v := ?(part3, outerKey2);
                     };
-                    case (#err _) {};
+                    case (#err "missing sub-DB") { // Everything is OK, a not erroneous race condition.
+                        return;
+                    };
+                    case (#err _) {
+                        Debug.trap("unexpected insert error");
+                    
+                    };
                 };
                 break R;
             };
