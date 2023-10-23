@@ -67,7 +67,7 @@ actor StressTest {
     };
 
     public func main() : async () {
-        let nThreads = 1; //3; // FIXME
+        let nThreads = 3;
         let nSteps = 300;
 
         Debug.print("STARTING STRESS TEST: " # debug_show(nThreads) # " threads, each " # debug_show(nSteps) # " steps");
@@ -182,7 +182,6 @@ actor StressTest {
             options.dbInserts += 1;
             var v: ?(Principal, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
-            Debug.print("createSubDB");
             label R loop {
                 let {outer = (part, outerKey)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
@@ -205,7 +204,6 @@ actor StressTest {
             switch (randomSubDB(options)) {
                 case (?(part, outerKey)) {
                     let guid = GUID.nextGuid(options.guidGen);
-                    Debug.print("deleteSubDB");
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
@@ -236,7 +234,6 @@ actor StressTest {
                 return;
             };
             let randomValue = Nat64.toNat(options.rng.next());
-            Debug.print("insert");
             label R loop {
                 let res = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
@@ -288,7 +285,6 @@ actor StressTest {
             let guid = GUID.nextGuid(options.guidGen);
             switch (randomItem(options)) {
                 case (?((part, outerKey), sk)) {
-                    Debug.print("delete");
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);

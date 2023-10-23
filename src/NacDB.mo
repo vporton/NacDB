@@ -670,7 +670,8 @@ module {
                 };
                 MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                 await innerCanister.deleteInner({innerKey; sk = options.sk});
-
+                SparseQueue.delete(options.dbIndex.deleting, options.guid);
+                ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))
             };
             case (null) {};
         };
