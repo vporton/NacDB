@@ -93,7 +93,7 @@ module {
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
         var deleting: SparseQueue.SparseQueue<()>; // TODO: Do we need both deletng and blockDeleting?
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
-        var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
+        var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion (FIXME: does not work)
     };
 
     public type IndexCanister = actor {
