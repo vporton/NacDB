@@ -247,7 +247,7 @@ actor StressTest {
                         value = #int randomValue;
                     });
                 } catch(e) {
-                    Debug.print("repeat insert: " # Error.message(e));
+                    // Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
                 switch (res) {
