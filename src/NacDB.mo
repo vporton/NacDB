@@ -303,7 +303,6 @@ module {
     // };
 
     /// Called only if `isOverflowed`.
-    /// FIXME: Error because of security consideration of calling from a partition canister.
     /// TODO: No need to present this in shared API.
     public func finishMovingSubDBImpl({
         guid: GUID; // TODO: superfluous argument
