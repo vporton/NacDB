@@ -1,3 +1,7 @@
+FIXME:
+
+- Stress test sometimes does not pass.
+
 TODO:
 
 - Ensure that all arguments of shared functions with GUID are stored
