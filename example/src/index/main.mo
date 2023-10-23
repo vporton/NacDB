@@ -93,10 +93,10 @@ shared actor class Index() = this {
             value;
         });
         switch (res) {
-            case (#ok) { inner; outer } {
-                { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
+            case (#ok { inner; outer }) {
+                #ok { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
             };
-            case (#err err) { err };
+            case (#err err) { #err err };
         };
     };
 

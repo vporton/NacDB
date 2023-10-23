@@ -238,7 +238,7 @@ actor StressTest {
             let randomValue = Nat64.toNat(options.rng.next());
             Debug.print("insert");
             label R loop {
-                let {outer = (part2, outerKey2)} = try {
+                let res = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await options.index.insert({
                         guid = Blob.toArray(guid);
@@ -257,11 +257,17 @@ actor StressTest {
                     Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
-                let part3: Nac.PartitionCanister = actor(Principal.toText(part2));
-                v := ?(part3, outerKey2);
+                switch (res) {
+                    case (#ok res) {
+                        let {outer = (part2, outerKey2)} = res;
+                        let part3: Nac.PartitionCanister = actor(Principal.toText(part2));
+                        v := ?(part3, outerKey2);
+                    };
+                    case (#err _) {};
+                };
                 break R;
             };
-            let ?(part3, outerKey3) = v else {
+            let ?(part3, outerKey3) = v else { // FIXME: may be null, if the sub-DB was meanwhile deleted.
                 Debug.trap("programming error: insert");
             };
             let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part3, outerKey3)) else {

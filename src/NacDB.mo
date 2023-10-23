@@ -118,7 +118,7 @@ module {
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
-        }) : async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
+        }) : async Result.Result<{inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)}, Text>;
         delete({outerCanister: Principal; outerKey: OuterSubDBKey; sk: SK; guid: [Nat8]}): async ();
     };
 
@@ -566,7 +566,9 @@ module {
         };
         MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
-            Debug.trap("missing sub-DB");
+            SparseQueue.delete(options.dbIndex.inserting, options.guid);
+            ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
+            return #err "missing sub-DB";
         };
 
         if (not inserting.insertingImplDone) {
@@ -637,7 +639,6 @@ module {
         };
 
         SparseQueue.delete(options.dbIndex.inserting, options.guid);
-        // releaseOuterKey(options.outerSuperDB, options.outerKey);
         ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
 
         #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, options.outerKey)};
