@@ -93,7 +93,7 @@ module {
         var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
         var deleting: SparseQueue.SparseQueue<()>; // TODO: Do we need both deletng and blockDeleting?
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
-        var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion (FIXME: does not work)
+        var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion
     };
 
     public type IndexCanister = actor {
@@ -532,8 +532,6 @@ module {
     };
 
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
-    /// FIXME: To remove stored changes, sometimes should return Result.Error instead of trapping.
-    ///        (Need to ensure not called function traps.)
     /// TODO: Other functions should also return `Result`.
     /// FIXME: Modify TypeScript code accordingly.
     public func insert(options: InsertOptions)
