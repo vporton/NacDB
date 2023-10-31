@@ -540,9 +540,6 @@ module {
         : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
-        // Debug.print("guid: " # debug_show(options.guid) # " blockDeleting: " #
-        //     debug_show(BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey)))
-        //     # " hasGUID: " # debug_show(SparseQueue.has(options.dbIndex.inserting, options.guid)));
         let inserting = switch (SparseQueue.get(options.dbIndex.inserting, options.guid)) {
             case (?inserting) { inserting };
             case (null) {
