@@ -554,11 +554,11 @@ module {
                     var finishMovingSubDBDone = null;
                 };
 
+                SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
                 if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
                     Debug.trap("block deleting"); // TODO: better message
                 };
                 ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
-                SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
                 inserting;
             };
         };
