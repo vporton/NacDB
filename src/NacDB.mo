@@ -659,12 +659,13 @@ module {
     /// idempotent
     public func delete(options: DeleteOptions): async* () {
         if (not SparseQueue.has(options.dbIndex.deleting, options.guid)) {
-            if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
-                Debug.trap("deleting is blocked");
-            };
-            ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
             SparseQueue.add(options.dbIndex.deleting, options.guid, ());
         };
+        if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
+            Debug.trap("deleting is blocked");
+        };
+        ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
+
         switch(await options.outerCanister.getInner(options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 // Can we block here on inner key instead of outer one?
@@ -673,6 +674,7 @@ module {
             };
             case (null) {};
         };
+
         SparseQueue.delete(options.dbIndex.deleting, options.guid);
         ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))
     };
