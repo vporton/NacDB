@@ -21,6 +21,10 @@ import Float "mo:base/Float";
 import Int64 "mo:base/Int64";
 import BTree "mo:btree/BTree";
 
+// TODO: Testing is done all-wrong, because the next operation on the `referenceTree` or `resultingTree` is taken randomly from several
+//       threads of execution.
+//       The right way to test this is to pass `referenceTree` operations as `() -> ()` additional arguments to shared methods.
+
 actor StressTest {
     let dbOptions = {
         moveCap = #usedMemory 300_000;
