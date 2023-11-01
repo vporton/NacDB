@@ -538,10 +538,6 @@ module {
         : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
-        if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
-            Debug.trap("block deleting"); // TODO: better message
-        };
-        ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
         let inserting = switch (SparseQueue.get(options.dbIndex.inserting, options.guid)) {
             case (?inserting) { inserting };
             case (null) {
@@ -554,15 +550,14 @@ module {
                 };
 
                 SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
+                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
+                    Debug.trap("block deleting"); // TODO: better message
+                };
+                ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
                 inserting;
             };
         };
-        // if (not SparseQueue.has(options.dbIndex.inserting, options.guid) or
-        //     not BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey)))
-        // {
-        //     Debug.print("inserting=" # debug_show(SparseQueue.has(options.dbIndex.inserting, options.guid)) # 
-        //         " block=" # debug_show(BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))));
-        // };
+
         MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
             SparseQueue.delete(options.dbIndex.inserting, options.guid);
@@ -658,12 +653,12 @@ module {
     
     /// idempotent
     public func delete(options: DeleteOptions): async* () {
-        if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
-            Debug.trap("deleting is blocked");
-        };
-        ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
         if (not SparseQueue.has(options.dbIndex.deleting, options.guid)) {
             SparseQueue.add(options.dbIndex.deleting, options.guid, ());
+            if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
+                Debug.trap("deleting is blocked");
+            };
+            ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
         };
 
         switch(await options.outerCanister.getInner(options.outerKey)) {
