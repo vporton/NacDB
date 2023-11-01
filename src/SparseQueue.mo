@@ -30,6 +30,11 @@ module {
             Debug.trap("queue is full");
             return;
         };
+        // TODO: Below can be optimized?
+        if (BTree.has(queue.tree, Blob.compare, guid)) {
+            Debug.print("queue already contains guid");
+            Debug.trap("queue already contains guid");
+        };
         ignore BTree.insert(queue.tree, Blob.compare, guid, value);
     };
 

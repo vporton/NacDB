@@ -661,6 +661,7 @@ module {
         if (not SparseQueue.has(options.dbIndex.deleting, options.guid)) {
             SparseQueue.add(options.dbIndex.deleting, options.guid, ());
         };
+        // FIXME: Here and in other places: if interrupted, that blocks peristently:
         if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
             Debug.trap("deleting is blocked");
         };
