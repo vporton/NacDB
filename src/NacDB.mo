@@ -550,13 +550,19 @@ module {
                 };
 
                 SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
-                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
-                    Debug.trap("block deleting"); // TODO: better message
-                };
-                ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
                 inserting;
             };
         };
+        if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
+            Debug.trap("block deleting"); // TODO: better message
+        };
+        ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
+        // if (not SparseQueue.has(options.dbIndex.inserting, options.guid) or
+        //     not BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey)))
+        // {
+        //     Debug.print("inserting=" # debug_show(SparseQueue.has(options.dbIndex.inserting, options.guid)) # 
+        //         " block=" # debug_show(BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))));
+        // };
         MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
             SparseQueue.delete(options.dbIndex.inserting, options.guid);
