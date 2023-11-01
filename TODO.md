@@ -1,6 +1,7 @@
 FIXME:
 
 - Stress test sometimes does not pass.
+  Moreover, it is sometimes stuck!
 
 TODO:
 
