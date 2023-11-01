@@ -261,7 +261,6 @@ actor StressTest {
                     };
                     case (#err _) {
                         Debug.trap("unexpected insert error");
-                    
                     };
                 };
                 break R;
