@@ -550,13 +550,13 @@ module {
                 };
 
                 SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
+                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
+                    Debug.trap("block deleting"); // TODO: better message
+                };
+                ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
                 inserting;
             };
         };
-        if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
-            Debug.trap("block deleting"); // TODO: better message
-        };
-        ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
         // if (not SparseQueue.has(options.dbIndex.inserting, options.guid) or
         //     not BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey)))
         // {
@@ -660,12 +660,11 @@ module {
     public func delete(options: DeleteOptions): async* () {
         if (not SparseQueue.has(options.dbIndex.deleting, options.guid)) {
             SparseQueue.add(options.dbIndex.deleting, options.guid, ());
+            if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
+                Debug.trap("deleting is blocked");
+            };
+            ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
         };
-        // FIXME: Here and in other places: if interrupted, that blocks peristently:
-        if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
-            Debug.trap("deleting is blocked");
-        };
-        ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
 
         switch(await options.outerCanister.getInner(options.outerKey)) {
             case (?(innerCanister, innerKey)) {
