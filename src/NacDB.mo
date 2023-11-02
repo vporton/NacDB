@@ -397,6 +397,7 @@ module {
     public type GetByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
 
     /// FIXME: Error because of security consideration of calling from a partition canister.
+    ///        Are these considerations valid for read-only functions?
     // Sometimes traps "missing sub-DB".
     public func getByOuter(options: GetByOuterOptions) : async* ?AttributeValue {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
