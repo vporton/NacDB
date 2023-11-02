@@ -103,14 +103,6 @@ module {
         getCanisters: query () -> async [Principal];
         createSubDB: shared({guid: [Nat8]; userData: Text})
             -> async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
-        finishMovingSubDBImpl({
-            guid: [Nat8];
-            index: Principal;
-            outerCanister: Principal;
-            outerKey: OuterSubDBKey;
-            oldInnerCanister: Principal;
-            oldInnerKey: InnerSubDBKey;
-        }) : async (Principal, InnerSubDBKey);
         insert({
             guid: [Nat8];
             indexCanister: Principal;
@@ -303,7 +295,6 @@ module {
     // };
 
     /// Called only if `isOverflowed`.
-    /// TODO: No need to present this in shared API.
     public func finishMovingSubDBImpl({
         guid: GUID; // TODO: superfluous argument
         dbIndex: DBIndex;
