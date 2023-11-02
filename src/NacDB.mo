@@ -66,9 +66,6 @@ module {
             newInnerPartition: InnerCanister;
             newInnerKey: OuterSubDBKey;
         };
-    };
-
-    public type InsertingItem2 = {
         var newInnerCanister: ?{
             canister: InnerCanister;
             var innerKey: ?InnerSubDBKey;
@@ -90,7 +87,6 @@ module {
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
-        var inserting2: SparseQueue.SparseQueue<InsertingItem2>; // inner
         var deleting: SparseQueue.SparseQueue<()>; // TODO: Do we need both deletng and blockDeleting?
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
         var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion
@@ -180,7 +176,6 @@ module {
             var creatingSubDB = SparseQueue.init(dbOptions.createDBQueueLength, dbOptions.timeout);
             dbOptions;
             var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout); // TODO: We don't need timeouts.
-            var inserting2 = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var deleting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var moving = BTree.init(null);
             var blockDeleting = BTree.init(null);
@@ -296,7 +291,7 @@ module {
 
     /// Called only if `isOverflowed`.
     public func finishMovingSubDBImpl({
-        guid: GUID; // TODO: superfluous argument
+        inserting: InsertingItem; // TODO: superfluous argument
         dbIndex: DBIndex;
         index: IndexCanister; // TODO: needed?
         outerCanister: OuterCanister;
@@ -305,24 +300,17 @@ module {
         oldInnerKey: InnerSubDBKey;
     }) : async* (InnerCanister, InnerSubDBKey)
     {
-        // TODO: would better have `inserting2` in `SuperDB` for less blocking?
-        // TODO: No need for separate allocation of `InsertingItem2`, can put the value directly in `InsertingItem`.
-        let inserting2: InsertingItem2 = {
-            var newInnerCanister = null;
-        };
-        SparseQueue.add(dbIndex.inserting2, guid, inserting2);
-        
         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
         let result = switch (await oldInnerCanister.rawGetSubDB({innerKey = oldInnerKey})) {
             case (?subDB) {
-                let (canister, newCanister) = switch (inserting2.newInnerCanister) {
+                let (canister, newCanister) = switch (inserting.newInnerCanister) {
                     case (?newCanister) { (newCanister.canister, newCanister) };
                     case (null) {
                         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
                         let newCanister0 = await* createPartitionImpl(index, dbIndex);
                         let newCanister: PartitionCanister = actor(Principal.toText(newCanister0));
                         let s = {canister = newCanister; var innerKey: ?InnerSubDBKey = null};
-                        inserting2.newInnerCanister := ?s;
+                        inserting.newInnerCanister := ?s;
                         (newCanister, s);
                     };
                 };
@@ -352,7 +340,6 @@ module {
             };
         };
 
-        SparseQueue.delete(dbIndex.inserting2, guid);
         result;
     };
 
@@ -538,6 +525,7 @@ module {
                     var needsMove = null;
                     var insertingImplDone = false;
                     var finishMovingSubDBDone = null;
+                    var newInnerCanister = null;
                 };
 
                 SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
@@ -603,7 +591,7 @@ module {
                     MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                     let index: IndexCanister = actor(Principal.toText(options.indexCanister));
                     let (innerPartition, innerKey) = await* finishMovingSubDBImpl({
-                        guid = options.guid;
+                        inserting;
                         dbIndex = options.dbIndex;
                         index = actor(Principal.toText(options.indexCanister));
                         oldInnerKey;
