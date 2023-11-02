@@ -396,9 +396,7 @@ module {
 
     public type GetByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; sk: SK};
 
-    /// FIXME: Error because of security consideration of calling from a partition canister.
-    ///        Are these considerations valid for read-only functions?
-    // Sometimes traps "missing sub-DB".
+    /// Sometimes traps "missing sub-DB".
     public func getByOuter(options: GetByOuterOptions) : async* ?AttributeValue {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no entry");
@@ -407,10 +405,24 @@ module {
         await part.getByInner({innerKey; sk = options.sk});
     };
 
+    public type GetByOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; sk: SK};
+
+    // TODO: The shared function.
+    public func getByOuterPartitionKey(options: GetByOuterPartitionKeyOptions) : async* ?AttributeValue {
+        await options.outer.getByOuter({outerKey = options.outerKey; sk = options.sk});
+    };
+
     public type ExistsByInnerOptions = GetByInnerOptions;
 
     public func hasByInner(options: ExistsByInnerOptions) : Bool {
         getByInner(options) != null;
+    };
+
+    public type HasByOuterPartitionKeyOptions = GetByOuterPartitionKeyOptions;
+
+    // TODO: The shared function.
+    public func hasByOuterPartitionKey(options: GetByOuterPartitionKeyOptions) : async Bool {
+        await options.outer.hasByOuter({outerKey = options.outerKey; sk = options.sk});
     };
 
     public type ExistsByOuterOptions = GetByOuterOptions;
