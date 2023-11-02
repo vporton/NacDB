@@ -291,7 +291,7 @@ module {
 
     /// Called only if `isOverflowed`.
     public func finishMovingSubDBImpl({
-        inserting: InsertingItem; // TODO: superfluous argument
+        inserting: InsertingItem;
         dbIndex: DBIndex;
         index: IndexCanister; // TODO: needed?
         outerCanister: OuterCanister;
