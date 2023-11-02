@@ -836,7 +836,7 @@ module {
         Principal.compare(Principal.fromActor(x), Principal.fromActor(y));
     };
 
-    func compareLocs(x: (PartitionCanister, SubDBKey), y: (PartitionCanister, SubDBKey)): {#less; #equal; #greater} {
+    func compareLocs(x: (PartitionCanister, SubDBKey), y: (PartitionCanister, SubDBKey)): {#equal; #greater; #less} {
         let c = comparePartition(x.0, y.0);
         if (c != #equal) {
             c;
