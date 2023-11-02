@@ -409,6 +409,7 @@ module {
 
     // TODO: The shared function.
     public func getByOuterPartitionKey(options: GetByOuterPartitionKeyOptions) : async* ?AttributeValue {
+        MyCycles.addPart(options.superDB.dbOptions.partitionCycles);
         await options.outer.getByOuter({outerKey = options.outerKey; sk = options.sk});
     };
 
@@ -418,18 +419,18 @@ module {
         getByInner(options) != null;
     };
 
-    public type HasByOuterPartitionKeyOptions = GetByOuterPartitionKeyOptions;
-
-    // TODO: The shared function.
-    public func hasByOuterPartitionKey(options: GetByOuterPartitionKeyOptions) : async Bool {
-        await options.outer.hasByOuter({outerKey = options.outerKey; sk = options.sk});
-    };
-
     public type ExistsByOuterOptions = GetByOuterOptions;
 
     /// FIXME: Error because of security consideration of calling from a partition canister.
     public func hasByOuter(options: ExistsByOuterOptions) : async* Bool {
         (await* getByOuter(options)) != null;
+    };
+
+    public type HasByOuterPartitionKeyOptions = GetByOuterPartitionKeyOptions;
+
+    // TODO: The shared function.
+    public func hasByOuterPartitionKey(options: GetByOuterPartitionKeyOptions) : async Bool {
+        await options.outer.hasByOuter({outerKey = options.outerKey; sk = options.sk});
     };
 
     public type HasDBByInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
@@ -450,13 +451,20 @@ module {
     public type GetUserDataOuterOptions = {superDB: SuperDB; outerKey: OuterSubDBKey};
 
     // TODO: Test this function
-    /// FIXME: Error because of security consideration of calling from a partition canister.
     public func getSubDBUserDataOuter(options: GetUserDataOuterOptions) : async* ?Text {
         let ?(part, innerKey) = getInner(options.superDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
         MyCycles.addPart(options.superDB.dbOptions.partitionCycles);
         await part.getSubDBUserDataInner({innerKey});
+    };
+
+    public type GetUserDataPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
+
+    // TODO: shared method
+    public func getSubDBUserDataOuterPartitionKey(options: GetUserDataOuterOptions) : async* ?Text {
+        MyCycles.addPart(options.superDB.dbOptions.partitionCycles);
+        await part.getSubDBUserDataOuter({outerKey = options.outerKey});
     };
 
     public type GetUserDataInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
@@ -477,7 +485,6 @@ module {
 
     public type SubDBSizeByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
-    /// FIXME: Error because of security consideration of calling from a partition canister.
     public func subDBSizeByOuter(options: SubDBSizeByOuterOptions): async* ?Nat {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
@@ -486,8 +493,15 @@ module {
         await part.subDBSizeByInner({innerKey});
     };
 
+    public type SubDBSizeByOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
+
+    // TODO: shared method
+    public func subDBSizeByOuterPartitionKey(options: SubDBSizeByOuterOptions): async* ?Nat {
+        MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+        await options.outer.subDBSizeByOuter({outerKey = options.outerKey});
+    };
+
     /// To be called in a partition where `innerSuperDB` resides.
-    /// FIXME: Error because of security consideration of calling from a partition canister.
     public func startInsertingImpl(options: {
         guid: GUID;
         indexCanister: IndexCanister;
@@ -510,7 +524,6 @@ module {
         };
     };
 
-    // FIXME: Having both `outerCanister` and `outerCanister` in options is a bug.
     public type InsertOptions = {
         guid: GUID;
         indexCanister: Principal; // FIXME: Remove?
@@ -668,7 +681,6 @@ module {
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
     
-    /// FIXME: Error because of security consideration of calling from a partition canister.
     public func deleteSubDB(options: DeleteDBOptions): async* () {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
@@ -682,6 +694,12 @@ module {
 
     public func deleteSubDBInner({superDB: SuperDB; innerKey: InnerSubDBKey}) : async* () {
         ignore BTree.delete(superDB.subDBs, Nat.compare, innerKey);
+    };
+
+    type DeleteDBPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; guid: GUID};
+    
+    public func deleteSubDBPartitionKey(options: DeleteDBOptions): async* () {
+        await options.outer.deleteSubDB({outerKey = options.outerKey});
     };
 
     // Creating sub-DB //
@@ -814,13 +832,24 @@ module {
 
     type ScanLimitOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
-    /// FIXME: Error because of security consideration of calling from a partition canister.
     public func scanLimitOuter(options: ScanLimitOuterOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
         let ?(part, innerKey) = getInner(options.outerSuperDB, options.outerKey) else {
             Debug.trap("no sub-DB");
         };
         MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
         await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
+    };
+
+    type ScanLimitOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
+    
+    public func scanLimitOuterPartitionKey(options: ScanLimitOuterPartitionKeyOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
+        await options.outer.scanLimitOuter({
+            outerKey = options.outerKey;
+            lowerBound = options.lowerBound;
+            upperBound = options.upperBound;
+            dir = options.dir;
+            limit = options.limit;
+        });
     };
 
     public func scanSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (InnerCanister, InnerSubDBKey))] {
