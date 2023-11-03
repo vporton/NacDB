@@ -405,7 +405,7 @@ module {
 
     public type GetByOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; sk: SK};
 
-    // TODO: The shared function.
+    // TODO: shared method
     public func getByOuterPartitionKey(options: GetByOuterPartitionKeyOptions, dbOptions: DBOptions) : async* ?AttributeValue {
         MyCycles.addPart(dbOptions.partitionCycles);
         await options.outer.getByOuter({outerKey = options.outerKey; sk = options.sk});
@@ -425,7 +425,7 @@ module {
 
     public type HasByOuterPartitionKeyOptions = GetByOuterPartitionKeyOptions;
 
-    // TODO: The shared function.
+    // TODO: shared method
     public func hasByOuterPartitionKey(options: GetByOuterPartitionKeyOptions) : async Bool {
         await options.outer.hasByOuter({outerKey = options.outerKey; sk = options.sk});
     };
