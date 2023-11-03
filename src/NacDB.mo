@@ -528,7 +528,6 @@ module {
         indexCanister: Principal; // TODO: Remove?
         dbIndex: DBIndex;
         outerCanister: Principal;
-        // outerSuperDB: SuperDB;
         outerKey: OuterSubDBKey;
         sk: SK;
         value: AttributeValue;
