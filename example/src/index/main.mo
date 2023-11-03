@@ -38,11 +38,6 @@ shared actor class Index() = this {
         Iter.toArray(iter);
     };
 
-    public shared func createPartitionImpl(): async Principal {
-        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        await* Nac.createPartitionImpl(this, dbIndex);
-    };
-
     public shared func createSubDB({guid: [Nat8]; userData: Text})
         : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)}
     {

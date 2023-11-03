@@ -93,8 +93,6 @@ module {
     };
 
     public type IndexCanister = actor {
-        // TODO: Can we make createPartitionImpl() a non-shared function?
-        createPartitionImpl: shared() -> async Principal;
         createPartition: shared() -> async Principal;
         getCanisters: query () -> async [Principal];
         createSubDB: shared({guid: [Nat8]; userData: Text})
