@@ -698,7 +698,7 @@ module {
 
     type DeleteDBPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; guid: GUID};
 
-    // FIXME: shared method
+    // TODO: shared method
     public func deleteSubDBPartitionKey(options: DeleteDBPartitionKeyOptions): async* () {
         await options.outer.deleteSubDB({guid = Blob.toArray(options.guid); outerKey = options.outerKey});
     };
