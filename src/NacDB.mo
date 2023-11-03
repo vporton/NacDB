@@ -867,7 +867,7 @@ module {
         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
         let canister = await index.createPartition();
         let can2: PartitionCanister = actor(Principal.toText(canister));
-        StableBuffer.add(dbIndex.canisters, can2); // TODO: too low level
+        StableBuffer.add(dbIndex.canisters, can2);
         canister;
     };
 
