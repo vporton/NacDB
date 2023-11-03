@@ -421,7 +421,6 @@ module {
 
     public type ExistsByOuterOptions = GetByOuterOptions;
 
-    /// FIXME: Error because of security consideration of calling from a partition canister.
     public func hasByOuter(options: ExistsByOuterOptions) : async* Bool {
         (await* getByOuter(options)) != null;
     };
