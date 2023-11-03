@@ -605,7 +605,7 @@ module {
                 let needsMove = switch(inserting.needsMove) {
                     case(?needsMove) { needsMove };
                     case(null) {
-                        MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles); // FIXME: here and in other places don't pass dbOptions
+                        MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
                         let needsMove = await oldInnerCanister.isOverflowed({});
                         inserting.needsMove := ?needsMove;
                         needsMove;
