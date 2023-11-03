@@ -125,7 +125,7 @@ module {
         )
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
         getInner: query (outerKey: OuterSubDBKey) -> async ?(InnerCanister, InnerSubDBKey);
-        isOverflowed: shared ({}) -> async Bool; // TODO: query
+        isOverflowed: query ({}) -> async Bool; // TODO: query
         putLocation(outerKey: OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: InnerSubDBKey) : async ();
         // In the current version two partition canister are always the same.
         createOuter(part: Principal, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
