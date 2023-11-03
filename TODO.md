@@ -13,6 +13,8 @@ for them to be executed inside "mutex"-like guards.
 
 - Almost certainly we have too many locks, causing performance degradatiom.
 
+- DBOptions should pass as a separate argument, not as a part of `DBOptions` or `SuperDB`.
+
 - Decrease amount of cycles for partition canisters?
 
 - It can be abused by calling with the same GUID after complete accomplishing
