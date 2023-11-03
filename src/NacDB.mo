@@ -525,7 +525,7 @@ module {
 
     public type InsertOptions = {
         guid: GUID;
-        indexCanister: Principal; // FIXME: Remove?
+        indexCanister: Principal; // TODO: Remove?
         dbIndex: DBIndex;
         outerCanister: Principal;
         // outerSuperDB: SuperDB;
