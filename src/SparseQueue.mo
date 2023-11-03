@@ -18,7 +18,7 @@ module {
         maxSize: Nat;
     };
 
-    public func init<T>(maxSize: Nat): SparseQueue<T> {
+    public func init<T>(maxSize: Nat, timeout: Time.Time): SparseQueue<T> {
         {
             var tree = BTree.init(null);
             maxSize;

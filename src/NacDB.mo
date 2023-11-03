@@ -171,10 +171,10 @@ module {
     public func createDBIndex(dbOptions: DBOptions) : DBIndex {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
-            var creatingSubDB = SparseQueue.init(dbOptions.createDBQueueLength);
+            var creatingSubDB = SparseQueue.init(dbOptions.createDBQueueLength, dbOptions.timeout);
             dbOptions;
-            var inserting = SparseQueue.init(dbOptions.insertQueueLength);
-            var deleting = SparseQueue.init(dbOptions.insertQueueLength);
+            var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout); // TODO: We don't need timeouts.
+            var deleting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var moving = BTree.init(null);
             var blockDeleting = BTree.init(null);
         };
