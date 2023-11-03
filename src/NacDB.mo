@@ -408,8 +408,8 @@ module {
     public type GetByOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; sk: SK};
 
     // TODO: The shared function.
-    public func getByOuterPartitionKey(options: GetByOuterPartitionKeyOptions) : async* ?AttributeValue {
-        MyCycles.addPart(options.superDB.dbOptions.partitionCycles);
+    public func getByOuterPartitionKey(options: GetByOuterPartitionKeyOptions, dbOptions: DBOptions) : async* ?AttributeValue {
+        MyCycles.addPart(dbOptions.partitionCycles);
         await options.outer.getByOuter({outerKey = options.outerKey; sk = options.sk});
     };
 
@@ -462,9 +462,9 @@ module {
     public type GetUserDataPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
 
     // TODO: shared method
-    public func getSubDBUserDataOuterPartitionKey(options: GetUserDataOuterOptions) : async* ?Text {
-        MyCycles.addPart(options.superDB.dbOptions.partitionCycles);
-        await part.getSubDBUserDataOuter({outerKey = options.outerKey});
+    public func getSubDBUserDataOuterPartitionKey(options: GetUserDataPartitionKeyOptions, dbOptions: DBOptions) : async* ?Text {
+        MyCycles.addPart(dbOptions.partitionCycles);
+        await options.outer.getSubDBUserDataOuter({outerKey = options.outerKey});
     };
 
     public type GetUserDataInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
@@ -496,8 +496,8 @@ module {
     public type SubDBSizeByOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
 
     // TODO: shared method
-    public func subDBSizeByOuterPartitionKey(options: SubDBSizeByOuterOptions): async* ?Nat {
-        MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+    public func subDBSizeByOuterPartitionKey(options: SubDBSizeByOuterPartitionKeyOptions, dbOptions: DBOptions): async* ?Nat {
+        MyCycles.addPart(dbOptions.partitionCycles);
         await options.outer.subDBSizeByOuter({outerKey = options.outerKey});
     };
 
@@ -698,8 +698,8 @@ module {
 
     type DeleteDBPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; guid: GUID};
     
-    public func deleteSubDBPartitionKey(options: DeleteDBOptions): async* () {
-        await options.outer.deleteSubDB({outerKey = options.outerKey});
+    public func deleteSubDBPartitionKey(options: DeleteDBPartitionKeyOptions): async* () {
+        await options.outer.deleteSubDB({guid = Blob.toArray(options.guid); outerKey = options.outerKey});
     };
 
     // Creating sub-DB //
