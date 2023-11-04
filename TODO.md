@@ -11,6 +11,8 @@ for them to be executed inside "mutex"-like guards.
   in the map from GUID, to ensure that a hacker cannot cause ill-effects
   by changing a part of the arguments in a repeated call.
 
+- Retrieve the queue.
+
 - Almost certainly we have too many locks, causing performance degradatiom.
 
 - DBOptions should pass as a separate argument, not as a part of `DBOptions` or `SuperDB`.
