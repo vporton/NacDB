@@ -46,16 +46,14 @@ shared actor class Index() = this {
         { inner = (Principal.fromActor(r.inner.0), r.inner.1); outer = (Principal.fromActor(r.outer.0), r.outer.1) };
     };
 
-    public shared func insert({
-        guid: [Nat8];
+    public shared func insert(guid: [Nat8], {
         outerCanister: Principal;
         outerKey: Nac.OuterSubDBKey;
         sk: Nac.SK;
         value: Nac.AttributeValue;
     }) : async Result.Result<{inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)}, Text> {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        let res = await* Nac.insert({
-            guid = Blob.fromArray(guid);
+        let res = await* Nac.insert(Blob.fromArray(guid), {
             indexCanister = Principal.fromActor(this);
             dbIndex;
             outerCanister = outerCanister;

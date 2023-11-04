@@ -59,6 +59,7 @@ module {
 
     /// Treat this as an opaque data structure, because this data is ignored if the sub-DB moves during insertion.
     public type InsertingItem = {
+        options: InsertOptions;
         subDBKey: OuterSubDBKey;
         var needsMove: ?Bool;
         var insertingImplDone: Bool;
@@ -97,8 +98,7 @@ module {
         getCanisters: query () -> async [Principal];
         createSubDB: shared({guid: [Nat8]; userData: Text})
             -> async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
-        insert({
-            guid: [Nat8];
+        insert(guid: [Nat8], {
             indexCanister: Principal;
             outerCanister: Principal;
             outerKey: OuterSubDBKey;
@@ -522,7 +522,6 @@ module {
     };
 
     public type InsertOptions = {
-        guid: GUID;
         indexCanister: Principal; // TODO: Remove?
         dbIndex: DBIndex;
         outerCanister: Principal;
@@ -534,14 +533,15 @@ module {
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
     /// TODO: Other functions should also return `Result`?
     /// TODO: Modify TypeScript code accordingly.
-    public func insert(options: InsertOptions)
+    public func insert(guid: GUID, options: InsertOptions)
         : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
-        let inserting = switch (OpsQueue.get(options.dbIndex.inserting, options.guid)) {
+        let inserting = switch (OpsQueue.get(options.dbIndex.inserting, guid)) {
             case (?inserting) { inserting };
             case (null) {
                 let inserting: InsertingItem = {
+                    options;
                     part = options.outerCanister;
                     subDBKey = options.outerKey;
                     var needsMove = null;
@@ -550,7 +550,7 @@ module {
                     var newInnerCanister = null;
                 };
 
-                OpsQueue.add(options.dbIndex.inserting, options.guid, inserting);
+                OpsQueue.add(options.dbIndex.inserting, guid, inserting);
                 if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
                     Debug.trap("blocking deleting");
                 };
@@ -559,10 +559,18 @@ module {
             };
         };
 
-        MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
-        let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
-            OpsQueue.delete(options.dbIndex.inserting, options.guid);
-            ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
+        await* insertFinishByQueue(guid, inserting);
+    };
+
+    public func insertFinishByQueue(guid: GUID, inserting: InsertingItem)
+        : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
+    {
+        let outer: OuterCanister = actor(Principal.toText(inserting.options.outerCanister)); // TODO: duplicate operation
+
+        MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
+        let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(inserting.options.outerKey) else {
+            OpsQueue.delete(inserting.options.dbIndex.inserting, guid);
+            ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
             return #err "missing sub-DB";
         };
 
@@ -570,26 +578,26 @@ module {
             let needsMove = switch(inserting.needsMove) {
                 case(?needsMove) { needsMove };
                 case(null) {
-                    MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
+                    MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
                     let needsMove = await oldInnerCanister.isOverflowed({});
                     inserting.needsMove := ?needsMove;
                     needsMove;
                 };
             };
-            MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
+            MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
             await oldInnerCanister.startInsertingImpl({
-                guid = Blob.toArray(options.guid);
-                indexCanister = options.indexCanister;
-                outerCanister = options.outerCanister;
-                outerKey = options.outerKey;
-                sk = options.sk;
-                value = options.value;
+                guid = Blob.toArray(guid);
+                indexCanister = inserting.options.indexCanister;
+                outerCanister = inserting.options.outerCanister;
+                outerKey = inserting.options.outerKey;
+                sk = inserting.options.sk;
+                value = inserting.options.value;
                 innerKey = oldInnerKey;
                 needsMove;
             });
             if (needsMove) {
-                if (BTree.has(options.dbIndex.moving, compareLocs, (actor(Principal.toText(options.outerCanister)): OuterCanister, options.outerKey))) {
-                    // ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
+                if (BTree.has(inserting.options.dbIndex.moving, compareLocs, (actor(Principal.toText(inserting.options.outerCanister)): OuterCanister, inserting.options.outerKey))) {
+                    // ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
                     Debug.trap("already moving");
                 };
             };
@@ -603,25 +611,25 @@ module {
                 let needsMove = switch(inserting.needsMove) {
                     case(?needsMove) { needsMove };
                     case(null) {
-                        MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
+                        MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
                         let needsMove = await oldInnerCanister.isOverflowed({});
                         inserting.needsMove := ?needsMove;
                         needsMove;
                     };
                 };
                 if (needsMove) {
-                    MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
-                    let index: IndexCanister = actor(Principal.toText(options.indexCanister));
+                    MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
+                    let index: IndexCanister = actor(Principal.toText(inserting.options.indexCanister));
                     let (innerPartition, innerKey) = await* finishMovingSubDBImpl({
                         inserting;
-                        dbIndex = options.dbIndex;
-                        index = actor(Principal.toText(options.indexCanister));
+                        dbIndex = inserting.options.dbIndex;
+                        index = actor(Principal.toText(inserting.options.indexCanister));
                         oldInnerKey;
-                        outerCanister = actor(Principal.toText(options.outerCanister));
-                        outerKey = options.outerKey;
+                        outerCanister = actor(Principal.toText(inserting.options.outerCanister));
+                        outerKey = inserting.options.outerKey;
                         oldInnerCanister;
                     });
-                    ignore BTree.delete(options.dbIndex.moving, compareLocs, (actor(Principal.toText(options.outerCanister)): OuterCanister, options.outerKey));
+                    ignore BTree.delete(inserting.options.dbIndex.moving, compareLocs, (actor(Principal.toText(inserting.options.outerCanister)): OuterCanister, inserting.options.outerKey));
                     (innerPartition, innerKey);
                 } else {
                     (oldInnerCanister, oldInnerKey);
@@ -633,10 +641,10 @@ module {
             newInnerKey;
         };
 
-        OpsQueue.delete(options.dbIndex.inserting, options.guid);
-        ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
+        OpsQueue.delete(inserting.options.dbIndex.inserting, guid);
+        ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
 
-        #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, options.outerKey)};
+        #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, inserting.options.outerKey)};
     };
 
     public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: SK}): async* () {
