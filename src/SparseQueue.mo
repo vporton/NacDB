@@ -13,19 +13,19 @@ module {
     public type GUID = Blob;
 
     // TODO: Rename.
-    public type SparseQueue<T> = {
+    public type OpsQueue<T> = {
         var tree: BTree.BTree<GUID, T>;
         maxSize: Nat;
     };
 
-    public func init<T>(maxSize: Nat, timeout: Time.Time): SparseQueue<T> {
+    public func init<T>(maxSize: Nat, timeout: Time.Time): OpsQueue<T> {
         {
             var tree = BTree.init(null);
             maxSize;
         }
     };
 
-    public func add<T>(queue: SparseQueue<T>, guid: GUID, value: T) {
+    public func add<T>(queue: OpsQueue<T>, guid: GUID, value: T) {
         if (BTree.size(queue.tree) == queue.maxSize) {
             Debug.trap("queue is full");
             return;
@@ -37,15 +37,15 @@ module {
         ignore BTree.insert(queue.tree, Blob.compare, guid, value);
     };
 
-    public func delete<T>(queue: SparseQueue<T>, guid: GUID) {
+    public func delete<T>(queue: OpsQueue<T>, guid: GUID) {
         ignore BTree.delete(queue.tree, Blob.compare, guid);
     };
 
-    public func get<T>(queue: SparseQueue<T>, key: GUID): ?T {
+    public func get<T>(queue: OpsQueue<T>, key: GUID): ?T {
         BTree.get(queue.tree, Blob.compare, key);
     };
 
-    public func has<T>(queue: SparseQueue<T>, key: GUID): Bool {
+    public func has<T>(queue: OpsQueue<T>, key: GUID): Bool {
         BTree.has(queue.tree, Blob.compare, key);
     };
 }

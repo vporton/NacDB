@@ -14,7 +14,7 @@ import Debug "mo:base/Debug";
 import Bool "mo:base/Bool";
 import Deque "mo:base/Deque";
 import Iter "mo:base/Iter";
-import SparseQueue "./SparseQueue";
+import OpsQueue "./OpsQueue";
 import MyCycles "./Cycles";
 import Blob "mo:base/Blob";
 import Array "mo:base/Array";
@@ -79,15 +79,15 @@ module {
         subDBs: BTree.BTree<InnerSubDBKey, SubDB>;
         /// `inner` of this `RBT.Tree` is constant,
         /// even when the sub-DB to which it points moves to a different canister.
-        var locations: BTree.BTree<OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?SparseQueue.GUID*/}>;
+        var locations: BTree.BTree<OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?OpsQueue.GUID*/}>;
     };
 
     public type DBIndex = {
         dbOptions: DBOptions;
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
-        var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
-        var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
-        var deleting: SparseQueue.SparseQueue<()>;
+        var creatingSubDB: OpsQueue.OpsQueue<CreatingSubDB>;
+        var inserting: OpsQueue.OpsQueue<InsertingItem>;  // outer
+        var deleting: OpsQueue.OpsQueue<()>;
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
         var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion
     };
@@ -171,10 +171,10 @@ module {
     public func createDBIndex(dbOptions: DBOptions) : DBIndex {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
-            var creatingSubDB = SparseQueue.init(dbOptions.createDBQueueLength, dbOptions.timeout);
+            var creatingSubDB = OpsQueue.init(dbOptions.createDBQueueLength, dbOptions.timeout);
             dbOptions;
-            var inserting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout); // TODO: We don't need timeouts.
-            var deleting = SparseQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
+            var inserting = OpsQueue.init(dbOptions.insertQueueLength, dbOptions.timeout); // TODO: We don't need timeouts.
+            var deleting = OpsQueue.init(dbOptions.insertQueueLength, dbOptions.timeout);
             var moving = BTree.init(null);
             var blockDeleting = BTree.init(null);
         };
@@ -254,7 +254,7 @@ module {
         let {inner = inner2} = rawInsertSubDB(superDB, map, do ? {keys!.inner}, userData);
         if (keys == null) {
             ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextOuterKey,
-                {inner = (canister, inner2); /*var busy: ?SparseQueue.GUID = null*/});
+                {inner = (canister, inner2); /*var busy: ?OpsQueue.GUID = null*/});
         };
         switch (keys) {
             case (?{inner; outer}) {
@@ -280,7 +280,7 @@ module {
 
     public func putLocation(outerSuperDB: SuperDB, outerKey: OuterSubDBKey, innerCanister: InnerCanister, innerKey: InnerSubDBKey) {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
-            {inner = (innerCanister, innerKey); /*var busy: ?SparseQueue.GUID = null*/});
+            {inner = (innerCanister, innerKey); /*var busy: ?OpsQueue.GUID = null*/});
     };
 
     /// This function makes no sense, because it would return the entire sub-DB from another canister.
@@ -538,7 +538,7 @@ module {
         : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
-        let inserting = switch (SparseQueue.get(options.dbIndex.inserting, options.guid)) {
+        let inserting = switch (OpsQueue.get(options.dbIndex.inserting, options.guid)) {
             case (?inserting) { inserting };
             case (null) {
                 let inserting: InsertingItem = {
@@ -550,7 +550,7 @@ module {
                     var newInnerCanister = null;
                 };
 
-                SparseQueue.add(options.dbIndex.inserting, options.guid, inserting);
+                OpsQueue.add(options.dbIndex.inserting, options.guid, inserting);
                 if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
                     Debug.trap("block deleting"); // TODO: better message
                 };
@@ -561,7 +561,7 @@ module {
 
         MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(options.outerKey) else {
-            SparseQueue.delete(options.dbIndex.inserting, options.guid);
+            OpsQueue.delete(options.dbIndex.inserting, options.guid);
             ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
             return #err "missing sub-DB";
         };
@@ -633,7 +633,7 @@ module {
             newInnerKey;
         };
 
-        SparseQueue.delete(options.dbIndex.inserting, options.guid);
+        OpsQueue.delete(options.dbIndex.inserting, options.guid);
         ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey));
 
         #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, options.outerKey)};
@@ -654,8 +654,8 @@ module {
     
     /// idempotent
     public func delete(options: DeleteOptions): async* () {
-        if (not SparseQueue.has(options.dbIndex.deleting, options.guid)) {
-            SparseQueue.add(options.dbIndex.deleting, options.guid, ());
+        if (not OpsQueue.has(options.dbIndex.deleting, options.guid)) {
+            OpsQueue.add(options.dbIndex.deleting, options.guid, ());
             if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
                 Debug.trap("deleting is blocked");
             };
@@ -671,7 +671,7 @@ module {
             case (null) {};
         };
 
-        SparseQueue.delete(options.dbIndex.deleting, options.guid);
+        OpsQueue.delete(options.dbIndex.deleting, options.guid);
         ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))
     };
 
@@ -713,7 +713,7 @@ module {
         : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}
     {
         let creating: CreatingSubDB = {var canister = null; var loc = null; userData};
-        SparseQueue.add(dbIndex.creatingSubDB, guid, creating);
+        OpsQueue.add(dbIndex.creatingSubDB, guid, creating);
         let part3: PartitionCanister = switch (creating.canister) { // both inner and outer
             case (?part) { part };
             case (null) {
@@ -748,7 +748,7 @@ module {
                 {inner = (part3, inner); outer = (part3, outer)};
             };
         };
-        SparseQueue.delete(dbIndex.creatingSubDB, guid);
+        OpsQueue.delete(dbIndex.creatingSubDB, guid);
         {inner; outer}
     };
 
@@ -759,7 +759,7 @@ module {
         : {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}
     {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
-            {inner = (part, innerKey); /*var busy: ?SparseQueue.GUID = null*/});
+            {inner = (part, innerKey); /*var busy: ?OpsQueue.GUID = null*/});
         {inner = (part, innerKey); outer = (part, outerKey)};
     };
 
@@ -850,9 +850,9 @@ module {
     };
 
     public func scanSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (InnerCanister, InnerSubDBKey))] {
-        let iter = Iter.map<(OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?SparseQueue.GUID*/}), (OuterSubDBKey, (InnerCanister, InnerSubDBKey))>(
+        let iter = Iter.map<(OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?OpsQueue.GUID*/}), (OuterSubDBKey, (InnerCanister, InnerSubDBKey))>(
             BTree.entries(superDB.locations),
-            func(e: (OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?SparseQueue.GUID*/})) { (e.0, e.1.inner) },
+            func(e: (OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?OpsQueue.GUID*/})) { (e.0, e.1.inner) },
         );
         Iter.toArray(iter);
     };

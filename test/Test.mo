@@ -5,7 +5,7 @@ import Index "../example/src/index/main";
 import Partition "../example/src/partition/main";
 import Principal "mo:base/Principal";
 import Array "mo:base/Array";
-import SparseQueue "../src/SparseQueue";
+import OpsQueue "../src/OpsQueue";
 import GUID "../src/GUID";
 import MyCycles "../src/Cycles";
 
