@@ -265,7 +265,7 @@ actor StressTest {
                 };
                 break R;
             };
-            let ?(part3, outerKey3) = v else { // FIXME: may be null, if the sub-DB was meanwhile deleted.
+            let ?(part3, outerKey3) = v else {
                 Debug.trap("programming error: insert");
             };
             let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part3, outerKey3)) else {
