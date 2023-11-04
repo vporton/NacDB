@@ -87,7 +87,7 @@ module {
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
         var creatingSubDB: SparseQueue.SparseQueue<CreatingSubDB>;
         var inserting: SparseQueue.SparseQueue<InsertingItem>;  // outer
-        var deleting: SparseQueue.SparseQueue<()>; // TODO: Do we need both deletng and blockDeleting?
+        var deleting: SparseQueue.SparseQueue<()>;
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
         var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion
     };
