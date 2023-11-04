@@ -552,7 +552,7 @@ module {
 
                 OpsQueue.add(options.dbIndex.inserting, options.guid, inserting);
                 if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
-                    Debug.trap("block deleting"); // TODO: better message
+                    Debug.trap("blocking deleting");
                 };
                 ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
                 inserting;
