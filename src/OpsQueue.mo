@@ -17,7 +17,7 @@ module {
         maxSize: Nat;
     };
 
-    public func init<T>(maxSize: Nat, timeout: Time.Time): OpsQueue<T> {
+    public func init<T>(maxSize: Nat): OpsQueue<T> {
         {
             var tree = BTree.init(null);
             maxSize;
