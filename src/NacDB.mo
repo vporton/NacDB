@@ -532,8 +532,8 @@ module {
     };
 
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
-    /// TODO: Other functions should also return `Result`.
-    /// FIXME: Modify TypeScript code accordingly.
+    /// TODO: Other functions should also return `Result`?
+    /// TODO: Modify TypeScript code accordingly.
     public func insert(options: InsertOptions)
         : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
     {
