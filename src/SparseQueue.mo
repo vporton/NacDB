@@ -12,7 +12,6 @@ import RBT "mo:stable-rbtree/StableRBTree";
 module {
     public type GUID = Blob;
 
-    // TODO: Rename.
     public type OpsQueue<T> = {
         var tree: BTree.BTree<GUID, T>;
         maxSize: Nat;
