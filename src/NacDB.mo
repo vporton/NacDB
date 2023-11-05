@@ -575,9 +575,7 @@ module {
     };
 
     public func insertFinish(guid: GUID, dbIndex: DBIndex) : async* ?InsertResult {
-        Debug.print("insertFinish[[");
         let result = OpsQueue.result(dbIndex.inserting, guid);
-        Debug.print("]]");
         result;
     };
 
@@ -712,10 +710,7 @@ module {
     };
 
     public func deleteFinish(guid: GUID, dbIndex: DBIndex) : async* ?() {
-        Debug.print("deleteFinish[[");
-        let result = OpsQueue.result(dbIndex.deleting, guid);
-        Debug.print("]]");
-        result;
+        OpsQueue.result(dbIndex.deleting, guid);
     };
 
     func deleteFinishByQueue(guid: GUID, deleting: DeletingItem) : async* () {
