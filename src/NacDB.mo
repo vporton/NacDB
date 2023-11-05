@@ -540,11 +540,11 @@ module {
         label l loop {
             let elt = i.next();
             switch (elt) {
-                case (?inserting) {
+                case (?(_, inserting)) {
                     OpsQueue.answer<InsertingItem, InsertResult>(
                         options.dbIndex.inserting,
                         guid,
-                        await* insertFinishByQueue(guid, options.dbIndex.inserting));
+                        await* insertFinishByQueue(guid, inserting));
                 };
                 case (null) {
                     break l;
