@@ -570,14 +570,7 @@ module {
     };
 
     public func insertFinish(guid: GUID, dbIndex: DBIndex) : async* ?InsertResult {
-        switch (OpsQueue.get(dbIndex.inserting, guid)) {
-            case (?inserting) {
-                OpsQueue.result(dbIndex.inserting, guid);
-            };
-            case (null) {
-                Debug.trap("no result");
-            };
-        };        
+        OpsQueue.result(dbIndex.inserting, guid);
     };
 
     func insertFinishByQueue(guid: GUID, inserting: InsertingItem)
