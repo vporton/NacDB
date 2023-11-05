@@ -698,6 +698,7 @@ module {
         options: DeleteOptions;
     };
 
+    // FIXME: Here and in other places, also finish previous deleting operations.
     public func deleteFinish(guid: GUID, dbIndex: DBIndex) : async* ?() {
         OpsQueue.result(dbIndex.deleting, guid);
     };
