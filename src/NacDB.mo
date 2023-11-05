@@ -52,6 +52,7 @@ module {
     public type MoveCap = { #usedMemory: Nat };
 
     public type CreatingSubDB = {
+        options: {index: IndexCanister; dbIndex: DBIndex; userData: Text}; // TODO: a named type
         var canister: ?PartitionCanister; // Immediately after creation of sub-DB, this is both inner and outer.
         var loc: ?{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, InnerSubDBKey)};
         userData: Text;
@@ -767,20 +768,37 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
-    /// FIXME: Rewrite?
-    public func createSubDB(guid: GUID, {index: IndexCanister; dbIndex: DBIndex; userData: Text})
-        : async* CreateSubDBResult
-    {
-        let creating: CreatingSubDB = {var canister = null; var loc = null; userData};
-        OpsQueue.add(dbIndex.creatingSubDB, guid, creating);
+    public func createSubDB(guid: GUID, {index: IndexCanister; dbIndex: DBIndex; userData: Text}) : async* CreateSubDBResult {
+        let creating: CreatingSubDB = switch (OpsQueue.get(dbIndex.creatingSubDB, guid)) {
+            case (?creating) { creating };
+            case (null) {
+                {
+                    options = {index; dbIndex; userData}; // TODO: Simplify.
+                    var canister = null;
+                    var loc = null;
+                    userData;
+                };
+            };
+        };
+
+        try {
+            await* createSubDBFinishByQueue(guid, creating);
+        }
+        catch(e) {
+            OpsQueue.add<CreatingSubDB, CreateSubDBResult>(dbIndex.creatingSubDB, guid, creating);
+            throw e;
+        }
+    };
+
+    func createSubDBFinishByQueue(guid: GUID, creating: CreatingSubDB) : async* CreateSubDBResult {
         let part3: PartitionCanister = switch (creating.canister) { // both inner and outer
             case (?part) { part };
             case (null) {
-                let canisters = StableBuffer.toArray(dbIndex.canisters);
+                let canisters = StableBuffer.toArray(creating.options.dbIndex.canisters);
                 let part = canisters[canisters.size() - 1];
-                MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+                MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
                 let part2 = if (await part.isOverflowed({})) {
-                    let part20 = await* createPartitionImpl(index, dbIndex);
+                    let part20 = await* createPartitionImpl(creating.options.index, creating.options.dbIndex);
                     let part2: PartitionCanister = actor(Principal.toText(part20));
                     creating.canister := ?part;
                     part2;
@@ -788,7 +806,7 @@ module {
                     let {inner; outer} = switch (creating.loc) {
                         case (?loc) { loc };
                         case (null) {
-                            MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+                            MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
                             let {inner; outer} = await part.rawInsertSubDBAndSetOuter([], null, creating.userData);
                             creating.loc := ?{inner = (part, inner); outer = (part, outer)};
                             {inner = (part, inner); outer = (part, outer)};
@@ -798,17 +816,15 @@ module {
                 };
             };
         };
-        let result = switch (creating.loc) {
+        switch (creating.loc) {
             case (?loc) { loc };
             case (null) {
-                MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
+                MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
                 let {inner; outer} = await part3.rawInsertSubDBAndSetOuter([], null, creating.userData);
                 creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
                 {inner = (part3, inner); outer = (part3, outer)};
             };
         };
-        OpsQueue.answer(dbIndex.creatingSubDB, guid, result);
-        result;
     };
 
     /// In the current version two partition canister are always the same.
