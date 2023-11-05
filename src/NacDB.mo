@@ -105,7 +105,7 @@ module {
             sk: SK;
             value: AttributeValue;
         }) : async Result.Result<{inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)}, Text>;
-        delete({outerCanister: Principal; outerKey: OuterSubDBKey; sk: SK; guid: [Nat8]}): async ();
+        delete(guid: [Nat8], {outerCanister: Principal; outerKey: OuterSubDBKey; sk: SK}): async ();
     };
 
     // TODO: arguments as {...}, not (...).
@@ -669,12 +669,12 @@ module {
         }
     };
 
-    type DeleteOptions = {dbIndex: DBIndex; outerCanister: OuterCanister; outerKey: OuterSubDBKey; sk: SK; guid: GUID};
+    type DeleteOptions = {dbIndex: DBIndex; outerCanister: OuterCanister; outerKey: OuterSubDBKey; sk: SK};
     
     /// idempotent
-    public func delete(options: DeleteOptions): async* () {
-        if (not OpsQueue.has(options.dbIndex.deleting, options.guid)) {
-            OpsQueue.add(options.dbIndex.deleting, options.guid, ());
+    public func delete(guid: GUID, options: DeleteOptions): async* () {
+        if (not OpsQueue.has(options.dbIndex.deleting, guid)) {
+            OpsQueue.add(options.dbIndex.deleting, guid, ());
             if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
                 Debug.trap("deleting is blocked");
             };
@@ -691,7 +691,7 @@ module {
         };
 
         ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey));
-        OpsQueue.answer(options.dbIndex.deleting, options.guid, ());
+        OpsQueue.answer(options.dbIndex.deleting, guid, ());
     };
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
