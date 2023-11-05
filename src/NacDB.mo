@@ -88,7 +88,7 @@ module {
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
         var creatingSubDB: OpsQueue.OpsQueue<CreatingSubDB, CreateSubDBResult>;
         var inserting: OpsQueue.OpsQueue<InsertingItem, InsertResult>;  // outer
-        var deleting: OpsQueue.OpsQueue<(), ()>;
+        var deleting: OpsQueue.OpsQueue<DeletingItem, ()>;
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
         var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion
     };
@@ -653,9 +653,7 @@ module {
 
         ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
 
-        let result = #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, inserting.options.outerKey)};
-        OpsQueue.answer(inserting.options.dbIndex.inserting, guid, result);
-        result;
+        #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, inserting.options.outerKey)};
     };
 
     public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: SK}): async* () {
@@ -673,25 +671,49 @@ module {
     
     /// idempotent
     public func delete(guid: GUID, options: DeleteOptions): async* () {
-        if (not OpsQueue.has(options.dbIndex.deleting, guid)) {
-            OpsQueue.add(options.dbIndex.deleting, guid, ());
-            if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
-                Debug.trap("deleting is blocked");
+        ignore OpsQueue.whilePending<DeletingItem, ()>(options.dbIndex.deleting, func(guid: GUID, elt: DeletingItem): async* () {
+            OpsQueue.answer(
+                options.dbIndex.deleting,
+                guid,
+                await* deleteFinishByQueue(guid, elt));
+        });
+
+        let deleting = switch (OpsQueue.get(options.dbIndex.deleting, guid)) {
+            case (?deleting) { deleting };
+            case null {
+                let result = { options };
+                OpsQueue.add(options.dbIndex.deleting, guid, result);
+                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
+                    Debug.trap("deleting is blocked");
+                };
+                ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
+                result;
             };
-            ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
         };
 
-        switch(await options.outerCanister.getInner(options.outerKey)) {
+        await* deleteFinishByQueue(guid, deleting);
+    };
+
+    type DeletingItem = {
+        options: DeleteOptions;
+    };
+
+    public func deleteFinish(guid: GUID, dbIndex: DBIndex) : async* ?() {
+        OpsQueue.result(dbIndex.deleting, guid);
+    };
+
+    func deleteFinishByQueue(guid: GUID, deleting: DeletingItem) : async* () {
+        switch(await deleting.options.outerCanister.getInner(deleting.options.outerKey)) {
             case (?(innerCanister, innerKey)) {
                 // Can we block here on inner key instead of outer one?
-                MyCycles.addPart(options.dbIndex.dbOptions.partitionCycles);
-                await innerCanister.deleteInner({innerKey; sk = options.sk});
+                MyCycles.addPart(deleting.options.dbIndex.dbOptions.partitionCycles);
+                await innerCanister.deleteInner({innerKey; sk = deleting.options.sk});
             };
             case (null) {};
         };
 
-        ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey));
-        OpsQueue.answer(options.dbIndex.deleting, guid, ());
+        ignore BTree.delete(deleting.options.dbIndex.blockDeleting, compareLocs, (deleting.options.outerCanister, deleting.options.outerKey));
+        OpsQueue.answer(deleting.options.dbIndex.deleting, guid, ());
     };
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
