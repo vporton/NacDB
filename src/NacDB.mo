@@ -86,9 +86,9 @@ module {
     public type DBIndex = {
         dbOptions: DBOptions;
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
-        var creatingSubDB: OpsQueue.OpsQueue<CreatingSubDB>;
-        var inserting: OpsQueue.OpsQueue<InsertingItem>;  // outer
-        var deleting: OpsQueue.OpsQueue<()>;
+        var creatingSubDB: OpsQueue.OpsQueue<CreatingSubDB, CreateSubDBResult>;
+        var inserting: OpsQueue.OpsQueue<InsertingItem, InsertResult>;  // outer
+        var deleting: OpsQueue.OpsQueue<(), ()>;
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
         var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion
     };
@@ -530,12 +530,12 @@ module {
         value: AttributeValue;
     };
 
+    public type InsertResult = Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text>; // TODO: need to return this value?
+
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
     /// TODO: Other functions should also return `Result`?
     /// TODO: Modify TypeScript code accordingly.
-    public func insert(guid: GUID, options: InsertOptions)
-        : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
-    {
+    public func insert(guid: GUID, options: InsertOptions) : async* InsertResult {
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
         let inserting = switch (OpsQueue.get(options.dbIndex.inserting, guid)) {
             case (?inserting) { inserting };
@@ -562,6 +562,16 @@ module {
         await* insertFinishByQueue(guid, inserting);
     };
 
+    // FIXME: Run all unfinished transactions in `insert`. Save results and retieve by GUID.
+    public func insertFinish(guid: GUID, inserting: InsertingItem, dbIndex: DBIndex) : async* () {
+        switch (OpsQueue.get(dbIndex.inserting, guid)) {
+            case (?inserting) {
+                OpsQueue.answer(dbIndex.inserting, guid, await* insertFinishByQueue(guid, inserting));
+            };
+            case (null) {};
+        };        
+    };
+
     public func insertFinishByQueue(guid: GUID, inserting: InsertingItem)
         : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
     {
@@ -569,9 +579,10 @@ module {
 
         MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
         let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(inserting.options.outerKey) else {
-            OpsQueue.delete(inserting.options.dbIndex.inserting, guid);
             ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
-            return #err "missing sub-DB";
+            let result = #err "missing sub-DB";
+            OpsQueue.answer(inserting.options.dbIndex.inserting, guid, result);
+            return result;
         };
 
         if (not inserting.insertingImplDone) {
@@ -641,10 +652,11 @@ module {
             newInnerKey;
         };
 
-        OpsQueue.delete(inserting.options.dbIndex.inserting, guid);
         ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
 
-        #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, inserting.options.outerKey)};
+        let result = #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, inserting.options.outerKey)};
+        OpsQueue.answer(inserting.options.dbIndex.inserting, guid, result);
+        result;
     };
 
     public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: SK}): async* () {
@@ -679,8 +691,8 @@ module {
             case (null) {};
         };
 
-        OpsQueue.delete(options.dbIndex.deleting, options.guid);
-        ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))
+        ignore BTree.delete(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey));
+        OpsQueue.answer(options.dbIndex.deleting, options.guid, ());
     };
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
@@ -709,6 +721,8 @@ module {
 
     // Creating sub-DB //
 
+    type CreateSubDBResult = {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
+
     /// It does not touch old items, so no locking.
     ///
     /// Pass a random GUID. Repeat the call with the same GUID, if the previous call failed.
@@ -718,7 +732,7 @@ module {
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
     public func createSubDB({guid: GUID; index: IndexCanister; dbIndex: DBIndex; userData: Text})
-        : async* {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}
+        : async* CreateSubDBResult
     {
         let creating: CreatingSubDB = {var canister = null; var loc = null; userData};
         OpsQueue.add(dbIndex.creatingSubDB, guid, creating);
@@ -747,7 +761,7 @@ module {
                 };
             };
         };
-        let {inner; outer} = switch (creating.loc) {
+        let result = switch (creating.loc) {
             case (?loc) { loc };
             case (null) {
                 MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
@@ -756,8 +770,8 @@ module {
                 {inner = (part3, inner); outer = (part3, outer)};
             };
         };
-        OpsQueue.delete(dbIndex.creatingSubDB, guid);
-        {inner; outer}
+        OpsQueue.answer(dbIndex.creatingSubDB, guid, result);
+        result;
     };
 
     /// In the current version two partition canister are always the same.

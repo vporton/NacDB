@@ -74,8 +74,7 @@ module {
     };
 
     public func result<T, R>(queue: OpsQueue<T, R>, guid: GUID): ?R {
-        let p = BTree.delete(queue.results, Blob.compare, guid);
-        switch (p) {
+        switch (BTree.delete(queue.results, Blob.compare, guid)) {
             case (?(result, time)) {
                switch (BTree.get(queue.resultsOrder, Int.compare, time)) {
                     case (?subtree) {
