@@ -4,6 +4,7 @@ import Blob "mo:base/Blob";
 import Bool "mo:base/Bool";
 import Time "mo:base/Time";
 import Int "mo:base/Int";
+import Iter "mo:base/Iter";
 import BTree "mo:btree/BTree";
 import RBT "mo:stable-rbtree/StableRBTree";
 
@@ -12,39 +13,99 @@ import RBT "mo:stable-rbtree/StableRBTree";
 module {
     public type GUID = Blob;
 
-    public type OpsQueue<T> = {
-        var tree: BTree.BTree<GUID, T>;
+    public type OpsQueue<T, R> = {
+        var arguments: BTree.BTree<GUID, T>;
+        var results: BTree.BTree<GUID, (R, Time.Time)>;
+        var resultsOrder: BTree.BTree<Time.Time, BTree.BTree<GUID, ()>>; // or RBTree here?
         maxSize: Nat;
     };
 
-    public func init<T>(maxSize: Nat): OpsQueue<T> {
+    public func init<T, R>(maxSize: Nat): OpsQueue<T, R> {
         {
-            var tree = BTree.init(null);
+            var arguments = BTree.init(null);
+            var results = BTree.init(null);
+            var resultsOrder = BTree.init(null);
             maxSize;
         }
     };
 
-    public func add<T>(queue: OpsQueue<T>, guid: GUID, value: T) {
-        if (BTree.size(queue.tree) == queue.maxSize) {
+    public func add<T, R>(queue: OpsQueue<T, R>, guid: GUID, value: T) {
+        if (BTree.size(queue.arguments) == queue.maxSize) {
             Debug.trap("queue is full");
             return;
         };
-        if (BTree.has(queue.tree, Blob.compare, guid)) {
+        if (BTree.has(queue.arguments, Blob.compare, guid)) {
             Debug.print("queue already contains guid");
             Debug.trap("queue already contains guid");
         };
-        ignore BTree.insert(queue.tree, Blob.compare, guid, value);
+        ignore BTree.insert(queue.arguments, Blob.compare, guid, value);
     };
 
-    public func delete<T>(queue: OpsQueue<T>, guid: GUID) {
-        ignore BTree.delete(queue.tree, Blob.compare, guid);
+    public func answer<T, R>(queue: OpsQueue<T, R>, guid: GUID, value: R) {
+        ignore BTree.delete(queue.arguments, Blob.compare, guid);
+        if (BTree.size(queue.resultsOrder) == queue.maxSize) {
+            switch (BTree.entries(queue.resultsOrder).next()) {
+                case (?(time, subtree)) {
+                    switch (BTree.entries(subtree).next()) {
+                        case (?(guid, ())) {
+                            if (BTree.size(subtree) == 1) { // last element in subtree
+                                ignore BTree.delete(queue.resultsOrder, Int.compare, time);
+                            } else {
+                                ignore BTree.delete(subtree, Blob.compare, guid);
+                            };
+                        };
+                        case null {}
+                    };
+                };
+                case null {};
+            };
+        };
+        switch (BTree.get(queue.resultsOrder, Int.compare, Time.now())) {
+            case (?subtree) {
+                ignore BTree.insert(subtree, Blob.compare, guid, ());
+            };
+            case null {
+                var subtree: BTree.BTree<GUID, ()> = BTree.init(null);
+                ignore BTree.insert(subtree, Blob.compare, guid, ());
+                ignore BTree.insert(queue.resultsOrder, Int.compare, Time.now(), subtree);
+            };
+        };
+        ignore BTree.insert(queue.results, Blob.compare, guid, (value, Time.now()));
     };
 
-    public func get<T>(queue: OpsQueue<T>, key: GUID): ?T {
-        BTree.get(queue.tree, Blob.compare, key);
+    public func result<T, R>(queue: OpsQueue<T, R>, guid: GUID): ?R {
+        let p = BTree.delete(queue.results, Blob.compare, guid);
+        switch (p) {
+            case (?(result, time)) {
+               switch (BTree.get(queue.resultsOrder, Int.compare, time)) {
+                    case (?subtree) {
+                        if (BTree.size(subtree) == 1) { // last element in subtree
+                            ignore BTree.delete(queue.resultsOrder, Int.compare, time);
+                        } else {
+                            ignore BTree.delete(subtree, Blob.compare, guid);
+                        };
+                    };
+                    case null {
+                        Debug.trap("OpsQueue: programming error");
+                    };
+                };
+                ?result;
+            };
+            case null {
+                Debug.trap("guid not found");
+            };
+        };
     };
 
-    public func has<T>(queue: OpsQueue<T>, key: GUID): Bool {
-        BTree.has(queue.tree, Blob.compare, key);
+    public func get<T, R>(queue: OpsQueue<T, R>, key: GUID): ?T {
+        BTree.get(queue.arguments, Blob.compare, key);
+    };
+
+    public func has<T, R>(queue: OpsQueue<T, R>, key: GUID): Bool {
+        BTree.has(queue.arguments, Blob.compare, key);
+    };
+
+    public func queue<T, R>(queue: OpsQueue<T, R>): Iter.Iter<(GUID, T)> {
+        BTree.entries(queue.arguments);
     };
 }
