@@ -578,7 +578,7 @@ module {
         };        
     };
 
-    public func insertFinishByQueue(guid: GUID, inserting: InsertingItem)
+    func insertFinishByQueue(guid: GUID, inserting: InsertingItem)
         : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
     {
         let outer: OuterCanister = actor(Principal.toText(inserting.options.outerCanister)); // TODO: duplicate operation
