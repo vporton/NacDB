@@ -652,6 +652,7 @@ module {
         };
 
         ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
+        ignore OpsQueue.result(inserting.options.dbIndex.inserting, guid);
 
         #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, inserting.options.outerKey)};
     };
@@ -698,7 +699,6 @@ module {
         options: DeleteOptions;
     };
 
-    // FIXME: Here and in other places, also finish previous deleting operations.
     public func deleteFinish(guid: GUID, dbIndex: DBIndex) : async* ?() {
         OpsQueue.result(dbIndex.deleting, guid);
     };
@@ -714,7 +714,8 @@ module {
         };
 
         ignore BTree.delete(deleting.options.dbIndex.blockDeleting, compareLocs, (deleting.options.outerCanister, deleting.options.outerKey));
-        OpsQueue.answer(deleting.options.dbIndex.deleting, guid, ());
+        ignore OpsQueue.result(deleting.options.dbIndex.deleting, guid);
+        // OpsQueue.answer(deleting.options.dbIndex.deleting, guid, ());
     };
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
