@@ -108,7 +108,7 @@ module {
         BTree.entries(queue.arguments);
     };
 
-    public func processQueued<T, R>(queue: OpsQueue<T, R>, f: (GUID, T) -> async* ()): async* () {
+    public func forallPending<T, R>(queue: OpsQueue<T, R>, f: (GUID, T) -> async* ()): async* () {
         let i = iter(queue);
         label l loop {
             let elt = i.next();

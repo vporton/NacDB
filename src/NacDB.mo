@@ -536,7 +536,7 @@ module {
     /// TODO: Other functions should also return `Result`?
     /// TODO: Modify TypeScript code accordingly.
     public func insert(guid: GUID, options: InsertOptions) : async* InsertResult {
-        await* OpsQueue.processQueued(options.dbIndex.inserting, func(guid: GUID, inserting: InsertingItem): async* () {
+        await* OpsQueue.forallPending(options.dbIndex.inserting, func(guid: GUID, inserting: InsertingItem): async* () {
             OpsQueue.answer(
                 options.dbIndex.inserting,
                 guid,
