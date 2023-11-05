@@ -96,7 +96,7 @@ module {
     public type IndexCanister = actor {
         createPartition: shared() -> async Principal;
         getCanisters: query () -> async [Principal];
-        createSubDB: shared({guid: [Nat8]; userData: Text})
+        createSubDB: shared(guid: [Nat8], {userData: Text})
             -> async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
         insert(guid: [Nat8], {
             indexCanister: Principal;
@@ -753,7 +753,7 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
-    public func createSubDB({guid: GUID; index: IndexCanister; dbIndex: DBIndex; userData: Text})
+    public func createSubDB(guid: GUID, {index: IndexCanister; dbIndex: DBIndex; userData: Text})
         : async* CreateSubDBResult
     {
         let creating: CreatingSubDB = {var canister = null; var loc = null; userData};

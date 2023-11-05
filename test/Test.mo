@@ -43,7 +43,7 @@ func createCanisters() : async* {index: Index.Index} {
 let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
 func insertSubDB(index: Index.Index) : async* (Partition.Partition, Nac.OuterSubDBKey) {
-    let {outer = (part, subDBKey)} = await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions; userData = ""});
+    let {outer = (part, subDBKey)} = await index.createSubDB(GUID.nextGuid(guidGen), {dbOptions; userData = ""});
     (
         actor(Principal.toText(Principal.fromActor(part))),
         subDBKey,
@@ -53,7 +53,7 @@ func insertSubDB(index: Index.Index) : async* (Partition.Partition, Nac.OuterSub
 func createSubDB() : async* {index: Index.Index; part: Partition.Partition; subDBKey: Nac.OuterSubDBKey}
 {
     let {index} = await* createCanisters();
-    let {outer = (part, subDBKey)} = await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions; userData = ""});
+    let {outer = (part, subDBKey)} = await index.createSubDB(GUID.nextGuid(guidGen), {dbOptions; userData = ""});
     {
         index = actor(Principal.toText(Principal.fromActor(index)));
         part = actor(Principal.toText(Principal.fromActor(part)));
@@ -157,9 +157,9 @@ let success = run([
                 let dbOptions2 = {moveCap = #usedMemory 500_000; hardCap = ?1000; artitionCycles = 10_000_000_000};
                 let index = await Index.Index({dbOptions = dbOptions2});
                 await index.init();
-                ignore await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions = dbOptions2; userData = ""});
-                ignore await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions = dbOptions2; userData = ""});
-                let {outer = (part, subDBKey)} = await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions = dbOptions2; userData = ""});
+                ignore await index.createSubDB(GUID.nextGuid(guidGen), {dbOptions = dbOptions2; userData = ""});
+                ignore await index.createSubDB(GUID.nextGuid(guidGen), {dbOptions = dbOptions2; userData = ""});
+                let {outer = (part, subDBKey)} = await index.createSubDB(GUID.nextGuid(guidGen), {dbOptions = dbOptions2; userData = ""});
 
                 ActorSpec.assertAllTrue([
                     // part == (await index.getCanisters())[1] // TODO
@@ -197,7 +197,7 @@ let success = run([
                 let dbOptions2 = {moveCap = #usedMemory 500_000; hardCap = ?2; partitionCycles = 10_000_000_000};
                 let index = await Index.Index(dbOptions2);
                 await index.init();
-                let {outer = (part, subDBKey)} = await index.createSubDB({guid = GUID.nextGuid(guidGen); dbOptions = dbOptions2; userData = ""});
+                let {outer = (part, subDBKey)} = await index.createSubDB(GUID.nextGuid(guidGen), {dbOptions = dbOptions2; userData = ""});
                 ignore await part.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions = dbOptions2;

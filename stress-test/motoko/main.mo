@@ -185,7 +185,7 @@ actor StressTest {
             label R loop {
                 let {outer = (part, outerKey)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
-                    await options.index.createSubDB({guid = Blob.toArray(guid); userData = debug_show(guid)});
+                    await options.index.createSubDB(Blob.toArray(guid), {userData = debug_show(guid)});
                 } catch(e) {
                     continue R;
                 };
