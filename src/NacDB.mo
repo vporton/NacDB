@@ -573,9 +573,7 @@ module {
         OpsQueue.result(dbIndex.inserting, guid);
     };
 
-    func insertFinishByQueue(guid: GUID, inserting: InsertingItem)
-        : async* Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text> // TODO: need to return this value?
-    {
+    func insertFinishByQueue(guid: GUID, inserting: InsertingItem) : async* InsertResult {
         let outer: OuterCanister = actor(Principal.toText(inserting.options.outerCanister)); // TODO: duplicate operation
 
         MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
