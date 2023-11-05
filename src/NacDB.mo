@@ -557,7 +557,6 @@ module {
                     var newInnerCanister = null;
                 };
 
-                OpsQueue.add(options.dbIndex.inserting, guid, inserting);
                 if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
                     Debug.trap("blocking deleting");
                 };
@@ -565,12 +564,20 @@ module {
                 inserting;
             };
         };
-
-        await* insertFinishByQueue(guid, inserting);
+        try {
+            await* insertFinishByQueue(guid, inserting);
+        }
+        catch(e) {
+            OpsQueue.add(options.dbIndex.inserting, guid, inserting);
+            throw e;
+        };
     };
 
     public func insertFinish(guid: GUID, dbIndex: DBIndex) : async* ?InsertResult {
-        OpsQueue.result(dbIndex.inserting, guid);
+        Debug.print("insertFinish[[");
+        let result = OpsQueue.result(dbIndex.inserting, guid);
+        Debug.print("]]");
+        result;
     };
 
     func insertFinishByQueue(guid: GUID, inserting: InsertingItem) : async* InsertResult {
@@ -652,7 +659,6 @@ module {
         };
 
         ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
-        ignore OpsQueue.result(inserting.options.dbIndex.inserting, guid);
 
         #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, inserting.options.outerKey)};
     };
@@ -683,7 +689,6 @@ module {
             case (?deleting) { deleting };
             case null {
                 let result = { options };
-                OpsQueue.add(options.dbIndex.deleting, guid, result);
                 if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
                     Debug.trap("deleting is blocked");
                 };
@@ -692,7 +697,13 @@ module {
             };
         };
 
-        await* deleteFinishByQueue(guid, deleting);
+        try {
+            await* deleteFinishByQueue(guid, deleting);
+        }
+        catch(e) {
+            OpsQueue.add(options.dbIndex.deleting, guid, deleting);
+            throw e;
+        };
     };
 
     type DeletingItem = {
@@ -700,7 +711,10 @@ module {
     };
 
     public func deleteFinish(guid: GUID, dbIndex: DBIndex) : async* ?() {
-        OpsQueue.result(dbIndex.deleting, guid);
+        Debug.print("deleteFinish[[");
+        let result = OpsQueue.result(dbIndex.deleting, guid);
+        Debug.print("]]");
+        result;
     };
 
     func deleteFinishByQueue(guid: GUID, deleting: DeletingItem) : async* () {
@@ -714,12 +728,11 @@ module {
         };
 
         ignore BTree.delete(deleting.options.dbIndex.blockDeleting, compareLocs, (deleting.options.outerCanister, deleting.options.outerKey));
-        ignore OpsQueue.result(deleting.options.dbIndex.deleting, guid);
-        // OpsQueue.answer(deleting.options.dbIndex.deleting, guid, ());
     };
 
     type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
     
+    // FIXME: Queue the operation?
     public func deleteSubDB(options: DeleteDBOptions): async* () {
         switch(getInner(options.outerSuperDB, options.outerKey)) {
             case (?(innerCanister, innerKey)) {
@@ -754,6 +767,7 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
+    /// FIXME: Rewrite?
     public func createSubDB(guid: GUID, {index: IndexCanister; dbIndex: DBIndex; userData: Text})
         : async* CreateSubDBResult
     {
