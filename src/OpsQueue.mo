@@ -108,18 +108,19 @@ module {
         BTree.entries(queue.arguments);
     };
 
-    public func forallPending<T, R>(queue: OpsQueue<T, R>, f: (GUID, T) -> async* ()): async* () {
+    public func whilePending<T, R>(queue: OpsQueue<T, R>, f: (GUID, T) -> async* ()): async* () {
         let i = iter(queue);
         label l loop {
             let elt = i.next();
             switch (elt) {
-                case (?(guid, item)) {
-                    await* f(guid, item);
+                case (?(guid, elt)) {
+                    await* f(guid, elt);
                 };
-                case (null) {
+                case null {
                     break l;
                 };
             };
         };
+
     };
 }

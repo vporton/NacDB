@@ -536,21 +536,12 @@ module {
     /// TODO: Other functions should also return `Result`?
     /// TODO: Modify TypeScript code accordingly.
     public func insert(guid: GUID, options: InsertOptions) : async* InsertResult {
-        let i = OpsQueue.iter(options.dbIndex.inserting);
-        label l loop {
-            let elt = i.next();
-            switch (elt) {
-                case (?(guid, elt)) {
-                    OpsQueue.answer(
-                        options.dbIndex.inserting,
-                        guid,
-                        await* insertFinishByQueue(guid, elt));
-                };
-                case null {
-                    break l;
-                };
-            };
-        };
+        ignore OpsQueue.whilePending(options.dbIndex.inserting, func(guid: GUID, elt: InsertingItem): async* () {
+            OpsQueue.answer(
+                options.dbIndex.inserting,
+                guid,
+                await* insertFinishByQueue(guid, elt));
+        });
 
         let outer: OuterCanister = actor(Principal.toText(options.outerCanister));
         let inserting = switch (OpsQueue.get(options.dbIndex.inserting, guid)) {
