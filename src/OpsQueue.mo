@@ -104,7 +104,22 @@ module {
         BTree.has(queue.arguments, Blob.compare, key);
     };
 
-    public func queue<T, R>(queue: OpsQueue<T, R>): Iter.Iter<(GUID, T)> {
+    public func iter<T, R>(queue: OpsQueue<T, R>): Iter.Iter<(GUID, T)> {
         BTree.entries(queue.arguments);
+    };
+
+    public func processQueued<T, R>(queue: OpsQueue<T, R>, f: (GUID, T) -> async* ()): async* () {
+        let i = iter(queue);
+        label l loop {
+            let elt = i.next();
+            switch (elt) {
+                case (?(guid, item)) {
+                    await* f(guid, item);
+                };
+                case (null) {
+                    break l;
+                };
+            };
+        };
     };
 }
