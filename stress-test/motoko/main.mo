@@ -212,7 +212,7 @@ actor StressTest {
                                 outerCanister = Principal.fromActor(part);
                             });
                         } catch(e) {
-                            Debug.print("repeat deleteSubDB: " # Error.message(e)); // FIXME: Comment out.
+                            // Debug.print("repeat deleteSubDB: " # Error.message(e));
                             continue R;
                         };
                         break R;
@@ -249,7 +249,7 @@ actor StressTest {
                         value = #int randomValue;
                     });
                 } catch(e) {
-                    Debug.print("repeat insert: " # Error.message(e)); // FIXME: Comment out.
+                    // Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
                 switch (res) {
@@ -291,7 +291,7 @@ actor StressTest {
                             MyCycles.addPart(dbOptions.partitionCycles);
                             await options.index.delete(Blob.toArray(guid), {outerCanister = Principal.fromActor(part); outerKey; sk});
                         } catch(e) {
-                            Debug.print("repeat delete: " # Error.message(e)); // FIXME: Comment out.
+                            // Debug.print("repeat delete: " # Error.message(e));
                             continue R;
                         };
                         break R;
