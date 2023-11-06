@@ -88,6 +88,7 @@ module {
         dbOptions: DBOptions;
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
         var creatingSubDB: OpsQueue.OpsQueue<CreatingSubDB, CreateSubDBResult>;
+        var deletingSubDB: OpsQueue.OpsQueue<DeletingSubDB, ()>;
         var inserting: OpsQueue.OpsQueue<InsertingItem, InsertResult>;  // outer
         var deleting: OpsQueue.OpsQueue<DeletingItem, ()>;
         var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
@@ -107,6 +108,7 @@ module {
             value: AttributeValue;
         }) : async Result.Result<{inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)}, Text>;
         delete(guid: [Nat8], {outerCanister: Principal; outerKey: OuterSubDBKey; sk: SK}): async ();
+        deleteSubDB(guid: [Nat8], {outerCanister: Principal; outerKey: OuterSubDBKey}) : async ();
     };
 
     // TODO: arguments as {...}, not (...).
@@ -141,11 +143,11 @@ module {
             innerKey: InnerSubDBKey;
             needsMove: Bool;
         }): async ();
+        deleteSubDBOuter({outerKey: OuterSubDBKey}): async ();
 
         // Optional //
 
         superDBSize: query () -> async Nat;
-        deleteSubDB({outerKey: OuterSubDBKey; guid: [Nat8]}) : async ();
         deleteSubDBInner({innerKey: InnerSubDBKey}) : async ();
         deleteInner({innerKey: InnerSubDBKey; sk: SK}): async ();
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
@@ -176,6 +178,7 @@ module {
             dbOptions;
             var inserting = OpsQueue.init(dbOptions.insertQueueLength);
             var deleting = OpsQueue.init(dbOptions.insertQueueLength);
+            var deletingSubDB = OpsQueue.init(dbOptions.insertQueueLength);
             var moving = BTree.init(null);
             var blockDeleting = BTree.init(null);
         };
@@ -726,30 +729,59 @@ module {
         ignore BTree.delete(deleting.options.dbIndex.blockDeleting, compareLocs, (deleting.options.outerCanister, deleting.options.outerKey));
     };
 
-    type DeleteDBOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; guid: GUID};
+    // FIXME: `outerCanister: Principal`?
+    type DeleteDBOptions = {dbIndex: DBIndex; outerCanister: OuterCanister; outerKey: OuterSubDBKey};
     
-    // FIXME: Queue the operation?
-    public func deleteSubDB(options: DeleteDBOptions): async* () {
-        switch(getInner(options.outerSuperDB, options.outerKey)) {
+    type DeletingSubDB = {options: DeleteDBOptions};
+
+    public func deleteSubDB(guid: GUID, options: DeleteDBOptions): async* () {
+        ignore OpsQueue.whilePending<DeletingSubDB, ()>(options.dbIndex.deletingSubDB, func(guid: GUID, elt: DeletingSubDB): async* () {
+            OpsQueue.answer(
+                options.dbIndex.deletingSubDB,
+                guid,
+                await* deleteSubDBFinishByQueue(guid, elt));
+        });
+        let deleting = switch (OpsQueue.get(options.dbIndex.deletingSubDB, guid)) {
+            case (?deleting) { deleting };
+            case null {
+                { options };
+            };
+        };
+
+        try {
+            await* deleteSubDBFinishByQueue(guid, deleting);
+        }
+        catch(e) {
+            OpsQueue.add(options.dbIndex.deletingSubDB, guid, deleting);
+            throw e;
+        };
+    };
+
+    // FIXME: restructure as sequence of steps
+    func deleteSubDBFinishByQueue(guid: GUID, deleting: DeletingSubDB) : async* () {
+        switch(await deleting.options.outerCanister.getInner(deleting.options.outerKey)) {
             case (?(innerCanister, innerKey)) {
-                MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
+                MyCycles.addPart(deleting.options.dbIndex.dbOptions.partitionCycles);
                 await innerCanister.deleteSubDBInner({innerKey});
             };
             case (null) {};
         };
-        ignore BTree.delete(options.outerSuperDB.locations, Nat.compare, options.outerKey);
+        await deleting.options.outerCanister.deleteSubDBOuter({outerKey = deleting.options.outerKey});
+    };
+
+    public func deleteSubDBFinish(guid: GUID, dbIndex: DBIndex) : async* ?() {
+        OpsQueue.result(dbIndex.deletingSubDB, guid);
     };
 
     public func deleteSubDBInner({superDB: SuperDB; innerKey: InnerSubDBKey}) : async* () {
         ignore BTree.delete(superDB.subDBs, Nat.compare, innerKey);
     };
 
-    type DeleteDBPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; guid: GUID};
-
-    // TODO: shared method
-    public func deleteSubDBPartitionKey(options: DeleteDBPartitionKeyOptions): async* () {
-        await options.outer.deleteSubDB({guid = Blob.toArray(options.guid); outerKey = options.outerKey});
+    public func deleteSubDBOuter({superDB: SuperDB; outerKey: OuterSubDBKey}) : async* () {
+        ignore BTree.delete(superDB.locations, Nat.compare, outerKey);
     };
+
+    type DeleteDBPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; guid: GUID};
 
     // Creating sub-DB //
 

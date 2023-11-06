@@ -66,11 +66,6 @@ shared({caller}) actor class Partition() = this {
         Nac.superDBSize(superDB);
     };
 
-    public shared func deleteSubDB({outerKey: Nac.OuterSubDBKey; guid: [Nat8]}) : async () {
-        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        await* Nac.deleteSubDB({dbOptions = Common.dbOptions; outerSuperDB = superDB; outerKey; guid = Blob.fromArray(guid)});
-    };
-
     public shared func deleteSubDBInner({innerKey: Nac.InnerSubDBKey}) : async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.deleteSubDBInner({superDB; innerKey});
@@ -193,5 +188,9 @@ shared({caller}) actor class Partition() = this {
 
     public shared func getSubDBUserDataInner(options: {innerKey: Nac.InnerSubDBKey}) : async ?Text {
         Nac.getSubDBUserDataInner({superDB; subDBKey = options.innerKey});
+    };
+
+    public func deleteSubDBOuter({outerKey: Nac.OuterSubDBKey}) : async () {
+        ignore BTree.delete(superDB.locations, Nat.compare, outerKey);
     };
 }

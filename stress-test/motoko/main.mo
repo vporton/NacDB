@@ -207,7 +207,10 @@ actor StressTest {
                     label R loop {
                         try {
                             MyCycles.addPart(dbOptions.partitionCycles);
-                            await part.deleteSubDB({outerKey; guid = Blob.toArray(guid)});
+                            await options.index.deleteSubDB(Blob.toArray(guid), {
+                                outerKey;
+                                outerCanister = Principal.fromActor(part);
+                            });
                         } catch(e) {
                             Debug.print("repeat deleteSubDB: " # Error.message(e)); // FIXME: Comment out.
                             continue R;

@@ -74,4 +74,9 @@ shared actor class Index() = this {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         await* Nac.delete(Blob.fromArray(guid), {dbIndex; outerCanister = outer; outerKey; sk});
     };
+
+    public shared func deleteSubDB(guid: [Nat8], {outerCanister: Principal; outerKey: Nac.OuterSubDBKey}) : async () {
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+        await* Nac.deleteSubDB(Blob.fromArray(guid), {dbIndex; dbOptions = Common.dbOptions; outerCanister = actor(Principal.toText(outerCanister)); outerKey});
+    };
 }
