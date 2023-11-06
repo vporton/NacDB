@@ -729,7 +729,6 @@ module {
         ignore BTree.delete(deleting.options.dbIndex.blockDeleting, compareLocs, (deleting.options.outerCanister, deleting.options.outerKey));
     };
 
-    // FIXME: `outerCanister: Principal`?
     type DeleteDBOptions = {dbIndex: DBIndex; outerCanister: OuterCanister; outerKey: OuterSubDBKey};
     
     type DeletingSubDB = {options: DeleteDBOptions};
