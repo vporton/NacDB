@@ -756,7 +756,7 @@ module {
         };
     };
 
-    // FIXME: restructure as sequence of steps
+    // idempotent
     func deleteSubDBFinishByQueue(guid: GUID, deleting: DeletingSubDB) : async* () {
         switch(await deleting.options.outerCanister.getInner(deleting.options.outerKey)) {
             case (?(innerCanister, innerKey)) {
