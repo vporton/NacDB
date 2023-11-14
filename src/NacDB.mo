@@ -127,7 +127,7 @@ module {
             userData: Text,
         )
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
-        getInner: query (outerKey: OuterSubDBKey) -> async ?(InnerCanister, InnerSubDBKey);
+        getInner: query (outerKey: OuterSubDBKey) -> async ?(Principal, InnerSubDBKey);
         isOverflowed: shared ({}) -> async Bool; // TODO: If I change it to query, it does not work. Why?
         putLocation(outerKey: OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: InnerSubDBKey) : async ();
         // In the current version two partition canister are always the same.
@@ -586,12 +586,13 @@ module {
         let outer: OuterCanister = actor(Principal.toText(inserting.options.outerCanister)); // TODO: duplicate operation
 
         MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
-        let ?(oldInnerCanister, oldInnerKey) = await outer.getInner(inserting.options.outerKey) else {
+        let ?(oldInnerPrincipal, oldInnerKey) = await outer.getInner(inserting.options.outerKey) else {
             ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
             let result = #err "missing sub-DB";
             OpsQueue.answer(inserting.options.dbIndex.inserting, guid, result);
             return result;
         };
+        let oldInnerCanister: InnerCanister = actor (Principal.toText(oldInnerPrincipal));
 
         if (not inserting.insertingImplDone) {
             let needsMove = switch(inserting.needsMove) {
@@ -719,9 +720,10 @@ module {
     func deleteFinishByQueue(guid: GUID, deleting: DeletingItem) : async* () {
         switch(await deleting.options.outerCanister.getInner(deleting.options.outerKey)) {
             case (?(innerCanister, innerKey)) {
+                let inner: InnerCanister = actor(Principal.toText(innerCanister));
                 // Can we block here on inner key instead of outer one?
                 MyCycles.addPart(deleting.options.dbIndex.dbOptions.partitionCycles);
-                await innerCanister.deleteInner({innerKey; sk = deleting.options.sk});
+                await inner.deleteInner({innerKey; sk = deleting.options.sk});
             };
             case (null) {};
         };
@@ -760,8 +762,9 @@ module {
     func deleteSubDBFinishByQueue(guid: GUID, deleting: DeletingSubDB) : async* () {
         switch(await deleting.options.outerCanister.getInner(deleting.options.outerKey)) {
             case (?(innerCanister, innerKey)) {
+                let inner: InnerCanister = actor(Principal.toText(innerCanister));
                 MyCycles.addPart(deleting.options.dbIndex.dbOptions.partitionCycles);
-                await innerCanister.deleteSubDBInner({innerKey});
+                await inner.deleteSubDBInner({innerKey});
             };
             case (null) {};
         };
