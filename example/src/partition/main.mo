@@ -190,7 +190,7 @@ shared({caller}) actor class Partition() = this {
         Nac.getSubDBUserDataInner({superDB; subDBKey = options.innerKey});
     };
 
-    public func deleteSubDBOuter({outerKey: Nac.OuterSubDBKey}) : async () {
+    public shared func deleteSubDBOuter({outerKey: Nac.OuterSubDBKey}) : async () {
         ignore BTree.delete(superDB.locations, Nat.compare, outerKey);
     };
 }
