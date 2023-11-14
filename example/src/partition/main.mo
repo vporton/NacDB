@@ -30,8 +30,8 @@ shared({caller}) actor class Partition() = this {
         Nac.rawInsertSubDB(superDB, map, inner, userData);
     };
 
-    public func rawDeleteSubDB({innerKey: Nac.InnerSubDBKey}): async () {
-        // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+    public shared func rawDeleteSubDB({innerKey: Nac.InnerSubDBKey}): async () {
+        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.rawDeleteSubDB(superDB, innerKey);
     };
 
