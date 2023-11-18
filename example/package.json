@@ -17,7 +17,7 @@
     "generate": "dfx generate example_backend"
   },
   "dependencies": {
-    "@dfinity/agent": "^0.15.6",
+    "@dfinity/agent": "^0.19.3",
     "@dfinity/candid": "^0.15.6",
     "@dfinity/principal": "^0.15.6"
   },
