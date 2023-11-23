@@ -84,6 +84,7 @@ module {
         var locations: BTree.BTree<OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?OpsQueue.GUID*/}>;
     };
 
+    // TODO: need `var` for `OpsQueue`?
     public type DBIndex = {
         dbOptions: DBOptions;
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
