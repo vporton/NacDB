@@ -101,7 +101,6 @@ module {
         createSubDB: shared(guid: [Nat8], {userData: Text})
             -> async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
         insert(guid: [Nat8], {
-            indexCanister: Principal;
             outerCanister: Principal;
             outerKey: OuterSubDBKey;
             sk: SK;
