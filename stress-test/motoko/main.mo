@@ -242,7 +242,6 @@ actor StressTest {
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await options.index.insert(Blob.toArray(guid), {
                         dbOptions;
-                        indexCanister = Principal.fromActor(options.index);
                         outerCanister = Principal.fromActor(part);
                         outerKey;
                         sk = debug_show(sk);

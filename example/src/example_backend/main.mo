@@ -33,7 +33,6 @@ actor {
         let partx: Nac.PartitionCanister = actor(Principal.toText(part));
         let {outer = (part2, subDBKey2)} = await partx.insert({
             guid = Blob.toArray(GUID.nextGuid(guidGen));
-            indexCanister = index0;
             outerCanister = partx;
             outerKey = subDBKey;
             sk = "name";

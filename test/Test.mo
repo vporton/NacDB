@@ -71,7 +71,6 @@ let success = run([
                 ignore await part.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions;
-                    indexCanister = index;
                     outerCanister = part;
                     outerKey = subDBKey;
                     sk = "name";
@@ -92,7 +91,6 @@ let success = run([
                 ignore await part.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions;
-                    indexCanister = index;
                     outerCanister = part;
                     outerKey = subDBKey;
                     sk = "name";
@@ -124,7 +122,6 @@ let success = run([
                 ignore await part3.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions;
-                    indexCanister = index;
                     outerCanister = part3;
                     outerKey = subDBKey3;
                     sk = "name";
@@ -133,7 +130,6 @@ let success = run([
                 ignore await part3.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions;
-                    indexCanister = index;
                     outerCanister = part3;
                     outerKey = subDBKey3;
                     sk = "name";
@@ -142,7 +138,6 @@ let success = run([
                 ignore await part3.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions;
-                    indexCanister = index;
                     outerCanister = part3;
                     outerKey = subDBKey3;
                     sk = "name2";
@@ -201,7 +196,6 @@ let success = run([
                 ignore await part.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions = dbOptions2;
-                    indexCanister = index;
                     outerCanister = part;
                     outerKey = subDBKey;
                     sk = "A";
@@ -210,7 +204,6 @@ let success = run([
                 ignore await part.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions = dbOptions2;
-                    indexCanister = index;
                     outerCanister = part;
                     outerKey = subDBKey;
                     sk = "B";
@@ -219,7 +212,6 @@ let success = run([
                 ignore await part.insert({
                     guid = GUID.nextGuid(guidGen);
                     dbOptions = dbOptions2;
-                    indexCanister = index;
                     outerCanister = part;
                     outerKey = subDBKey;
                     sk = "C";
@@ -235,8 +227,8 @@ let success = run([
             it("iters", do {
                 let {index} = await* createCanisters();
                 let (part, subDBKey) = await* insertSubDB(index);
-                ignore await part.insert({guid = GUID.nextGuid(guidGen); dbOptions; indexCanister = index; outerCanister = part; outerKey = subDBKey; sk = "A"; value = #text "xxx"});
-                ignore await part.insert({guid = GUID.nextGuid(guidGen); dbOptions; indexCanister = index; outerCanister = part; outerKey = subDBKey; sk = "B"; value = #text "yyy"}); // duplicate name
+                ignore await part.insert({guid = GUID.nextGuid(guidGen); dbOptions; outerCanister = part; outerKey = subDBKey; sk = "A"; value = #text "xxx"});
+                ignore await part.insert({guid = GUID.nextGuid(guidGen); dbOptions; outerCanister = part; outerKey = subDBKey; sk = "B"; value = #text "yyy"}); // duplicate name
 
                 let scan1 = await part.scanLimitOuter({outerKey = subDBKey; lowerBound = ""; upperBound = "z"; dir = #fwd; limit = 2});
                 let scan2 = await part.scanLimitOuter({outerKey = subDBKey; lowerBound = ""; upperBound = "z"; dir = #fwd; limit = 3}); // limit above length
