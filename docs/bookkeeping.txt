@@ -1,0 +1,3 @@
+Dec 16 Gitcoin QF match results:
+Matching Funds	Crowdfunding (in USD)	Unique Voters
+135.98	73.96	88
