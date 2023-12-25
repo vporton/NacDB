@@ -22,3 +22,5 @@ for them to be executed inside "mutex"-like guards.
 - Documentation `mo-doc` and `typedoc`.
 
 - Maybe, `Text` keys instead of `Nat` for `SubDBKey` (and pass this key when creating sub-DB)?
+
+- Make not only `stress-test` but also a regular quick test to work again.
