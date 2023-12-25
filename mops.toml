@@ -1,7 +1,7 @@
 [dependencies]
 base = "0.10.3"
-stable-rbtree = "https://github.com/canscale/StableRBTree#v0.6.1"
-stable-buffer = "https://github.com/canscale/StableBuffer#v0.2.0"
+stable-rbtree = "1.0.0"
+stable-buffer = "https://github.com/canscale/StableBuffer#v1.3.0"
 matchers = "https://github.com/kritzcreek/motoko-matchers#3dac8a071b69e4e651b25a7d9683fe831eb7cffd"
 sha = "https://github.com/enzoh/motoko-sha#master"
 prng = "0.0.3"
