@@ -19,7 +19,7 @@ import Int "mo:base/Int";
 import Buffer "mo:base/Buffer";
 import Float "mo:base/Float";
 import Int64 "mo:base/Int64";
-import BTree "mo:btree/BTree";
+import BTree "mo:stableheapbtreemap/BTree";
 
 actor StressTest {
     let dbOptions = {

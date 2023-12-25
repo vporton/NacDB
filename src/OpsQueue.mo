@@ -5,7 +5,7 @@ import Bool "mo:base/Bool";
 import Time "mo:base/Time";
 import Int "mo:base/Int";
 import Iter "mo:base/Iter";
-import BTree "mo:btree/BTree";
+import BTree "mo:stableheapbtreemap/BTree";
 import RBT "mo:stable-rbtree/StableRBTree";
 
 /// The intended use is a queue of operations on a canister.

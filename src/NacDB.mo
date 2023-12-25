@@ -2,7 +2,7 @@ import Result "mo:base/Result";
 import Cycles "mo:base/ExperimentalCycles";
 import I "mo:base/Iter";
 import Principal "mo:base/Principal";
-import BTree "mo:btree/BTree";
+import BTree "mo:stableheapbtreemap/BTree";
 import RBT "mo:stable-rbtree/StableRBTree";
 import StableBuffer "mo:stable-buffer/StableBuffer";
 import Text "mo:base/Text";

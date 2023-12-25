@@ -1,5 +1,5 @@
 import I "mo:base/Iter";
-import BTree "mo:btree/BTree";
+import BTree "mo:stableheapbtreemap/BTree";
 import Nac "../../../src/NacDB";
 import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
