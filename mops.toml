@@ -1,0 +1,15 @@
+[dependencies]
+base = "https://github.com/dfinity/motoko-base#moc-0.9.0"
+btree = "https://github.com/canscale/StableHeapBTreeMap#v0.3.1"
+stable-rbtree = "https://github.com/canscale/StableRBTree#v0.6.1"
+stable-buffer = "https://github.com/canscale/StableBuffer#v0.2.0"
+matchers = "https://github.com/kritzcreek/motoko-matchers#3dac8a071b69e4e651b25a7d9683fe831eb7cffd"
+sha = "https://github.com/enzoh/motoko-sha#master"
+
+[package]
+name = "NacDB"
+version = "1.0.0"
+description = "A distributed (multi-canister) database with seamless enumeration"
+repository = "https://github.com/vporton/NacDB"
+keywords = [ "database", "databases" ]
+license = "MIT"
