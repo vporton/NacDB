@@ -1,20 +1,20 @@
 {
     "canisters": {
-      "stresser": {
-        "main": "motoko/main.mo",
-        "type": "motoko"
-      },
-      "index": {
-        "main": "../example/src/index/main.mo",
-        "type": "motoko"
-      }
+        "stresser": {
+            "main": "motoko/main.mo",
+            "type": "motoko"
+        },
+        "index": {
+            "main": "../example/src/index/main.mo",
+            "type": "motoko"
+        }
     },
     "defaults": {
-      "build": {
-        "args": "",
-        "packtool": "vessel sources"
-      }
+        "build": {
+            "args": "",
+            "packtool": "mops sources"
+        }
     },
     "output_env_file": ".env",
     "version": 1
-  }
+}

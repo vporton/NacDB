@@ -10,8 +10,6 @@
 # dfx temporary files
 .dfx/
 
-.vessel
-
 # generated files
 src/declarations/
 
