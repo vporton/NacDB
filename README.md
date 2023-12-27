@@ -6,6 +6,10 @@ because it is split into multiple sub-DBs, each fitting in a canister.
 
 It is anticipated that NacDB will often be used together with CanDB.
 
+During this work I developed a strategy how to accomplish reliable operations over unreliable actors in actor model of ICP. It is a serious computer science research, I should publish this in peer review.
+
+Streams ordering items by voting results will be implemented using NacDBReorder library (in development). It uses an advanced combination of data structures to add, reorder, and delete items.
+
 TODO:
 - review code, based on review simplify it and make it more secure
 - review and as necessary modify the API, then freeze the API
