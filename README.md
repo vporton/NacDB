@@ -24,6 +24,9 @@ Both CanDB and NacDB are implemented in Motoko.
 
 TypeScript client is not provided, because it is automatically created from Candid.
 
+See also [a related derived library NacDBReorder](https://github.com/vporton/NacDBReorder),
+that allows efficient reordering items in NacDB.
+
 ## Important information
 
 Some functions are engineered in such a way that interrupting them in the middle
