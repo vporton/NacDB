@@ -96,7 +96,7 @@ module {
         inserting: OpsQueue.OpsQueue<InsertingItem, InsertResult>;  // outer
         deleting: OpsQueue.OpsQueue<DeletingItem, ()>;
         moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
-        var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion
+        blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion
     };
 
     public type IndexCanister = actor {
@@ -185,7 +185,7 @@ module {
             deleting = OpsQueue.init(dbOptions.insertQueueLength);
             deletingSubDB = OpsQueue.init(dbOptions.insertQueueLength);
             moving = BTree.init(null);
-            var blockDeleting = BTree.init(null);
+            blockDeleting = BTree.init(null);
         };
     };
 
