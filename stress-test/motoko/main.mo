@@ -26,7 +26,6 @@ actor StressTest {
         moveCap = #usedMemory 300_000;
         hardCap = null;
         partitionCycles = 28_000_000_000;
-        timeout = 3600 * 1_000_000_000; // 1 hour
         createDBQueueLength = 60;
         insertQueueLength = 60;
     };

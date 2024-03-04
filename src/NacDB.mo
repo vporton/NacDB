@@ -198,7 +198,6 @@ module {
         hardCap: ?Nat;
         moveCap: MoveCap;
         partitionCycles: Nat;
-        timeout: Time.Time;
         createDBQueueLength: Nat;
         insertQueueLength: Nat;
     };
