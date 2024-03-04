@@ -52,8 +52,10 @@ module {
 
     public type MoveCap = { #usedMemory: Nat };
 
+    public type CreatingSubDBOptions = {index: IndexCanister; dbIndex: DBIndex; userData: Text; hardCap: ?Nat};
+
     public type CreatingSubDB = {
-        options: {index: IndexCanister; dbIndex: DBIndex; userData: Text; hardCap: ?Nat}; // TODO: a named type
+        options: CreatingSubDBOptions;
         var canister: ?PartitionCanister; // Immediately after creation of sub-DB, this is both inner and outer.
         var loc: ?{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, InnerSubDBKey)};
         userData: Text;
@@ -86,15 +88,14 @@ module {
         var locations: BTree.BTree<OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?OpsQueue.GUID*/}>;
     };
 
-    // TODO: need `var` for `OpsQueue`?
     public type DBIndex = {
         dbOptions: DBOptions;
         var canisters: StableBuffer.StableBuffer<PartitionCanister>;
-        var creatingSubDB: OpsQueue.OpsQueue<CreatingSubDB, CreateSubDBResult>;
-        var deletingSubDB: OpsQueue.OpsQueue<DeletingSubDB, ()>;
-        var inserting: OpsQueue.OpsQueue<InsertingItem, InsertResult>;  // outer
-        var deleting: OpsQueue.OpsQueue<DeletingItem, ()>;
-        var moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
+        creatingSubDB: OpsQueue.OpsQueue<CreatingSubDB, CreateSubDBResult>;
+        deletingSubDB: OpsQueue.OpsQueue<DeletingSubDB, ()>;
+        inserting: OpsQueue.OpsQueue<InsertingItem, InsertResult>;  // outer
+        deleting: OpsQueue.OpsQueue<DeletingItem, ()>;
+        moving: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>;
         var blockDeleting: BTree.BTree<(OuterCanister, OuterSubDBKey), ()>; // used to prevent insertion after DB deletion
     };
 
@@ -178,12 +179,12 @@ module {
     public func createDBIndex(dbOptions: DBOptions) : DBIndex {
         {
             var canisters = StableBuffer.init<PartitionCanister>();
-            var creatingSubDB = OpsQueue.init(dbOptions.createDBQueueLength);
+            creatingSubDB = OpsQueue.init(dbOptions.createDBQueueLength);
             dbOptions;
-            var inserting = OpsQueue.init(dbOptions.insertQueueLength);
-            var deleting = OpsQueue.init(dbOptions.insertQueueLength);
-            var deletingSubDB = OpsQueue.init(dbOptions.insertQueueLength);
-            var moving = BTree.init(null);
+            inserting = OpsQueue.init(dbOptions.insertQueueLength);
+            deleting = OpsQueue.init(dbOptions.insertQueueLength);
+            deletingSubDB = OpsQueue.init(dbOptions.insertQueueLength);
+            moving = BTree.init(null);
             var blockDeleting = BTree.init(null);
         };
     };
