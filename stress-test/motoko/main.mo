@@ -24,7 +24,6 @@ import BTree "mo:stableheapbtreemap/BTree";
 actor StressTest {
     let dbOptions = {
         moveCap = #usedMemory 300_000;
-        hardCap = null;
         partitionCycles = 28_000_000_000;
         createDBQueueLength = 60;
         insertQueueLength = 60;
@@ -184,7 +183,7 @@ actor StressTest {
             label R loop {
                 let {outer = (part, outerKey)} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
-                    await options.index.createSubDB(Blob.toArray(guid), {userData = debug_show(guid)});
+                    await options.index.createSubDB(Blob.toArray(guid), {userData = debug_show(guid); hardCap = null});
                 } catch(e) {
                     continue R;
                 };
@@ -245,6 +244,7 @@ actor StressTest {
                         outerKey;
                         sk = debug_show(sk);
                         value = #int randomValue;
+                        hardCap = null;
                     });
                 } catch(e) {
                     // Debug.print("repeat insert: " # Error.message(e));

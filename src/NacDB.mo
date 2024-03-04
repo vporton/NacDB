@@ -47,15 +47,17 @@ module {
     public type SubDB = {
         var map: BTree.BTree<SK, AttributeValue>;
         var userData: Text; // useful to have a back reference to "locator" of our sub-DB in another database
+        var hardCap: ?Nat;
     };
 
     public type MoveCap = { #usedMemory: Nat };
 
     public type CreatingSubDB = {
-        options: {index: IndexCanister; dbIndex: DBIndex; userData: Text}; // TODO: a named type
+        options: {index: IndexCanister; dbIndex: DBIndex; userData: Text; hardCap: ?Nat}; // TODO: a named type
         var canister: ?PartitionCanister; // Immediately after creation of sub-DB, this is both inner and outer.
         var loc: ?{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, InnerSubDBKey)};
         userData: Text;
+        hardCap: ?Nat;
     };
 
     /// Treat this as an opaque data structure, because this data is ignored if the sub-DB moves during insertion.
@@ -99,13 +101,14 @@ module {
     public type IndexCanister = actor {
         createPartition: shared() -> async Principal;
         getCanisters: query () -> async [Principal];
-        createSubDB: shared(guid: [Nat8], {userData: Text})
+        createSubDB: shared(guid: [Nat8], {userData: Text; hardCap: ?Nat})
             -> async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
         insert(guid: [Nat8], {
             outerCanister: Principal;
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
+            hardCap: ?Nat;
         }) : async Result.Result<{inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)}, Text>;
         delete(guid: [Nat8], {outerCanister: Principal; outerKey: OuterSubDBKey; sk: SK}): async ();
         deleteSubDB(guid: [Nat8], {outerCanister: Principal; outerKey: OuterSubDBKey}) : async ();
@@ -116,7 +119,7 @@ module {
         // Mandatory //
         rawGetSubDB: query ({innerKey: InnerSubDBKey}) -> async ?{map: [(SK, AttributeValue)]; userData: Text};
         rawDeleteSubDB: ({innerKey: InnerSubDBKey}) -> async ();
-        rawInsertSubDB(map: [(SK, AttributeValue)], inner: ?InnerSubDBKey, userData: Text)
+        rawInsertSubDB(map: [(SK, AttributeValue)], inner: ?InnerSubDBKey, userData: Text, hardCap: ?Nat)
             : async {inner: InnerSubDBKey};
         rawInsertSubDBAndSetOuter(
             map: [(SK, AttributeValue)],
@@ -125,6 +128,7 @@ module {
                 outer: OuterSubDBKey;
             },
             userData: Text,
+            hardCap: ?Nat,
         )
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
         getInner: query (outerKey: OuterSubDBKey) -> async ?(Principal, InnerSubDBKey);
@@ -195,7 +199,6 @@ module {
     };
 
     public type DBOptions = {
-        hardCap: ?Nat;
         moveCap: MoveCap;
         partitionCycles: Nat;
         createDBQueueLength: Nat;
@@ -220,6 +223,7 @@ module {
         map: [(SK, AttributeValue)],
         inner: ?InnerSubDBKey,
         userData: Text,
+        hardCap: ?Nat,
     ) : {inner: InnerSubDBKey}
     {
         let key = switch (inner) {
@@ -233,6 +237,7 @@ module {
         let subDB : SubDB = {
             var map = BTree.fromArray(8, Text.compare, map);
             var userData = userData;
+            var hardCap = hardCap;
         };
         ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
         {inner = key};
@@ -252,9 +257,10 @@ module {
             outer: OuterSubDBKey;
         },
         userData: Text,
+        hardCap: ?Nat,
     ) : {outer: OuterSubDBKey; inner: InnerSubDBKey}
     {
-        let {inner = inner2} = rawInsertSubDB(superDB, map, do ? {keys!.inner}, userData);
+        let {inner = inner2} = rawInsertSubDB(superDB, map, do ? {keys!.inner}, userData, hardCap);
         if (keys == null) {
             ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextOuterKey,
                 {inner = (canister, inner2); /*var busy: ?OpsQueue.GUID = null*/});
@@ -322,7 +328,7 @@ module {
                             Debug.trap("DB is scaling");
                         };
                         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
-                        let {inner} = await canister.rawInsertSubDB(subDB.map, null, subDB.userData);
+                        let {inner} = await canister.rawInsertSubDB(subDB.map, null, subDB.userData, inserting.options.hardCap);
                         newCanister.innerKey := ?inner;
                         inner;
                     }
@@ -362,7 +368,7 @@ module {
     // };
 
     func removeLoosers({superDB: SuperDB; subDB: SubDB}) {
-        switch (superDB.dbOptions.hardCap) {
+        switch (subDB.hardCap) {
             case (?hardCap) {
                 while (BTree.size(subDB.map) > hardCap) {
                     let iter = BTree.entries(subDB.map);
@@ -531,6 +537,7 @@ module {
         outerKey: OuterSubDBKey;
         sk: SK;
         value: AttributeValue;
+        hardCap: ?Nat;
     };
 
     public type InsertResult = Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text>; // TODO: need to return this value?
@@ -796,15 +803,16 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
-    public func createSubDB(guid: GUID, {index: IndexCanister; dbIndex: DBIndex; userData: Text}) : async* CreateSubDBResult {
+    public func createSubDB(guid: GUID, {index: IndexCanister; dbIndex: DBIndex; userData: Text; hardCap: ?Nat}) : async* CreateSubDBResult {
         let creating: CreatingSubDB = switch (OpsQueue.get(dbIndex.creatingSubDB, guid)) {
             case (?creating) { creating };
             case (null) {
                 {
-                    options = {index; dbIndex; userData}; // TODO: Simplify.
+                    options = {index; dbIndex; userData; hardCap}; // TODO: Simplify.
                     var canister = null;
                     var loc = null;
                     userData;
+                    hardCap;
                 };
             };
         };
@@ -835,7 +843,7 @@ module {
                         case (?loc) { loc };
                         case (null) {
                             MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
-                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter([], null, creating.userData);
+                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter([], null, creating.userData, creating.options.hardCap);
                             creating.loc := ?{inner = (part, inner); outer = (part, outer)};
                             {inner = (part, inner); outer = (part, outer)};
                         };
@@ -848,7 +856,7 @@ module {
             case (?loc) { loc };
             case (null) {
                 MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
-                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter([], null, creating.userData);
+                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter([], null, creating.userData, creating.options.hardCap);
                 creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
                 {inner = (part3, inner); outer = (part3, outer)};
             };

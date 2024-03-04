@@ -38,11 +38,11 @@ shared actor class Index() = this {
         Iter.toArray(iter);
     };
 
-    public shared func createSubDB(guid: [Nat8], {userData: Text})
+    public shared func createSubDB(guid: [Nat8], {userData: Text; hardCap: ?Nat})
         : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        let r = await* Nac.createSubDB(Blob.fromArray(guid), {index = this; dbIndex; dbOptions = Common.dbOptions; userData});
+        let r = await* Nac.createSubDB(Blob.fromArray(guid), {index = this; dbIndex; dbOptions = Common.dbOptions; userData; hardCap});
         { inner = (Principal.fromActor(r.inner.0), r.inner.1); outer = (Principal.fromActor(r.outer.0), r.outer.1) };
     };
 
@@ -51,6 +51,7 @@ shared actor class Index() = this {
         outerKey: Nac.OuterSubDBKey;
         sk: Nac.SK;
         value: Nac.AttributeValue;
+        hardCap: ?Nat;
     }) : async Result.Result<{inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)}, Text> {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         let res = await* Nac.insert(Blob.fromArray(guid), {
@@ -60,6 +61,7 @@ shared actor class Index() = this {
             outerKey;
             sk;
             value;
+            hardCap;
         });
         switch (res) {
             case (#ok { inner; outer }) {

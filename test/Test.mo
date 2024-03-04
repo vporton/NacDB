@@ -42,7 +42,7 @@ func createCanisters() : async* {index: Index.Index} {
 let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
 func insertSubDB(index: Index.Index) : async* (Partition.Partition, Nac.OuterSubDBKey) {
-    let {outer = (part, subDBKey)} = await index.createSubDB(GUID.nextGuid(guidGen), {dbOptions; userData = ""});
+    let {outer = (part, subDBKey)} = await index.createSubDB(GUID.nextGuid(guidGen), {dbOptions; userData = ""; hardCap = ?1000});
     (
         actor(Principal.toText(Principal.fromActor(part))),
         subDBKey,
