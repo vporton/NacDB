@@ -131,7 +131,7 @@ module {
         })
             : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
         getInner: query ({outerKey: OuterSubDBKey}) -> async ?(Principal, InnerSubDBKey);
-        isOverflowed: query ({}) -> async Bool;
+        isOverflowed: query () -> async Bool;
         putLocation(outerKey: OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: InnerSubDBKey) : async ();
         // In the current version two partition canister are always the same.
         createOuter(part: Principal, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
@@ -608,7 +608,7 @@ module {
                 case(?needsMove) { needsMove };
                 case(null) {
                     MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
-                    let needsMove = await oldInnerCanister.isOverflowed({});
+                    let needsMove = await oldInnerCanister.isOverflowed();
                     inserting.needsMove := ?needsMove;
                     needsMove;
                 };
@@ -641,7 +641,7 @@ module {
                     case(?needsMove) { needsMove };
                     case(null) {
                         MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
-                        let needsMove = await oldInnerCanister.isOverflowed({});
+                        let needsMove = await oldInnerCanister.isOverflowed();
                         inserting.needsMove := ?needsMove;
                         needsMove;
                     };
@@ -836,7 +836,7 @@ module {
                 let canisters = StableBuffer.toArray(creating.options.dbIndex.canisters);
                 let part = canisters[canisters.size() - 1];
                 MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
-                let part2 = if (await part.isOverflowed({})) {
+                let part2 = if (await part.isOverflowed()) {
                     let part20 = await* createPartitionImpl(creating.options.index, creating.options.dbIndex);
                     let part2: PartitionCanister = actor(Principal.toText(part20));
                     creating.canister := ?part;
