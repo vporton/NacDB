@@ -58,8 +58,6 @@ module {
         options: CreatingSubDBOptions;
         var canister: ?PartitionCanister; // Immediately after creation of sub-DB, this is both inner and outer.
         var loc: ?{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, InnerSubDBKey)};
-        userData: Text;
-        hardCap: ?Nat;
     };
 
     /// Treat this as an opaque data structure, because this data is ignored if the sub-DB moves during insertion.
@@ -794,6 +792,8 @@ module {
 
     // Creating sub-DB //
 
+    type CreateSubDBOptions = {index: IndexCanister; dbIndex: DBIndex; userData: Text; hardCap: ?Nat};
+
     type CreateSubDBResult = {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)};
 
     /// It does not touch old items, so no locking.
@@ -804,16 +804,14 @@ module {
     /// (on cache failure retrieve new `inner` using `outer`).
     ///
     /// In this version returned `PartitionCanister` for inner and outer always the same.
-    public func createSubDB(guid: GUID, {index: IndexCanister; dbIndex: DBIndex; userData: Text; hardCap: ?Nat}) : async* CreateSubDBResult {
-        let creating: CreatingSubDB = switch (OpsQueue.get(dbIndex.creatingSubDB, guid)) {
+    public func createSubDB(guid: GUID, options: CreateSubDBOptions) : async* CreateSubDBResult {
+        let creating: CreatingSubDB = switch (OpsQueue.get(options.dbIndex.creatingSubDB, guid)) {
             case (?creating) { creating };
             case (null) {
                 {
-                    options = {index; dbIndex; userData; hardCap}; // TODO: Simplify.
+                    options;
                     var canister = null;
                     var loc = null;
-                    userData;
-                    hardCap;
                 };
             };
         };
@@ -822,7 +820,7 @@ module {
             await* createSubDBFinishByQueue(guid, creating);
         }
         catch(e) {
-            OpsQueue.add<CreatingSubDB, CreateSubDBResult>(dbIndex.creatingSubDB, guid, creating);
+            OpsQueue.add<CreatingSubDB, CreateSubDBResult>(options.dbIndex.creatingSubDB, guid, creating);
             throw e;
         }
     };
@@ -844,7 +842,7 @@ module {
                         case (?loc) { loc };
                         case (null) {
                             MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
-                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter([], null, creating.userData, creating.options.hardCap);
+                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter([], null, creating.options.userData, creating.options.hardCap);
                             creating.loc := ?{inner = (part, inner); outer = (part, outer)};
                             {inner = (part, inner); outer = (part, outer)};
                         };
@@ -857,7 +855,7 @@ module {
             case (?loc) { loc };
             case (null) {
                 MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
-                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter([], null, creating.userData, creating.options.hardCap);
+                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter([], null, creating.options.userData, creating.options.hardCap);
                 creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
                 {inner = (part3, inner); outer = (part3, outer)};
             };
