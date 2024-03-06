@@ -1,7 +1,7 @@
 import Nat64 "mo:base/Nat64";
 import Array "mo:base/Array";
 import Buffer "mo:base/Buffer";
-import Sha "mo:sha/SHA256";
+import Sha256 "mo:sha2/Sha256";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Nat8 "mo:base/Nat8";
@@ -34,7 +34,7 @@ module {
         var buf = Buffer.Buffer<Nat8>(Array.size(gen.seed) + 8);
         buf.append(Buffer.fromArray(gen.seed));
         buf.append(Buffer.fromArray(myEncodeNat(Nat64.toNat(step))));
-        let hash = Sha.sha256(Buffer.toArray(buf));
+        let hash = Blob.toArray(Sha256.fromArray(#sha256, Buffer.toArray(buf)));
         let shortHash = Array.subArray(hash, 0, 16);
         Blob.fromArray(shortHash);
     };
