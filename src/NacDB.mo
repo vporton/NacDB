@@ -409,11 +409,11 @@ module {
         await part.getByInner({innerKey; sk = options.sk});
     };
 
-    public type GetByOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; sk: SK};
+    public type GetByOuterPartitionKeyOptions = {outer: (OuterCanister, OuterSubDBKey); sk: SK};
 
     public func getOuter(options: GetByOuterPartitionKeyOptions, dbOptions: DBOptions) : async* ?AttributeValue {
         MyCycles.addPart(dbOptions.partitionCycles);
-        await options.outer.getByOuter({outerKey = options.outerKey; sk = options.sk});
+        await options.outer.0.getByOuter({outerKey = options.outer.1; sk = options.sk});
     };
 
     public type ExistsByInnerOptions = GetByInnerOptions;
@@ -431,7 +431,7 @@ module {
     public type HasByOuterPartitionKeyOptions = GetByOuterPartitionKeyOptions;
 
     public func hasByOuterPartitionKey(options: HasByOuterPartitionKeyOptions) : async* Bool {
-        await options.outer.hasByOuter({outerKey = options.outerKey; sk = options.sk});
+        await options.outer.0.hasByOuter({outerKey = options.outer.1; sk = options.sk});
     };
 
     public type HasDBByInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
@@ -449,11 +449,11 @@ module {
         return true;
     };
 
-    public type GetUserDataOuterOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
+    public type GetUserDataOuterOptions = {outer: (OuterCanister, OuterSubDBKey)};
 
     public func getSubDBUserDataOuter(options: GetUserDataOuterOptions, dbOptions: DBOptions) : async* ?Text {
         MyCycles.addPart(dbOptions.partitionCycles);
-        await options.outer.getSubDBUserDataOuter(options);
+        await options.outer.0.getSubDBUserDataOuter(options);
     };
 
     public type GetUserDataInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
@@ -482,11 +482,11 @@ module {
         await part.subDBSizeByInner({innerKey});
     };
 
-    public type SubDBSizeOuterOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
+    public type SubDBSizeOuterOptions = {outer: (OuterCanister, OuterSubDBKey)};
 
     public func subDBSizeOuter(options: SubDBSizeOuterOptions, dbOptions: DBOptions): async* ?Nat {
         MyCycles.addPart(dbOptions.partitionCycles);
-        await options.outer.subDBSizeByOuter({outerKey = options.outerKey});
+        await options.outer.0.subDBSizeByOuter({outerKey = options.outer.1});
     };
 
     /// To be called in a partition where `innerSuperDB` resides.
@@ -770,7 +770,7 @@ module {
         ignore BTree.delete(superDB.locations, Nat.compare, outerKey);
     };
 
-    type DeleteDBPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; guid: GUID};
+    type DeleteDBPartitionKeyOptions = {outer: (OuterCanister, OuterSubDBKey); guid: GUID};
 
     // Creating sub-DB //
 
@@ -939,11 +939,11 @@ module {
         await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
     };
 
-    type ScanLimitOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
+    type ScanLimitOuterPartitionKeyOptions = {outer: (OuterCanister, OuterSubDBKey); lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
     public func scanLimitOuterPartitionKey(options: ScanLimitOuterPartitionKeyOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
-        await options.outer.scanLimitOuter({
-            outerKey = options.outerKey;
+        await options.outer.0.scanLimitOuter({
+            outerKey = options.outer.1;
             lowerBound = options.lowerBound;
             upperBound = options.upperBound;
             dir = options.dir;
