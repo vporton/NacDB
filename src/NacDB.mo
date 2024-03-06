@@ -542,7 +542,6 @@ module {
     public type InsertResult = Result.Result<{inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}, Text>; // TODO: need to return this value?
 
     /// There is no `insertByInner`, because inserting may need to move the sub-DB.
-    /// TODO: Other functions should also return `Result`?
     /// TODO: Modify TypeScript code accordingly.
     public func insert(guid: GUID, options: InsertOptions) : async* InsertResult {
         ignore OpsQueue.whilePending(options.dbIndex.inserting, func(guid: GUID, elt: InsertingItem): async* () {
