@@ -163,28 +163,19 @@ shared({caller}) actor class Partition() = this {
     };
 
     public shared func startInsertingImpl({
-        guid: [Nat8];
-        indexCanister: Principal;
-        outerCanister: Principal;
-        outerKey: Nac.OuterSubDBKey;
+        innerKey: Nac.InnerSubDBKey;
         sk: Nac.SK;
         value: Nac.AttributeValue;
-        innerKey: Nac.InnerSubDBKey;
-        needsMove: Bool;
+        // needsMove: Bool;
     }): async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        let index: Nac.IndexCanister = actor(Principal.toText(indexCanister));
-        let outer: Nac.OuterCanister = actor(Principal.toText(outerCanister));
+        // let index: Nac.IndexCanister = actor(Principal.toText(indexCanister));
+        // let outer: Nac.OuterCanister = actor(Principal.toText(outerCanister));
         await* Nac.startInsertingImpl({
-            guid = Blob.fromArray(guid);
-            indexCanister = index;
-            outerCanister = outer;
-            outerKey;
+            innerKey;
             sk;
             value;
             innerSuperDB = superDB;
-            innerKey;
-            needsMove;
         });
     };
 

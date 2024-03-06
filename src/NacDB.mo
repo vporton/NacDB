@@ -104,7 +104,6 @@ module {
         deleteSubDB(guid: [Nat8], {outerCanister: Principal; outerKey: OuterSubDBKey}) : async ();
     };
 
-    // TODO: arguments as {...}, not (...).
     public type PartitionCanister = actor {
         // Mandatory //
         rawGetSubDB: query ({innerKey: InnerSubDBKey}) -> async ?{map: [(SK, AttributeValue)]; userData: Text};
@@ -128,14 +127,9 @@ module {
         createOuter({part: Principal; outerKey: OuterSubDBKey; innerKey: InnerSubDBKey})
             : async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
         startInsertingImpl(options: {
-            guid: [Nat8];
-            indexCanister: Principal;
-            outerCanister: Principal;
-            outerKey: OuterSubDBKey;
+            innerKey: InnerSubDBKey;
             sk: SK;
             value: AttributeValue;
-            innerKey: InnerSubDBKey;
-            needsMove: Bool;
         }): async ();
         deleteSubDBOuter({outerKey: OuterSubDBKey}): async ();
 
@@ -491,15 +485,10 @@ module {
 
     /// To be called in a partition where `innerSuperDB` resides.
     public func startInsertingImpl(options: {
-        guid: GUID;
-        indexCanister: IndexCanister;
-        outerCanister: OuterCanister;
-        outerKey: OuterSubDBKey;
+        innerKey: InnerSubDBKey;
         sk: SK;
         value: AttributeValue;
         innerSuperDB: SuperDB;
-        innerKey: InnerSubDBKey;
-        needsMove: Bool;
     }) : async* () {
         switch (getSubDBByInner(options.innerSuperDB, options.innerKey)) {
             case (?subDB) {
@@ -593,10 +582,6 @@ module {
             };
             MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
             await oldInnerCanister.startInsertingImpl({
-                guid = Blob.toArray(guid);
-                indexCanister = inserting.options.indexCanister;
-                outerCanister = inserting.options.outerCanister;
-                outerKey = inserting.options.outerKey;
                 sk = inserting.options.sk;
                 value = inserting.options.value;
                 innerKey = oldInnerKey;
