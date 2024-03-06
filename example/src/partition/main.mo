@@ -116,11 +116,11 @@ shared({caller}) actor class Partition() = this {
 
     public query func scanSubDBs(): async [(Nac.OuterSubDBKey, {canister: Principal; key: Nac.InnerSubDBKey})] {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        type T1 = (Nac.OuterSubDBKey, Nac.InnerSubDBKey);
+        type T1 = (Nac.OuterSubDBKey, Nac.InnerPair);
         type T2 = (Nac.OuterSubDBKey, {canister: Principal; key: Nac.InnerSubDBKey});
         let array: [T1] = Nac.scanSubDBs({superDB});
-        let iter = Iter.map(array.vals(), func ((outerKey, {canister; key}): T1): T2 {
-            (outerKey, {canister = Principal.fromActor(canister); key});
+        let iter = Iter.map(array.vals(), func ((outerKey, v): T1): T2 {
+            (outerKey, {canister = Principal.fromActor(v.canister); key = v.key});
         });
         Iter.toArray(iter);
     };

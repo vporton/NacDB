@@ -39,11 +39,14 @@ shared actor class Index() = this {
     };
 
     public shared func createSubDB(guid: [Nat8], {userData: Text; hardCap: ?Nat})
-        : async {inner: {canister: Principal; key: InnerSubDBKey}; outer: {canister: Principal; key: OuterSubDBKey}}
+        : async {inner: {canister: Principal; key: Nac.InnerSubDBKey}; outer: {canister: Principal; key: Nac.OuterSubDBKey}}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         let r = await* Nac.createSubDB(Blob.fromArray(guid), {index = this; dbIndex; dbOptions = Common.dbOptions; userData; hardCap});
-        { inner = (Principal.fromActor(r.inner.0), r.inner.1); outer = (Principal.fromActor(r.outer.0), r.outer.1) };
+        {
+            inner = {canister = Principal.fromActor(r.inner.canister); key = r.inner.key};
+            outer = {canister = Principal.fromActor(r.outer.canister); key = r.outer.key};
+        };
     };
 
     public shared func insert(guid: [Nat8], {
@@ -52,7 +55,7 @@ shared actor class Index() = this {
         sk: Nac.SK;
         value: Nac.AttributeValue;
         hardCap: ?Nat;
-    }) : async Result.Result<{inner: {canister: Principal; key: InnerSubDBKey}; outer: {canister: Principal; key: OuterSubDBKey}}, Text> {
+    }) : async Result.Result<{inner: {canister: Principal; key: Nac.InnerSubDBKey}; outer: {canister: Principal; key: Nac.OuterSubDBKey}}, Text> {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         let res = await* Nac.insert(Blob.fromArray(guid), {
             indexCanister = Principal.fromActor(this);
@@ -65,7 +68,10 @@ shared actor class Index() = this {
         });
         switch (res) {
             case (#ok { inner; outer }) {
-                #ok { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
+                #ok {
+                    inner = { canister = Principal.fromActor(inner.canister); key = inner.key};
+                    outer = { canister = Principal.fromActor(outer.canister); key = outer.key};
+                };
             };
             case (#err err) { #err err };
         };

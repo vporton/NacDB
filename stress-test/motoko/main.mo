@@ -128,7 +128,7 @@ actor StressTest {
 
         var brokenOuterCount = 0;
         // for (c in (await index.getCanisters()).vals()) {
-        //     for ((outerKey, (innerCanister, innerKey)) in (await c.scanSubDBs()).vals()) {
+        //     for ((outerKey, {innerCanister = canister; innerKey = key}) in (await c.scanSubDBs()).vals()) {
         //         if (not (await innerCanister.hasSubDBByInner({innerKey}))) {
         //             brokenOuterCount += 1;
         //         }
@@ -138,7 +138,7 @@ actor StressTest {
         let nThreads2 = Array.size(partitions);
         let threads2 : [var ?(async())] = Array.init(nThreads2, null);
         let runThread2 = func(outerPart: Nac.OuterCanister) : async () {
-            for ((outerKey, (innerCanister, innerKey)) in (await outerPart.scanSubDBs()).vals()) {
+            for ((outerKey, {canister = innerCanister; key = innerKey}) in (await outerPart.scanSubDBs()).vals()) {
                 let innerCanister2: Nac.InnerCanister = actor(Principal.toText(innerCanister));
                 if (not (await innerCanister2.hasSubDBByInner({innerKey}))) {
                     brokenOuterCount += 1;
@@ -181,7 +181,7 @@ actor StressTest {
             var v: ?(Principal, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
-                let {outer = (part, outerKey)} = try {
+                let {outer = {canister = part; key = outerKey}} = try {
                     MyCycles.addPart(dbOptions.partitionCycles);
                     await options.index.createSubDB(Blob.toArray(guid), {userData = debug_show(guid); hardCap = null});
                 } catch(e) {
@@ -252,7 +252,7 @@ actor StressTest {
                 };
                 switch (res) {
                     case (#ok res) {
-                        let {outer = (part2, outerKey2)} = res;
+                        let {outer = {canister = part2; key = outerKey2}} = res;
                         let part3: Nac.PartitionCanister = actor(Principal.toText(part2));
                         v := ?(part3, outerKey2);
                     };
@@ -399,7 +399,7 @@ actor StressTest {
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
             let part2: Nac.PartitionCanister = actor(Principal.toText(part));
-            label L for ((outerKey, (innerCanister, innerKey)) in (await part2.scanSubDBs()).vals()) {
+            label L for ((outerKey, {canister = innerCanister; key = innerKey}) in (await part2.scanSubDBs()).vals()) {
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part2, outerKey)) else {
                     Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part2)) # " " # debug_show(outerKey));
                 };
