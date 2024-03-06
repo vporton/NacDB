@@ -530,7 +530,7 @@ module {
     };
 
     public type InsertOptions = {
-        indexCanister: Principal; // TODO: Remove?
+        indexCanister: Principal;
         dbIndex: DBIndex;
         outerCanister: Principal;
         outerKey: OuterSubDBKey;
