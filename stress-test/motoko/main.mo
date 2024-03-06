@@ -400,7 +400,7 @@ actor StressTest {
         for (part in canisters.vals()) {
             let part2: Nac.PartitionCanister = actor(Principal.toText(part));
             label L for ((outerKey, (innerCanister, innerKey)) in (await part2.scanSubDBs()).vals()) {
-                let ?guid = RBT.get<(Partition.Partition, Nac.OuterSubDBKey), Nac.GUID>(outerToGUID, compareLocs, (part2, outerKey)) else {
+                let ?guid = RBT.get(outerToGUID, compareLocs, (part2, outerKey)) else {
                     Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part2)) # " " # debug_show(outerKey));
                 };
                 var subtree = RBT.init<Text, Nat>();
