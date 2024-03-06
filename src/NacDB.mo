@@ -303,7 +303,7 @@ module {
     public func finishMovingSubDBImpl({
         inserting: InsertingItem;
         dbIndex: DBIndex;
-        index: IndexCanister; // TODO: needed?
+        index: IndexCanister;
         outerCanister: OuterCanister;
         outerKey: OuterSubDBKey;
         oldInnerCanister: InnerCanister;
