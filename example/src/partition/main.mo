@@ -57,9 +57,9 @@ shared({caller}) actor class Partition() = this {
 
     // Some data access methods //
 
-    public query func getInner(outerKey: Nac.OuterSubDBKey) : async ?(Principal, Nac.InnerSubDBKey) {
+    public query func getInner({outerKey: Nac.OuterSubDBKey}) : async ?(Principal, Nac.InnerSubDBKey) {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        switch (Nac.getInner(superDB, outerKey)) {
+        switch (Nac.getInner({superDB; outerKey})) {
             case (?(innerCanister, innerKey)) {
                 ?(Principal.fromActor(innerCanister), innerKey);
             };
