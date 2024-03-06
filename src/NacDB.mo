@@ -1,5 +1,4 @@
 import Result "mo:base/Result";
-import Cycles "mo:base/ExperimentalCycles";
 import I "mo:base/Iter";
 import Principal "mo:base/Principal";
 import BTree "mo:stableheapbtreemap/BTree";
@@ -7,18 +6,11 @@ import RBT "mo:stable-rbtree/StableRBTree";
 import StableBuffer "mo:stable-buffer/StableBuffer";
 import Text "mo:base/Text";
 import Nat "mo:base/Nat";
-import Int "mo:base/Int";
 import Prim "mo:⛔";
-import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
-import Bool "mo:base/Bool";
-import Deque "mo:base/Deque";
-import Iter "mo:base/Iter";
 import OpsQueue "./OpsQueue";
 import MyCycles "./Cycles";
 import Blob "mo:base/Blob";
-import Array "mo:base/Array";
-import Time "mo:base/Time";
 
 module {
     public type GUID = Blob;
@@ -974,11 +966,11 @@ module {
     };
 
     public func scanSubDBs({superDB: SuperDB}): [(OuterSubDBKey, (InnerCanister, InnerSubDBKey))] {
-        let iter = Iter.map<(OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?OpsQueue.GUID*/}), (OuterSubDBKey, (InnerCanister, InnerSubDBKey))>(
+        let iter = I.map<(OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?OpsQueue.GUID*/}), (OuterSubDBKey, (InnerCanister, InnerSubDBKey))>(
             BTree.entries(superDB.locations),
             func(e: (OuterSubDBKey, {inner: (InnerCanister, InnerSubDBKey); /*var busy: ?OpsQueue.GUID*/})) { (e.0, e.1.inner) },
         );
-        Iter.toArray(iter);
+        I.toArray(iter);
     };
 
     /// Canisters
