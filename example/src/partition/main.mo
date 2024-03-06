@@ -23,11 +23,11 @@ shared({caller}) actor class Partition() = this {
         Nac.rawGetSubDB(superDB, innerKey);
     };
 
-    public shared func rawInsertSubDB(map: [(Nac.SK, Nac.AttributeValue)], inner: ?Nac.InnerSubDBKey, userData: Text, hardCap: ?Nat)
+    public shared func rawInsertSubDB({map: [(Nac.SK, Nac.AttributeValue)]; inner: ?Nac.InnerSubDBKey; userData: Text; hardCap: ?Nat})
         : async {inner: Nac.OuterSubDBKey}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        Nac.rawInsertSubDB(superDB, map, inner, userData, hardCap);
+        Nac.rawInsertSubDB({superDB; map; inner; userData; hardCap});
     };
 
     public shared func rawDeleteSubDB({innerKey: Nac.InnerSubDBKey}): async () {
@@ -35,19 +35,19 @@ shared({caller}) actor class Partition() = this {
         Nac.rawDeleteSubDB(superDB, innerKey);
     };
 
-    public shared func rawInsertSubDBAndSetOuter(
-        map: [(Nac.SK, Nac.AttributeValue)],
+    public shared func rawInsertSubDBAndSetOuter({
+        map: [(Nac.SK, Nac.AttributeValue)];
         keys: ?{
             inner: Nac.InnerSubDBKey;
             outer: Nac.OuterSubDBKey;
-        },
-        userData: Text,
-        hardCap: ?Nat,
-    )
+        };
+        userData: Text;
+        hardCap: ?Nat;
+    })
         : async {inner: Nac.InnerSubDBKey; outer: Nac.OuterSubDBKey}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        Nac.rawInsertSubDBAndSetOuter(superDB, this, map, keys, userData, hardCap);
+        Nac.rawInsertSubDBAndSetOuter({superDB; canister = this; map; keys; userData; hardCap});
     };
 
     public query func isOverflowed({}) : async Bool {
