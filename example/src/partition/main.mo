@@ -24,7 +24,7 @@ shared({caller}) actor class Partition() = this {
     };
 
     public shared func rawInsertSubDB({map: [(Nac.SK, Nac.AttributeValue)]; innerKey: ?Nac.InnerSubDBKey; userData: Text; hardCap: ?Nat})
-        : async {innerKey: Nac.OuterSubDBKey}
+        : async {innerKey: Nac.InnerSubDBKey}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.rawInsertSubDB({superDB; map; innerKey; userData; hardCap});
@@ -57,11 +57,11 @@ shared({caller}) actor class Partition() = this {
 
     // Some data access methods //
 
-    public query func getInner({outerKey: Nac.OuterSubDBKey}) : async ?(Principal, Nac.InnerSubDBKey) {
+    public query func getInner({outerKey: Nac.OuterSubDBKey}) : async ?{canister: Principal; key: Nac.InnerSubDBKey} {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         switch (Nac.getInner({superDB; outerKey})) {
-            case (?(innerCanister, innerKey)) {
-                ?(Principal.fromActor(innerCanister), innerKey);
+            case (?{canister = innerCanister; key = innerKey}) {
+                ?{canister = Principal.fromActor(innerCanister); key = innerKey};
             };
             case null { null };
         };
@@ -84,12 +84,15 @@ shared({caller}) actor class Partition() = this {
     };
 
     public shared func createOuter({part: Principal; outerKey: Nac.OuterSubDBKey; innerKey: Nac.InnerSubDBKey})
-        : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)}
+        : async {inner: {canister: Principal; key: Nac.InnerSubDBKey}; outer: {canister: Principal; key: Nac.OuterSubDBKey}}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         let part2: Nac.PartitionCanister = actor(Principal.toText(part));
         let { inner; outer } = Nac.createOuter({outerSuperDB = superDB; part = part2; outerKey; innerKey});
-        { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
+        {
+            inner = {canister = Principal.fromActor(inner.canister); key = inner.key};
+            outer = {canister = Principal.fromActor(outer.canister); key = outer.key};
+        };
     };
 
     public shared func deleteInner({innerKey: Nac.InnerSubDBKey; sk: Nac.SK}): async () {
@@ -111,13 +114,13 @@ shared({caller}) actor class Partition() = this {
         await* Nac.scanLimitOuter({outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
     };
 
-    public query func scanSubDBs(): async [(Nac.OuterSubDBKey, (Principal, Nac.InnerSubDBKey))] {
+    public query func scanSubDBs(): async [(Nac.OuterSubDBKey, {canister: Principal; key: Nac.InnerSubDBKey})] {
         // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        type T1 = (Nac.OuterSubDBKey, (Nac.InnerCanister, Nac.InnerSubDBKey));
-        type T2 = (Nac.OuterSubDBKey, (Principal, Nac.InnerSubDBKey));
+        type T1 = (Nac.OuterSubDBKey, Nac.InnerSubDBKey);
+        type T2 = (Nac.OuterSubDBKey, {canister: Principal; key: Nac.InnerSubDBKey});
         let array: [T1] = Nac.scanSubDBs({superDB});
-        let iter = Iter.map(array.vals(), func ((outerKey, (inner, innerKey)): T1): T2 {
-            (outerKey, (Principal.fromActor(inner), innerKey));
+        let iter = Iter.map(array.vals(), func ((outerKey, {canister; key}): T1): T2 {
+            (outerKey, {canister = Principal.fromActor(canister); key});
         });
         Iter.toArray(iter);
     };

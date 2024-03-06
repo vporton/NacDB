@@ -42,9 +42,11 @@ module {
         var hardCap: ?Nat;
     };
 
-    public type OuterPair = (OuterCanister, OuterSubDBKey);
+    public type Pair = {canister: PartitionCanister; key: SubDBKey};
 
-    public type InnerPair = (InnerCanister, InnerSubDBKey);
+    public type OuterPair = {canister: OuterCanister; key: OuterSubDBKey};
+
+    public type InnerPair = {canister: InnerCanister; key: InnerSubDBKey};
 
     public type MoveCap = { #usedMemory: Nat };
 
@@ -96,14 +98,14 @@ module {
         createPartition: shared() -> async Principal;
         getCanisters: query () -> async [Principal];
         createSubDB: shared(guid: [Nat8], {userData: Text; hardCap: ?Nat})
-            -> async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
+            -> async {inner: {canister: Principal; key: InnerSubDBKey}; outer: {canister: Principal; key: OuterSubDBKey}};
         insert(guid: [Nat8], {
             outerCanister: Principal;
             outerKey: OuterSubDBKey;
             sk: SK;
             value: AttributeValue;
             hardCap: ?Nat;
-        }) : async Result.Result<{inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)}, Text>;
+        }) : async Result.Result<{inner: {canister: Principal; key: InnerSubDBKey}; outer: {canister: Principal; key: OuterSubDBKey}}, Text>;
         delete(guid: [Nat8], {outerCanister: Principal; outerKey: OuterSubDBKey; sk: SK}): async ();
         deleteSubDB(guid: [Nat8], {outerCanister: Principal; outerKey: OuterSubDBKey}) : async ();
     };
@@ -124,12 +126,12 @@ module {
             hardCap: ?Nat;
         })
             : async {innerKey: InnerSubDBKey; outerKey: OuterSubDBKey};
-        getInner: query ({outerKey: OuterSubDBKey}) -> async ?(Principal, InnerSubDBKey);
+        getInner: query ({outerKey: OuterSubDBKey}) -> async ?{canister: Principal; key: InnerSubDBKey};
         isOverflowed: query () -> async Bool;
         putLocation({outerKey: OuterSubDBKey; innerCanister: Principal; newInnerSubDBKey: InnerSubDBKey}) : async ();
         // In the current version two partition canister are always the same.
         createOuter({part: Principal; outerKey: OuterSubDBKey; innerKey: InnerSubDBKey})
-            : async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
+            : async {inner: {canister: Principal; key: InnerSubDBKey}; outer: {canister: Principal; key: OuterSubDBKey}};
         startInsertingImpl(options: {
             innerKey: InnerSubDBKey;
             sk: SK;
@@ -154,7 +156,7 @@ module {
         hasSubDBByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async Bool;
         subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Nat;
-        scanSubDBs: query() -> async [(OuterSubDBKey, (Principal, InnerSubDBKey))];
+        scanSubDBs: query() -> async [(OuterSubDBKey, {canister: Principal; key: InnerSubDBKey})];
         getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
         getOuter: shared GetByOuterPartitionKeyOptions -> async ?AttributeValue;
         getSubDBUserDataOuter: shared GetUserDataOuterOptions -> async ?Text;
@@ -253,7 +255,7 @@ module {
         let {innerKey = innerKey2} = rawInsertSubDB({superDB; map; innerKey = do ? {keys!.innerKey}; userData; hardCap});
         if (keys == null) {
             ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextKey,
-                {inner = (canister, innerKey2); /*var busy: ?OpsQueue.GUID = null*/});
+                {inner = {canister; key = innerKey2}; /*var busy: ?OpsQueue.GUID = null*/});
         };
         switch (keys) {
             case (?{innerKey; outerKey}) {
@@ -279,7 +281,7 @@ module {
 
     public func putLocation({outerSuperDB: SuperDB; outerKey: OuterSubDBKey; innerCanister: InnerCanister; innerKey: InnerSubDBKey}) {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
-            {inner = (innerCanister, innerKey); /*var busy: ?OpsQueue.GUID = null*/});
+            {inner = {canister = innerCanister; key = innerKey}; /*var busy: ?OpsQueue.GUID = null*/});
     };
 
     /// This function makes no sense, because it would return the entire sub-DB from another canister.
@@ -314,7 +316,7 @@ module {
                 let newInnerSubDBKey = switch (newCanister.innerKey) {
                     case (?newSubDBKey) { newSubDBKey };
                     case (null) {
-                        if (BTree.has(dbIndex.moving, compareLocs, (outerCanister, outerKey))) {
+                        if (BTree.has(dbIndex.moving, compareLocs, {canister = outerCanister; key = outerKey})) {
                             Debug.trap("DB is scaling");
                         };
                         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
@@ -335,7 +337,7 @@ module {
                 MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
                 await oldInnerCanister.rawDeleteSubDB({innerKey = oldInnerKey});
 
-                (canister, newInnerSubDBKey);
+                {canister; key = newInnerSubDBKey};
             };
             case (null) {
                 Debug.trap("no sub-DB");
@@ -400,18 +402,18 @@ module {
 
     /// Sometimes traps "missing sub-DB".
     public func getByOuter(options: GetByOuterOptions) : async* ?AttributeValue {
-        let ?(part, innerKey) = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
+        let ?{canister = part; key} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
             Debug.trap("no entry");
         };
         MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
-        await part.getByInner({innerKey; sk = options.sk});
+        await part.getByInner({innerKey = key; sk = options.sk});
     };
 
     public type GetByOuterPartitionKeyOptions = {outer: OuterPair; sk: SK};
 
     public func getOuter(options: GetByOuterPartitionKeyOptions, dbOptions: DBOptions) : async* ?AttributeValue {
         MyCycles.addPart(dbOptions.partitionCycles);
-        await options.outer.0.getByOuter({outerKey = options.outer.1; sk = options.sk});
+        await options.outer.canister.getByOuter({outerKey = options.outer.key; sk = options.sk});
     };
 
     public type ExistsByInnerOptions = GetByInnerOptions;
@@ -429,7 +431,7 @@ module {
     public type HasByOuterPartitionKeyOptions = GetByOuterPartitionKeyOptions;
 
     public func hasByOuterPartitionKey(options: HasByOuterPartitionKeyOptions) : async* Bool {
-        await options.outer.0.hasByOuter({outerKey = options.outer.1; sk = options.sk});
+        await options.outer.canister.hasByOuter({outerKey = options.outer.key; sk = options.sk});
     };
 
     public type HasDBByInnerOptions = {innerSuperDB: SuperDB; innerKey: InnerSubDBKey};
@@ -441,7 +443,7 @@ module {
     public type HasDBByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
     public func hasSubDBByOuter(options: HasDBByOuterOptions) : async* Bool {
-        let ?(part, inner) = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
+        let ?{canister = part; key = inner} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
             return false;
         };
         return true;
@@ -451,7 +453,7 @@ module {
 
     public func getSubDBUserDataOuter(options: GetUserDataOuterOptions, dbOptions: DBOptions) : async* ?Text {
         MyCycles.addPart(dbOptions.partitionCycles);
-        await options.outer.0.getSubDBUserDataOuter(options);
+        await options.outer.canister.getSubDBUserDataOuter(options);
     };
 
     public type GetUserDataInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
@@ -473,7 +475,7 @@ module {
     public type SubDBSizeByOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
     public func subDBSizeByOuter(options: SubDBSizeByOuterOptions): async* ?Nat {
-        let ?(part, innerKey) = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
+        let ?{canister = part; key = innerKey} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
             Debug.trap("no sub-DB");
         };
         MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
@@ -484,7 +486,7 @@ module {
 
     public func subDBSizeOuter(options: SubDBSizeOuterOptions, dbOptions: DBOptions): async* ?Nat {
         MyCycles.addPart(dbOptions.partitionCycles);
-        await options.outer.0.subDBSizeByOuter({outerKey = options.outer.1});
+        await options.outer.canister.subDBSizeByOuter({outerKey = options.outer.key});
     };
 
     /// To be called in a partition where `innerSuperDB` resides.
@@ -541,10 +543,10 @@ module {
                     var newInnerCanister = null;
                 };
 
-                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey))) {
+                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, {canister = outer; key = options.outerKey})) {
                     Debug.trap("blocking deleting");
                 };
-                ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (outer, options.outerKey), ());
+                ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, {canister = outer; key = options.outerKey}, ());
                 inserting;
             };
         };
@@ -566,8 +568,11 @@ module {
         let outer: OuterCanister = actor(Principal.toText(inserting.options.outerCanister)); // TODO: duplicate operation
 
         MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
-        let ?(oldInnerPrincipal, oldInnerKey) = await outer.getInner({outerKey = inserting.options.outerKey}) else {
-            ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
+        let ?{canister = oldInnerPrincipal; key = oldInnerKey} = await outer.getInner({outerKey = inserting.options.outerKey}) else {
+            ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, {
+                canister = outer;
+                key = inserting.options.outerKey;
+            });
             let result = #err "missing sub-DB";
             OpsQueue.answer(inserting.options.dbIndex.inserting, guid, result);
             return result;
@@ -592,7 +597,10 @@ module {
                 needsMove;
             });
             if (needsMove) {
-                if (BTree.has(inserting.options.dbIndex.moving, compareLocs, (actor(Principal.toText(inserting.options.outerCanister)): OuterCanister, inserting.options.outerKey))) {
+                if (BTree.has(inserting.options.dbIndex.moving, compareLocs, {
+                    canister = actor(Principal.toText(inserting.options.outerCanister)): OuterCanister;
+                    key = inserting.options.outerKey;
+                })) {
                     // ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
                     Debug.trap("already moving");
                 };
@@ -616,7 +624,7 @@ module {
                 if (needsMove) {
                     MyCycles.addPart(inserting.options.dbIndex.dbOptions.partitionCycles);
                     let index: IndexCanister = actor(Principal.toText(inserting.options.indexCanister));
-                    let (innerPartition, innerKey) = await* finishMovingSubDBImpl({
+                    let {canister = innerPartition; key = innerKey} = await* finishMovingSubDBImpl({
                         inserting;
                         dbIndex = inserting.options.dbIndex;
                         index = actor(Principal.toText(inserting.options.indexCanister));
@@ -625,7 +633,10 @@ module {
                         outerKey = inserting.options.outerKey;
                         oldInnerCanister;
                     });
-                    ignore BTree.delete(inserting.options.dbIndex.moving, compareLocs, (actor(Principal.toText(inserting.options.outerCanister)): OuterCanister, inserting.options.outerKey));
+                    ignore BTree.delete(inserting.options.dbIndex.moving, compareLocs, {
+                        canister = actor(Principal.toText(inserting.options.outerCanister)): OuterCanister;
+                        key = inserting.options.outerKey;
+                    });
                     (innerPartition, innerKey);
                 } else {
                     (oldInnerCanister, oldInnerKey);
@@ -637,9 +648,12 @@ module {
             newInnerKey;
         };
 
-        ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, (outer, inserting.options.outerKey));
+        ignore BTree.delete(inserting.options.dbIndex.blockDeleting, compareLocs, {
+            canister = outer;
+            key = inserting.options.outerKey;
+        });
 
-        #ok {inner = (newInnerPartition, newInnerKey); outer = (outer, inserting.options.outerKey)};
+        #ok {inner = {canister = newInnerPartition; key = newInnerKey}; outer = {canister = outer; key = inserting.options.outerKey}};
     };
 
     public func deleteInner({innerSuperDB: SuperDB; innerKey: InnerSubDBKey; sk: SK}): async* () {
@@ -668,10 +682,16 @@ module {
             case (?deleting) { deleting };
             case null {
                 let result = { options };
-                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey))) {
+                if (BTree.has(options.dbIndex.blockDeleting, compareLocs, {
+                    canister = options.outerCanister;
+                    key = options.outerKey;
+                })) {
                     Debug.trap("deleting is blocked");
                 };
-                ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, (options.outerCanister, options.outerKey), ());
+                ignore BTree.insert(options.dbIndex.blockDeleting, compareLocs, {
+                    canister = options.outerCanister;
+                    key = options.outerKey;
+                }, ());
                 result;
             };
         };
@@ -695,7 +715,7 @@ module {
 
     func deleteFinishByQueue(guid: GUID, deleting: DeletingItem) : async* () {
         switch(await deleting.options.outerCanister.getInner({outerKey = deleting.options.outerKey})) {
-            case (?(innerCanister, innerKey)) {
+            case (?{canister = innerCanister; key = innerKey}) {
                 let inner: InnerCanister = actor(Principal.toText(innerCanister));
                 // Can we block here on inner key instead of outer one?
                 MyCycles.addPart(deleting.options.dbIndex.dbOptions.partitionCycles);
@@ -704,7 +724,10 @@ module {
             case (null) {};
         };
 
-        ignore BTree.delete(deleting.options.dbIndex.blockDeleting, compareLocs, (deleting.options.outerCanister, deleting.options.outerKey));
+        ignore BTree.delete(deleting.options.dbIndex.blockDeleting, compareLocs, {
+            canister = deleting.options.outerCanister;
+            key = deleting.options.outerKey;
+        });
     };
 
     type DeleteDBOptions = {dbIndex: DBIndex; outerCanister: OuterCanister; outerKey: OuterSubDBKey};
@@ -737,7 +760,7 @@ module {
     // idempotent
     func deleteSubDBFinishByQueue(guid: GUID, deleting: DeletingSubDB) : async* () {
         switch(await deleting.options.outerCanister.getInner({outerKey = deleting.options.outerKey})) {
-            case (?(innerCanister, innerKey)) {
+            case (?{canister = innerCanister; key = innerKey}) {
                 let inner: InnerCanister = actor(Principal.toText(innerCanister));
                 MyCycles.addPart(deleting.options.dbIndex.dbOptions.partitionCycles);
                 await inner.deleteSubDBInner({innerKey});
@@ -819,7 +842,7 @@ module {
                                 userData = creating.options.userData;
                                 hardCap = creating.options.hardCap;
                             });
-                            creating.loc := ?{inner = (part, innerKey); outer = (part, outerKey)};
+                            creating.loc := ?{inner = {canister = part; key = innerKey}; outer = {canister = part; key = outerKey}};
                             {inner = (part, innerKey); outer = (part, outerKey)};
                         };
                     };
@@ -837,8 +860,8 @@ module {
                     userData = creating.options.userData;
                     hardCap = creating.options.hardCap;
                 });
-                creating.loc := ?{inner = (part3, innerKey); outer = (part3, outerKey)};
-                {inner = (part3, innerKey); outer = (part3, outerKey)};
+                creating.loc := ?{inner = {canister = part3; key = innerKey}; outer = {canister = part3; key = outerKey}};
+                {inner = {canister = part3; key = innerKey}; outer = {canister = part3; key = outerKey}};
             };
         };
     };
@@ -850,8 +873,8 @@ module {
         : {inner: InnerPair; outer: OuterPair}
     {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
-            {inner = (part, innerKey); /*var busy: ?OpsQueue.GUID = null*/});
-        {inner = (part, innerKey); outer = (part, outerKey)};
+            {inner = {canister = part; key = innerKey}; /*var busy: ?OpsQueue.GUID = null*/});
+        {inner = {canister = part; key = innerKey}; outer = {canister = part; key = outerKey}};
     };
 
     // Scanning/enumerating //
@@ -921,7 +944,7 @@ module {
     type ScanLimitOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
     public func scanLimitOuter(options: ScanLimitOuterOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
-        let ?(part, innerKey) = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
+        let ?{canister = part; key = innerKey} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
             Debug.trap("no sub-DB");
         };
         MyCycles.addPart(options.outerSuperDB.dbOptions.partitionCycles);
@@ -931,8 +954,8 @@ module {
     type ScanLimitOuterPartitionKeyOptions = {outer: OuterPair; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
     public func scanLimitOuterPartitionKey(options: ScanLimitOuterPartitionKeyOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
-        await options.outer.0.scanLimitOuter({
-            outerKey = options.outer.1;
+        await options.outer.canister.scanLimitOuter({
+            outerKey = options.outer.key;
             lowerBound = options.lowerBound;
             upperBound = options.upperBound;
             dir = options.dir;
@@ -966,12 +989,12 @@ module {
         Principal.compare(Principal.fromActor(x), Principal.fromActor(y));
     };
 
-    func compareLocs(x: (PartitionCanister, SubDBKey), y: (PartitionCanister, SubDBKey)): {#equal; #greater; #less} {
-        let c = comparePartition(x.0, y.0);
+    func compareLocs(x: Pair, y: Pair): {#equal; #greater; #less} {
+        let c = comparePartition(x.canister, y.canister);
         if (c != #equal) {
             c;
         } else {
-            Nat.compare(x.1, y.1);
+            Nat.compare(x.key, y.key);
         }
     };
 };
