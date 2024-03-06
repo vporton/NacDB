@@ -70,8 +70,7 @@ module {
 
     public type SuperDB = {
         dbOptions: DBOptions;
-        var nextInnerKey: Nat;
-        var nextOuterKey: Nat;
+        var nextKey: Nat;
         subDBs: BTree.BTree<InnerSubDBKey, SubDB>;
         /// `inner` of this `RBT.Tree` is constant,
         /// even when the sub-DB to which it points moves to a different canister.
@@ -186,8 +185,7 @@ module {
     public func createSuperDB(dbOptions: DBOptions) : SuperDB {
         {
             dbOptions;
-            var nextInnerKey = 0;
-            var nextOuterKey = 0;
+            var nextKey = 0;
             subDBs = BTree.init<InnerSubDBKey, SubDB>(null);
             var locations = BTree.init(null);
         };
@@ -224,8 +222,8 @@ module {
         let key = switch (inner) {
             case (?key) { key };
             case (null) {
-                let key = superDB.nextInnerKey;
-                superDB.nextInnerKey += 1;
+                let key = superDB.nextKey;
+                superDB.nextKey += 1;
                 key;
             };
         };                    
@@ -257,7 +255,7 @@ module {
     {
         let {inner = inner2} = rawInsertSubDB({superDB; map; inner = do ? {keys!.inner}; userData; hardCap});
         if (keys == null) {
-            ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextOuterKey,
+            ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextKey,
                 {inner = (canister, inner2); /*var busy: ?OpsQueue.GUID = null*/});
         };
         switch (keys) {
@@ -265,8 +263,8 @@ module {
                 {outer; inner};
             };
             case (null) {
-                let result = {outer = superDB.nextOuterKey; inner = inner2; };
-                superDB.nextOuterKey += 1;
+                let result = {outer = superDB.nextKey; inner = inner2; };
+                superDB.nextKey += 1;
                 result;
             };
         };
