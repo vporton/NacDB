@@ -50,8 +50,8 @@ shared({caller}) actor class Partition() = this {
         Nac.rawInsertSubDBAndSetOuter(superDB, this, map, keys, userData, hardCap);
     };
 
-    public shared func isOverflowed({}) : async Bool {
-        ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
+    public query func isOverflowed({}) : async Bool {
+        // ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.isOverflowed({dbOptions = Common.dbOptions; superDB});
     };
 
