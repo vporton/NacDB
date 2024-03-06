@@ -200,8 +200,8 @@ shared({caller}) actor class Partition() = this {
         await* Nac.deleteSubDBOuter({superDB; outerKey});
     };
 
-    public shared func getByOuterPartitionKey(options: Nac.GetByOuterPartitionKeyOptions) : async ?Nac.AttributeValue {
-        await* Nac.getByOuterPartitionKey(options, Common.dbOptions);
+    public shared func getByOuterKey(options: Nac.GetByOuterPartitionKeyOptions) : async ?Nac.AttributeValue {
+        await* Nac.getByOuterKey(options, Common.dbOptions);
     };
 
     public shared func hasByOuterPartitionKey(options: Nac.HasByOuterPartitionKeyOptions) : async Bool {
