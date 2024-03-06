@@ -134,7 +134,7 @@ module {
         isOverflowed: query () -> async Bool;
         putLocation({outerKey: OuterSubDBKey; innerCanister: Principal; newInnerSubDBKey: InnerSubDBKey}) : async ();
         // In the current version two partition canister are always the same.
-        createOuter(part: Principal, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
+        createOuter({part: Principal; outerKey: OuterSubDBKey; innerKey: InnerSubDBKey})
             : async {inner: (Principal, InnerSubDBKey); outer: (Principal, OuterSubDBKey)};
         startInsertingImpl(options: {
             guid: [Nat8];
@@ -879,7 +879,7 @@ module {
     /// In the current version two partition canister are always the same.
     ///
     /// `superDB` should reside in `part`.
-    public func createOuter(outerSuperDB: SuperDB, part: PartitionCanister, outerKey: OuterSubDBKey, innerKey: InnerSubDBKey)
+    public func createOuter({outerSuperDB: SuperDB; part: PartitionCanister; outerKey: OuterSubDBKey; innerKey: InnerSubDBKey})
         : {inner: (InnerCanister, InnerSubDBKey); outer: (OuterCanister, OuterSubDBKey)}
     {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,

@@ -83,12 +83,12 @@ shared({caller}) actor class Partition() = this {
         Nac.putLocation({outerSuperDB = superDB; outerKey; innerCanister = inner; innerKey = newInnerSubDBKey});
     };
 
-    public shared func createOuter(part: Principal, outerKey: Nac.OuterSubDBKey, innerKey: Nac.InnerSubDBKey)
+    public shared func createOuter({part: Principal; outerKey: Nac.OuterSubDBKey; innerKey: Nac.InnerSubDBKey})
         : async {inner: (Principal, Nac.InnerSubDBKey); outer: (Principal, Nac.OuterSubDBKey)}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         let part2: Nac.PartitionCanister = actor(Principal.toText(part));
-        let { inner; outer } = Nac.createOuter(superDB, part2, outerKey, innerKey);
+        let { inner; outer } = Nac.createOuter({outerSuperDB = superDB; part = part2; outerKey; innerKey});
         { inner = (Principal.fromActor(inner.0), inner.1); outer = (Principal.fromActor(outer.0), outer.1) };
     };
 
