@@ -157,12 +157,11 @@ module {
         subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, (Principal, InnerSubDBKey))];
-        getSubDBUserDataOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Text;
         getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
-        getByOuterKey: shared GetByOuterPartitionKeyOptions -> async ?AttributeValue;
-        getSubDBUserDataByOuterKey: shared GetUserDataByOuterKeyOptions -> async ?Text;
+        getOuter: shared GetByOuterPartitionKeyOptions -> async ?AttributeValue;
+        getSubDBUserDataOuter: shared GetUserDataOuterOptions -> async ?Text;
         hasByOuterPartitionKey: shared HasByOuterPartitionKeyOptions -> async Bool;
-        subDBSizeByOuterKey : shared SubDBSizeByOuterKeyOptions -> async ?Nat;
+        subDBSizeOuter : shared SubDBSizeOuterOptions -> async ?Nat;
     };
 
     public type InnerCanister = PartitionCanister;
@@ -412,7 +411,7 @@ module {
 
     public type GetByOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey; sk: SK};
 
-    public func getByOuterKey(options: GetByOuterPartitionKeyOptions, dbOptions: DBOptions) : async* ?AttributeValue {
+    public func getOuter(options: GetByOuterPartitionKeyOptions, dbOptions: DBOptions) : async* ?AttributeValue {
         MyCycles.addPart(dbOptions.partitionCycles);
         await options.outer.getByOuter({outerKey = options.outerKey; sk = options.sk});
     };
@@ -450,22 +449,11 @@ module {
         return true;
     };
 
-    public type GetUserDataOuterOptions = {superDB: SuperDB; outerKey: OuterSubDBKey};
+    public type GetUserDataOuterOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
 
-    // TODO: Test this function
-    public func getSubDBUserDataOuter(options: GetUserDataOuterOptions) : async* ?Text {
-        let ?(part, innerKey) = getInner(options) else {
-            Debug.trap("no sub-DB");
-        };
-        MyCycles.addPart(options.superDB.dbOptions.partitionCycles);
-        await part.getSubDBUserDataInner({innerKey});
-    };
-
-    public type GetUserDataByOuterKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
-
-    public func getSubDBUserDataByOuterKey(options: GetUserDataByOuterKeyOptions, dbOptions: DBOptions) : async* ?Text {
+    public func getSubDBUserDataOuter(options: GetUserDataOuterOptions, dbOptions: DBOptions) : async* ?Text {
         MyCycles.addPart(dbOptions.partitionCycles);
-        await options.outer.getSubDBUserDataOuter({outerKey = options.outerKey});
+        await options.outer.getSubDBUserDataOuter(options);
     };
 
     public type GetUserDataInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
@@ -494,9 +482,9 @@ module {
         await part.subDBSizeByInner({innerKey});
     };
 
-    public type SubDBSizeByOuterKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
+    public type SubDBSizeOuterOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
 
-    public func subDBSizeByOuterKey(options: SubDBSizeByOuterKeyOptions, dbOptions: DBOptions): async* ?Nat {
+    public func subDBSizeOuter(options: SubDBSizeOuterOptions, dbOptions: DBOptions): async* ?Nat {
         MyCycles.addPart(dbOptions.partitionCycles);
         await options.outer.subDBSizeByOuter({outerKey = options.outerKey});
     };

@@ -188,10 +188,6 @@ shared({caller}) actor class Partition() = this {
         });
     };
 
-    public shared func getSubDBUserDataOuter(options: {outerKey: Nac.OuterSubDBKey}) : async ?Text {
-        await* Nac.getSubDBUserDataOuter({superDB; outerKey = options.outerKey});
-    };
-
     public shared func getSubDBUserDataInner(options: {innerKey: Nac.InnerSubDBKey}) : async ?Text {
         Nac.getSubDBUserDataInner({superDB; subDBKey = options.innerKey});
     };
@@ -200,19 +196,19 @@ shared({caller}) actor class Partition() = this {
         await* Nac.deleteSubDBOuter({superDB; outerKey});
     };
 
-    public shared func getByOuterKey(options: Nac.GetByOuterPartitionKeyOptions) : async ?Nac.AttributeValue {
-        await* Nac.getByOuterKey(options, Common.dbOptions);
+    public shared func getOuter(options: Nac.GetByOuterPartitionKeyOptions) : async ?Nac.AttributeValue {
+        await* Nac.getOuter(options, Common.dbOptions);
     };
 
     public shared func hasByOuterPartitionKey(options: Nac.HasByOuterPartitionKeyOptions) : async Bool {
         await* Nac.hasByOuterPartitionKey(options);
     };
 
-    public shared func getSubDBUserDataByOuterKey(options: Nac.GetUserDataByOuterKeyOptions) : async ?Text {
-        await* Nac.getSubDBUserDataByOuterKey(options, Common.dbOptions);
+    public shared func getSubDBUserDataOuter(options: Nac.GetUserDataOuterOptions) : async ?Text {
+        await* Nac.getSubDBUserDataOuter(options, Common.dbOptions);
     };
 
-    public shared func subDBSizeByOuterKey(options: Nac.SubDBSizeByOuterKeyOptions): async ?Nat {
-        await* Nac.subDBSizeByOuterKey(options, Common.dbOptions);
+    public shared func subDBSizeOuter(options: Nac.SubDBSizeOuterOptions): async ?Nat {
+        await* Nac.subDBSizeOuter(options, Common.dbOptions);
     };
 }
