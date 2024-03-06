@@ -170,6 +170,10 @@ module {
         scanSubDBs: query() -> async [(OuterSubDBKey, (Principal, InnerSubDBKey))];
         getSubDBUserDataOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Text;
         getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
+        getByOuterPartitionKey: shared GetByOuterPartitionKeyOptions -> async ?AttributeValue;
+        getSubDBUserDataByOuterKey: shared GetUserDataByOuterKeyOptions -> async ?Text;
+        hasByOuterPartitionKey: shared HasByOuterPartitionKeyOptions -> async Bool;
+        subDBSizeByOuterKey : shared SubDBSizeByOuterKeyOptions -> async ?Nat;
     };
 
     public type InnerCanister = PartitionCanister;
@@ -434,7 +438,7 @@ module {
 
     public type HasByOuterPartitionKeyOptions = GetByOuterPartitionKeyOptions;
 
-    public func hasByOuterPartitionKey(options: HasByOuterPartitionKeyOptions) : async Bool {
+    public func hasByOuterPartitionKey(options: HasByOuterPartitionKeyOptions) : async* Bool {
         await options.outer.hasByOuter({outerKey = options.outerKey; sk = options.sk});
     };
 
@@ -464,10 +468,9 @@ module {
         await part.getSubDBUserDataInner({innerKey});
     };
 
-    public type GetUserDataPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
+    public type GetUserDataByOuterKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
 
-    // TODO: shared method
-    public func getSubDBUserDataOuterPartitionKey(options: GetUserDataPartitionKeyOptions, dbOptions: DBOptions) : async* ?Text {
+    public func getSubDBUserDataByOuterKey(options: GetUserDataByOuterKeyOptions, dbOptions: DBOptions) : async* ?Text {
         MyCycles.addPart(dbOptions.partitionCycles);
         await options.outer.getSubDBUserDataOuter({outerKey = options.outerKey});
     };
@@ -498,10 +501,9 @@ module {
         await part.subDBSizeByInner({innerKey});
     };
 
-    public type SubDBSizeByOuterPartitionKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
+    public type SubDBSizeByOuterKeyOptions = {outer: OuterCanister; outerKey: OuterSubDBKey};
 
-    // TODO: shared method
-    public func subDBSizeByOuterPartitionKey(options: SubDBSizeByOuterPartitionKeyOptions, dbOptions: DBOptions): async* ?Nat {
+    public func subDBSizeByOuterKey(options: SubDBSizeByOuterKeyOptions, dbOptions: DBOptions): async* ?Nat {
         MyCycles.addPart(dbOptions.partitionCycles);
         await options.outer.subDBSizeByOuter({outerKey = options.outerKey});
     };

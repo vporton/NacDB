@@ -205,6 +205,14 @@ shared({caller}) actor class Partition() = this {
     };
 
     public shared func hasByOuterPartitionKey(options: Nac.HasByOuterPartitionKeyOptions) : async Bool {
-        await* Nac.hasByOuterPartitionKey(options, Common.dbOptions);
+        await* Nac.hasByOuterPartitionKey(options);
+    };
+
+    public shared func getSubDBUserDataByOuterKey(options: Nac.GetUserDataByOuterKeyOptions) : async ?Text {
+        await* Nac.getSubDBUserDataByOuterKey(options, Common.dbOptions);
+    };
+
+    public shared func subDBSizeByOuterKey(options: Nac.SubDBSizeByOuterKeyOptions): async ?Nat {
+        await* Nac.subDBSizeByOuterKey(options, Common.dbOptions);
     };
 }
