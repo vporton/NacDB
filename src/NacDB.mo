@@ -109,18 +109,18 @@ module {
         // Mandatory //
         rawGetSubDB: query ({innerKey: InnerSubDBKey}) -> async ?{map: [(SK, AttributeValue)]; userData: Text};
         rawDeleteSubDB: ({innerKey: InnerSubDBKey}) -> async ();
-        rawInsertSubDB({map: [(SK, AttributeValue)]; inner: ?InnerSubDBKey; userData: Text; hardCap: ?Nat})
-            : async {inner: InnerSubDBKey};
+        rawInsertSubDB({map: [(SK, AttributeValue)]; innerKey: ?InnerSubDBKey; userData: Text; hardCap: ?Nat})
+            : async {innerKey: InnerSubDBKey};
         rawInsertSubDBAndSetOuter({
             map: [(SK, AttributeValue)];
             keys: ?{
-                inner: InnerSubDBKey;
-                outer: OuterSubDBKey;
+                innerKey: InnerSubDBKey;
+                outerKey: OuterSubDBKey;
             };
             userData: Text;
             hardCap: ?Nat;
         })
-            : async {inner: InnerSubDBKey; outer: OuterSubDBKey};
+            : async {innerKey: InnerSubDBKey; outerKey: OuterSubDBKey};
         getInner: query ({outerKey: OuterSubDBKey}) -> async ?(Principal, InnerSubDBKey);
         isOverflowed: query () -> async Bool;
         putLocation({outerKey: OuterSubDBKey; innerCanister: Principal; newInnerSubDBKey: InnerSubDBKey}) : async ();
@@ -213,13 +213,13 @@ module {
     public func rawInsertSubDB({
         superDB: SuperDB;
         map: [(SK, AttributeValue)];
-        inner: ?InnerSubDBKey;
+        innerKey: ?InnerSubDBKey;
         userData: Text;
         hardCap: ?Nat;
-    }) : {inner: InnerSubDBKey}
+    }) : {innerKey: InnerSubDBKey}
     {
-        let key = switch (inner) {
-            case (?key) { key };
+        let innerKey2 = switch (innerKey) {
+            case (?innerKey) { innerKey };
             case (null) {
                 let key = superDB.nextKey;
                 superDB.nextKey += 1;
@@ -231,8 +231,8 @@ module {
             var userData = userData;
             var hardCap = hardCap;
         };
-        ignore BTree.insert(superDB.subDBs, Nat.compare, key, subDB);
-        {inner = key};
+        ignore BTree.insert(superDB.subDBs, Nat.compare, innerKey2, subDB);
+        {innerKey = innerKey2};
     };
 
     public func rawDeleteSubDB(superDB: SuperDB, innerKey: InnerSubDBKey) : () {
@@ -245,24 +245,24 @@ module {
         canister: InnerCanister;
         map: [(SK, AttributeValue)];
         keys: ?{
-            inner: InnerSubDBKey;
-            outer: OuterSubDBKey;
+            innerKey: InnerSubDBKey;
+            outerKey: OuterSubDBKey;
         };
         userData: Text;
         hardCap: ?Nat;
-    }) : {outer: OuterSubDBKey; inner: InnerSubDBKey}
+    }) : {outerKey: OuterSubDBKey; innerKey: InnerSubDBKey}
     {
-        let {inner = inner2} = rawInsertSubDB({superDB; map; inner = do ? {keys!.inner}; userData; hardCap});
+        let {innerKey = innerKey2} = rawInsertSubDB({superDB; map; innerKey = do ? {keys!.innerKey}; userData; hardCap});
         if (keys == null) {
             ignore BTree.insert(superDB.locations, Nat.compare, superDB.nextKey,
-                {inner = (canister, inner2); /*var busy: ?OpsQueue.GUID = null*/});
+                {inner = (canister, innerKey2); /*var busy: ?OpsQueue.GUID = null*/});
         };
         switch (keys) {
-            case (?{inner; outer}) {
-                {outer; inner};
+            case (?{innerKey; outerKey}) {
+                {outerKey; innerKey};
             };
             case (null) {
-                let result = {outer = superDB.nextKey; inner = inner2; };
+                let result = {outerKey = superDB.nextKey; innerKey = innerKey2; };
                 superDB.nextKey += 1;
                 result;
             };
@@ -320,14 +320,14 @@ module {
                             Debug.trap("DB is scaling");
                         };
                         MyCycles.addPart(dbIndex.dbOptions.partitionCycles);
-                        let {inner} = await canister.rawInsertSubDB({
+                        let {innerKey} = await canister.rawInsertSubDB({
                             map = subDB.map;
-                            inner = null;
+                            innerKey = null;
                             userData = subDB.userData;
                             hardCap = inserting.options.hardCap;
                         });
-                        newCanister.innerKey := ?inner;
-                        inner;
+                        newCanister.innerKey := ?innerKey;
+                        innerKey;
                     }
                 };
 
@@ -824,14 +824,14 @@ module {
                         case (?loc) { loc };
                         case (null) {
                             MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
-                            let {inner; outer} = await part.rawInsertSubDBAndSetOuter({
+                            let {innerKey; outerKey} = await part.rawInsertSubDBAndSetOuter({
                                 map = [];
                                 keys = null;
                                 userData = creating.options.userData;
                                 hardCap = creating.options.hardCap;
                             });
-                            creating.loc := ?{inner = (part, inner); outer = (part, outer)};
-                            {inner = (part, inner); outer = (part, outer)};
+                            creating.loc := ?{inner = (part, innerKey); outer = (part, outerKey)};
+                            {inner = (part, innerKey); outer = (part, outerKey)};
                         };
                     };
                     part;
@@ -842,14 +842,14 @@ module {
             case (?loc) { loc };
             case (null) {
                 MyCycles.addPart(creating.options.dbIndex.dbOptions.partitionCycles);
-                let {inner; outer} = await part3.rawInsertSubDBAndSetOuter({
+                let {innerKey; outerKey} = await part3.rawInsertSubDBAndSetOuter({
                     map = [];
                     keys = null;
                     userData = creating.options.userData;
                     hardCap = creating.options.hardCap;
                 });
-                creating.loc := ?{inner = (part3, inner); outer = (part3, outer)};
-                {inner = (part3, inner); outer = (part3, outer)};
+                creating.loc := ?{inner = (part3, innerKey); outer = (part3, outerKey)};
+                {inner = (part3, innerKey); outer = (part3, outerKey)};
             };
         };
     };

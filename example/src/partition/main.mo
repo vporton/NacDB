@@ -23,11 +23,11 @@ shared({caller}) actor class Partition() = this {
         Nac.rawGetSubDB(superDB, innerKey);
     };
 
-    public shared func rawInsertSubDB({map: [(Nac.SK, Nac.AttributeValue)]; inner: ?Nac.InnerSubDBKey; userData: Text; hardCap: ?Nat})
-        : async {inner: Nac.OuterSubDBKey}
+    public shared func rawInsertSubDB({map: [(Nac.SK, Nac.AttributeValue)]; innerKey: ?Nac.InnerSubDBKey; userData: Text; hardCap: ?Nat})
+        : async {innerKey: Nac.OuterSubDBKey}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        Nac.rawInsertSubDB({superDB; map; inner; userData; hardCap});
+        Nac.rawInsertSubDB({superDB; map; innerKey; userData; hardCap});
     };
 
     public shared func rawDeleteSubDB({innerKey: Nac.InnerSubDBKey}): async () {
@@ -38,13 +38,13 @@ shared({caller}) actor class Partition() = this {
     public shared func rawInsertSubDBAndSetOuter({
         map: [(Nac.SK, Nac.AttributeValue)];
         keys: ?{
-            inner: Nac.InnerSubDBKey;
-            outer: Nac.OuterSubDBKey;
+            innerKey: Nac.InnerSubDBKey;
+            outerKey: Nac.OuterSubDBKey;
         };
         userData: Text;
         hardCap: ?Nat;
     })
-        : async {inner: Nac.InnerSubDBKey; outer: Nac.OuterSubDBKey}
+        : async {innerKey: Nac.InnerSubDBKey; outerKey: Nac.OuterSubDBKey}
     {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         Nac.rawInsertSubDBAndSetOuter({superDB; canister = this; map; keys; userData; hardCap});
@@ -79,8 +79,8 @@ shared({caller}) actor class Partition() = this {
 
     public shared func putLocation({outerKey: Nac.OuterSubDBKey; innerCanister: Principal; newInnerSubDBKey: Nac.InnerSubDBKey}) : async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
-        let inner: Nac.InnerCanister = actor(Principal.toText(innerCanister));
-        Nac.putLocation({outerSuperDB = superDB; outerKey; innerCanister = inner; innerKey = newInnerSubDBKey});
+        let inner2: Nac.InnerCanister = actor(Principal.toText(innerCanister));
+        Nac.putLocation({outerSuperDB = superDB; outerKey; innerCanister = inner2; innerKey = newInnerSubDBKey});
     };
 
     public shared func createOuter({part: Principal; outerKey: Nac.OuterSubDBKey; innerKey: Nac.InnerSubDBKey})
