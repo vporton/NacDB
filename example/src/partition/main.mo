@@ -77,10 +77,10 @@ shared({caller}) actor class Partition() = this {
         await* Nac.deleteSubDBInner({superDB; innerKey});
     };
 
-    public shared func putLocation(outerKey: Nac.OuterSubDBKey, innerCanister: Principal, newInnerSubDBKey: Nac.InnerSubDBKey) : async () {
+    public shared func putLocation({outerKey: Nac.OuterSubDBKey; innerCanister: Principal; newInnerSubDBKey: Nac.InnerSubDBKey}) : async () {
         ignore MyCycles.topUpCycles(Common.dbOptions.partitionCycles);
         let inner: Nac.InnerCanister = actor(Principal.toText(innerCanister));
-        Nac.putLocation(superDB, outerKey, inner, newInnerSubDBKey);
+        Nac.putLocation({outerSuperDB = superDB; outerKey; innerCanister = inner; innerKey = newInnerSubDBKey});
     };
 
     public shared func createOuter(part: Principal, outerKey: Nac.OuterSubDBKey, innerKey: Nac.InnerSubDBKey)
