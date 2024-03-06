@@ -10,8 +10,8 @@ stableheapbtreemap = "1.3.0"
 matchers = "https://github.com/kritzcreek/motoko-matchers#v1.3.0"
 
 [package]
-name = "NacDB"
-version = "1.0.0"
+name = "nacdb"
+version = "0.10.1"
 description = "A distributed (multi-canister) database with seamless enumeration"
 repository = "https://github.com/vporton/NacDB"
 keywords = [ "database", "databases" ]
