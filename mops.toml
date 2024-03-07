@@ -1,5 +1,5 @@
 [dependencies]
-base = "0.11.0"
+base = "0.10.4"
 stable-rbtree = "1.0.0"
 stable-buffer = "https://github.com/canscale/StableBuffer#v1.3.0@acdde6bb5b939227997cebdbb8919d2e6da8691c"
 prng = "0.0.3"
@@ -11,7 +11,7 @@ matchers = "https://github.com/kritzcreek/motoko-matchers#v1.3.0@3dac8a071b69e4e
 
 [package]
 name = "nacdb"
-version = "0.10.6"
+version = "0.10.7"
 description = "A distributed (multi-canister) database with seamless enumeration"
 repository = "https://github.com/vporton/NacDB"
 keywords = [ "database", "databases" ]
