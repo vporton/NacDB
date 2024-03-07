@@ -24,7 +24,7 @@ import Blob "mo:base/Blob";
 /// Some functions in this module take GUID argument.
 /// If such a function fails, you can call it with the same GUID again.
 /// But better you can call `*Finish` method to finish its execution.
-module {
+module NacDB {
 
     /// A globally unique identifier. This library uses 128-bit GUIDs.
     public type GUID = Blob;
