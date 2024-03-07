@@ -12,19 +12,19 @@ import OpsQueue "./OpsQueue";
 import MyCycles "./Cycles";
 import Blob "mo:base/Blob";
 
+/// This is a library for a multicanister DB consisting of sub-DBs, each fitting inside
+/// a canister. The advantage of this library over other DBs libraries is:
+/// - The summary size of sub-DBs can exceed the size of a canister.
+/// - Each sub-DB can be seamlessly and efficently enumerated.
+///
+/// For example of using this, see `index` and `partition` in the `src/` directory of this project.
+/// (Don't forget to add authorization to these example actor, when you build on that examples.)
+/// You actually use not this module, but examples using it.
+///
+/// Some functions in this module take GUID argument.
+/// If such a function fails, you can call it with the same GUID again.
+/// But better you can call `*Finish` method to finish its execution.
 module {
-    /// This is a library for a multicanister DB consisting of sub-DBs, each fitting inside
-    /// a canister. The advantage of this library over other DBs libraries is:
-    /// - The summary size of sub-DBs can exceed the size of a canister.
-    /// - Each sub-DB can be seamlessly and efficently enumerated.
-    ///
-    /// For example of using this, see `index` and `partition` in the `src/` directory of this project.
-    /// (Don't forget to add authorization to these example actor, when you build on that examples.)
-    /// You actually use not this module, but examples using it.
-    ///
-    /// Some functions in this module take GUID argument.
-    /// If such a function fails, you can call it with the same GUID again.
-    /// But better you can call `*Finish` method to finish its execution.
 
     /// A globally unique identifier. This library uses 128-bit GUIDs.
     public type GUID = Blob;
