@@ -11,7 +11,7 @@ matchers = "https://github.com/kritzcreek/motoko-matchers#v1.3.0@3dac8a071b69e4e
 
 [package]
 name = "nacdb"
-version = "0.10.11"
+version = "0.10.12"
 description = "A distributed (multi-canister) database with seamless enumeration"
 repository = "https://github.com/vporton/NacDB"
 keywords = [ "database", "databases" ]
