@@ -17,6 +17,6 @@ module {
         let amount = Nat.min(Cycles.balance() / 2, maxAmount);
         ignore Cycles.accept<system>(amount);
         // Debug.print("adding " # debug_show(amount) # " cycles");
-        Cycles.add(amount);
+        Cycles.add<system>(amount);
     };
 }
