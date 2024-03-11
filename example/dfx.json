@@ -29,7 +29,7 @@
   "defaults": {
     "build": {
       "args": "",
-      "packtool": "vessel sources"
+      "packtool": "mops sources"
     }
   },
   "output_env_file": ".env",
