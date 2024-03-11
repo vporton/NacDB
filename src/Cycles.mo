@@ -1,6 +1,5 @@
 import Cycles "mo:base/ExperimentalCycles";
 import Int "mo:base/Int";
-import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
 
 module {
