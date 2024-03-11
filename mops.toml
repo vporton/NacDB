@@ -1,5 +1,5 @@
 [dependencies]
-base = "0.10.4"
+base = "0.11.0"
 stable-rbtree = "1.0.0"
 stable-buffer = "https://github.com/canscale/StableBuffer#v1.3.0@acdde6bb5b939227997cebdbb8919d2e6da8691c"
 prng = "0.0.3"
