@@ -4,6 +4,12 @@
 /// * The summary size of sub-DBs can exceed the size of a canister.
 /// * Each sub-DB can be seamlessly and efficently enumerated.
 ///
+/// This library is indespensable for such use cases as:
+///
+/// * a social network with lists of posts
+/// * a grant application with lists of grants
+/// * NFTs site with lists of NFTs
+///
 /// For example of using this, see `index` and `partition` in the `src/` directory of this project.
 /// (Don't forget to add authorization to these example actor, when you build on that examples.)
 /// You actually use not this module, but examples using it.
@@ -11,6 +17,9 @@
 /// Some functions in this module take GUID argument.
 /// If such a function fails, you can call it with the same GUID again.
 /// But better you can call `*Finish` method to finish its execution.
+///
+/// If you want also to reorder elements in lists, use [nacdb-reorder](https://mops.one/nacdb-reorder).
+/// `nacdb-reorder` uses two `nacdb` sub-DBs per each list, to track the order.
 
 import Result "mo:base/Result";
 import I "mo:base/Iter";
