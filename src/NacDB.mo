@@ -18,7 +18,7 @@
 /// If such a function fails, you can call it with the same GUID again.
 /// But better you can call `*Finish` method to finish its execution.
 ///
-/// If you want also to reorder elements in lists, use [nacdb-reorder](https://mops.one/nacdb-reorder).
+/// If you want also to reorder elements in lists, use `nacdb-reorder` (https://mops.one/nacdb-reorder).
 /// `nacdb-reorder` uses two `nacdb` sub-DBs per each list, to track the order.
 
 import Result "mo:base/Result";
