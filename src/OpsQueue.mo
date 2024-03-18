@@ -6,7 +6,6 @@ import Time "mo:base/Time";
 import Int "mo:base/Int";
 import Iter "mo:base/Iter";
 import BTree "mo:stableheapbtreemap/BTree";
-import RBT "mo:stable-rbtree/StableRBTree";
 
 /// The intended use is a queue of operations on a canister.
 /// `maxSize` protects against memory overflow.
