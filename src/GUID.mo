@@ -7,13 +7,16 @@ import Iter "mo:base/Iter";
 import Nat8 "mo:base/Nat8";
 
 module {
+    /// Globally unique identifiers
     public type GUID = Blob;
 
+    /// Generator of GUIDs object.
     public type GUIDGenerator = {
         seed: [Nat8];
         var step: Nat;
     };
 
+    /// Create a GUID generator from an arbitrary secret (or not secret) array.
     public func init(seed: [Nat8]): GUIDGenerator {
         {seed; var step = 0};
     };
@@ -28,6 +31,7 @@ module {
         Buffer.toArray(buf);
     };
 
+    // Generate a 128-bit cryptographically secure (as far as the `seed` is secure) UID.
     public func nextGuid(gen: GUIDGenerator): GUID {
         let step = Nat64.fromNat(gen.step);
         gen.step += 1;
