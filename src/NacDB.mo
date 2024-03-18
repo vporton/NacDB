@@ -1,7 +1,8 @@
 /// This is a library for a multicanister DB consisting of sub-DBs, each fitting inside
 /// a canister. The advantage of this library over other DBs libraries is:
-/// - The summary size of sub-DBs can exceed the size of a canister.
-/// - Each sub-DB can be seamlessly and efficently enumerated.
+///
+/// * The summary size of sub-DBs can exceed the size of a canister.
+/// * Each sub-DB can be seamlessly and efficently enumerated.
 ///
 /// For example of using this, see `index` and `partition` in the `src/` directory of this project.
 /// (Don't forget to add authorization to these example actor, when you build on that examples.)
