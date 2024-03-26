@@ -117,6 +117,7 @@ module {
     };
 
     /// A super-DB is a structure inside a partition canister that keeps account of sub-DBs.
+    /// There should be one super-DB per every data canister.
     ///
     /// Threat it as an opaque type.
     public type SuperDB = {
@@ -208,7 +209,7 @@ module {
         subDBSizeByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, {canister: Principal; key: InnerSubDBKey})];
         getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
-        getOuter: shared GetByOuterPartitionKeyOptions -> async ?AttributeValue;
+        // getOuter: shared GetByOuterPartitionKeyOptions -> async ?AttributeValue;
         getSubDBUserDataOuter: shared GetUserDataOuterOptions -> async ?Text;
         // hasByOuterPartitionKey: shared HasByOuterPartitionKeyOptions -> async Bool;
         subDBSizeOuterImpl : shared SubDBSizeOuterOptions -> async ?Nat;
@@ -234,7 +235,7 @@ module {
         };
     };
 
-    /// Create a `SuperDB`.
+    /// Create a `SuperDB`. It's called every time a new data canister is created.
     ///
     /// An internal function.
     public func createSuperDB(dbOptions: DBOptions) : SuperDB {
