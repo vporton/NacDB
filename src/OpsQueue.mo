@@ -23,7 +23,9 @@ module {
     public type OpsQueue<T, R> = {
         results: BTree.BTree<GUID, R>;
         unanswered: BTree.BTree<GUID, T>;
+        /// Order of results
         order: BTree.BTree<Time.Time, BTree.BTree<GUID, ()>>; // TODO: or RBTree here?
+        /// Max size of results
         maxSize: Nat;
         // TODO: Also introduce `maxTime`.
     };
@@ -50,8 +52,6 @@ module {
                 Debug.trap("programming error");
             };
             let subitem2 = subiter1.next();
-            ignore BTree.delete(queue.results, Blob.compare, subkey1);
-            ignore BTree.delete(queue.unanswered, Blob.compare, subkey1);
             switch (subitem2) {
                 case (?_) {
                     ignore BTree.delete(subtree, Blob.compare, subkey1);
@@ -59,7 +59,8 @@ module {
                 case null { // just one element in the list
                     ignore BTree.delete(queue.order, Int.compare, time);
                 };
-            }
+            };
+            ignore BTree.delete(queue.results, Blob.compare, subkey1);
         };
     };
 
@@ -85,7 +86,6 @@ module {
     };
 
     /// Call this function to answer a queue element operation `guid` by the return value `value`.
-    /// FIXME
     public func answer<T, R>(queue: OpsQueue<T, R>, guid: GUID, value: R) {
         let v = BTree.delete(queue.unanswered, Blob.compare, guid);
         let ?_ = v else {
@@ -110,10 +110,7 @@ module {
 
     /// Get the argument (`T` or null if none) of an operation with GUID `key`.
     public func get<T, R>(queue: OpsQueue<T, R>, key: GUID): ?T {
-        switch (BTree.get(queue.unanswered, Blob.compare, key)) {
-            case (?argument) { ?argument };
-            case null { null };
-        };
+        BTree.get(queue.unanswered, Blob.compare, key);
     };
 
     /// Is there an operation with GUID `key` in the current queue?
@@ -122,8 +119,6 @@ module {
     };
 
     /// Iterate through the queue.
-    ///
-    /// TODO: Weird return type, probably should change.
     public func iter<T, R>(queue: OpsQueue<T, R>): Iter.Iter<(GUID, T)> {
         BTree.entries(queue.unanswered);
     };
@@ -140,7 +135,7 @@ module {
                     let ?argument = BTree.get(queue.unanswered, Blob.compare, guid) else {
                         Debug.trap("OpsQueue: programming error");
                     };
-                    await* f(guid, argument);
+                    let result = await* f(guid, argument);
                     ignore BTree.delete(queue.unanswered, Blob.compare, guid);
                 };
                 case null {
