@@ -22,9 +22,9 @@ module {
     /// Treat this as an opaque type.
     public type OpsQueue<T, R> = {
         // TODO: `var` or `let`?
-        var results: BTree.BTree<GUID, R>;
-        var unanswered: BTree.BTree<GUID, T>;
-        var order: BTree.BTree<Time.Time, BTree.BTree<GUID, ()>>; // TODO: or RBTree here?
+        results: BTree.BTree<GUID, R>;
+        unanswered: BTree.BTree<GUID, T>;
+        order: BTree.BTree<Time.Time, BTree.BTree<GUID, ()>>; // TODO: or RBTree here?
         maxSize: Nat;
         // TODO: Also introduce `maxTime`.
     };
@@ -32,9 +32,9 @@ module {
     /// Create a queue of operations of the given max size.
     public func init<T, R>(maxSize: Nat): OpsQueue<T, R> {
         {
-            var results = BTree.init(null);
-            var unanswered = BTree.init(null);
-            var order = BTree.init(null);
+            results = BTree.init(null);
+            unanswered = BTree.init(null);
+            order = BTree.init(null);
             maxSize;
         }
     };
