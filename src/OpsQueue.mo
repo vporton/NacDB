@@ -135,7 +135,7 @@ module {
                     let ?argument = BTree.get(queue.unanswered, Blob.compare, guid) else {
                         Debug.trap("OpsQueue: programming error");
                     };
-                    let result = await* f(guid, argument);
+                    await* f(guid, argument);
                     ignore BTree.delete(queue.unanswered, Blob.compare, guid);
                 };
                 case null {
