@@ -21,7 +21,6 @@ module {
     ///
     /// Treat this as an opaque type.
     public type OpsQueue<T, R> = {
-        // TODO: `var` or `let`?
         results: BTree.BTree<GUID, R>;
         unanswered: BTree.BTree<GUID, T>;
         order: BTree.BTree<Time.Time, BTree.BTree<GUID, ()>>; // TODO: or RBTree here?
