@@ -9,7 +9,7 @@ import Result "mo:base/Result";
 import MyCycles "../../../src/Cycles";
 import Common "../common";
 
-shared actor class () = this {
+shared actor class Index() = this {
     stable var dbIndex: Nac.DBIndex = Nac.createDBIndex(Common.dbOptions);
 
     stable var initialized = false;
