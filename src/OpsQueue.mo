@@ -40,7 +40,7 @@ module {
         }
     };
 
-    /// Shorten the tree, if reached `maxSize`.
+    /// Shorten the queue, if reached `maxSize`.
     func cutTree<T, R>(queue: OpsQueue<T, R>) {
         if (BTree.size(queue.results) == queue.maxSize) {
             let iter = BTree.entries(queue.order);
@@ -143,6 +143,5 @@ module {
                 };
             };
         };
-
     };
 }
