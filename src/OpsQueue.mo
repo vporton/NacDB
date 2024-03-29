@@ -1,7 +1,7 @@
 /// The intended use is a queue of operations on a canister.
 /// `maxSize` protects against memory overflow.
 ///
-/// FIXME: Delete only answered queries (to avoid half-done ops).
+/// FIXME: When (by mistake) I called `answer` function, it stuck in a loop.
 
 import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
@@ -32,6 +32,7 @@ module {
 
     /// Create a queue of operations of the given max size.
     public func init<T, R>(maxSize: Nat): OpsQueue<T, R> {
+        Debug.print("init");
         {
             results = BTree.init(null);
             unanswered = BTree.init(null);
@@ -42,6 +43,7 @@ module {
 
     /// Shorten the queue, if reached `maxSize`.
     func cutTree<T, R>(queue: OpsQueue<T, R>) {
+        Debug.print("cutTree");
         if (BTree.size(queue.results) == queue.maxSize) {
             let iter = BTree.entries(queue.order);
             let ?(time, subtree) = iter.next() else {
@@ -67,7 +69,7 @@ module {
     /// Add an operation accepting value `T` to the queue.
     /// Each operation is identified by a unique GUID `guid`. (Do not use the same GUID for two different operations.)
     public func add<T, R>(queue: OpsQueue<T, R>, guid: GUID, value: T) {
-        cutTree(queue);
+        Debug.print("add");
         if (BTree.has(queue.unanswered, Blob.compare, guid) or BTree.has(queue.results, Blob.compare, guid)) {
             Debug.print("queue already contains guid");
             Debug.trap("queue already contains guid");
@@ -87,6 +89,8 @@ module {
 
     /// Call this function to answer a queue element operation `guid` by the return value `value`.
     public func answer<T, R>(queue: OpsQueue<T, R>, guid: GUID, value: R) {
+        Debug.print("answer");
+        cutTree(queue);
         let v = BTree.delete(queue.unanswered, Blob.compare, guid);
         let ?_ = v else {
             Debug.trap("no such GUID")
@@ -98,6 +102,7 @@ module {
     /// This should be called no more than once per `guid`. // FIXME: Lift this restriction.
     /// FIXME: Return `R` instead of `?R`?
     public func result<T, R>(queue: OpsQueue<T, R>, guid: GUID): ?R {
+        Debug.print("result");
         switch (BTree.get(queue.results, Blob.compare, guid)) {
             case (?result) {
                 ?result;
@@ -110,23 +115,29 @@ module {
 
     /// Get the argument (`T` or null if none) of an operation with GUID `key`.
     public func get<T, R>(queue: OpsQueue<T, R>, key: GUID): ?T {
+        // Debug.print("get");
         BTree.get(queue.unanswered, Blob.compare, key);
     };
 
     /// Is there an operation with GUID `key` in the current queue?
     public func has<T, R>(queue: OpsQueue<T, R>, key: GUID): Bool {
+        Debug.print("has");
         BTree.has(queue.unanswered, Blob.compare, key);
     };
 
     /// Iterate through the queue.
     public func iter<T, R>(queue: OpsQueue<T, R>): Iter.Iter<(GUID, T)> {
+        Debug.print("iter");
         BTree.entries(queue.unanswered);
     };
 
     /// Execute every operation in the queue.
     ///
     /// FIXME: Require `f` to be idempotent.
+    ///
+    /// FIXME: Dependently on the order, this may consistently fail.
     public func whilePending<T, R>(queue: OpsQueue<T, R>, f: (GUID, T) -> async* ()): async* () {
+        Debug.print("whilePending");
         label l loop {
             let i = BTree.entries(queue.unanswered);
             let elt = i.next();

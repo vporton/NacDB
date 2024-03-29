@@ -669,7 +669,7 @@ module {
                 key = inserting.options.outerKey;
             });
             let result = #err "missing sub-DB";
-            OpsQueue.answer(inserting.options.dbIndex.inserting, guid, result);
+            // OpsQueue.answer(inserting.options.dbIndex.inserting, guid, result);
             return result;
         };
         let oldInnerCanister: InnerCanister = actor (Principal.toText(oldInnerPrincipal));
