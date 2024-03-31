@@ -10,6 +10,7 @@ import Bool "mo:base/Bool";
 import Time "mo:base/Time";
 import Iter "mo:base/Iter";
 import Int "mo:base/Int";
+import Array "mo:base/Array";
 import BTree "mo:stableheapbtreemap/BTree";
 
 module {
@@ -134,25 +135,31 @@ module {
     /// Execute every operation in the queue.
     ///
     /// FIXME: Require `f` to be idempotent.
-    ///
-    /// FIXME: Dependently on the order, this may consistently fail.
     public func whilePending<T, R>(queue: OpsQueue<T, R>, f: (GUID, T) -> async* ()): async* () {
         Debug.print("whilePending");
         label l loop {
-            let i = BTree.entries(queue.unanswered);
-            let elt = i.next();
-            switch (elt) {
-                case (?(guid, _)) {
-                    let ?argument = BTree.get(queue.unanswered, Blob.compare, guid) else {
-                        Debug.trap("OpsQueue: programming error");
-                    };
-                    await* f(guid, argument);
-                    ignore BTree.delete(queue.unanswered, Blob.compare, guid);
-                };
-                case null {
-                    break l;
+            var entries = Iter.toArray(BTree.entries(queue.unanswered));
+            if (Array.size(entries) == 0) { // All entries have been processed.
+                break l;
+            };
+            var newEntries: [(GUID, T)] = [];
+            var thereWasASuccess = false;
+            label l for (elt in entries.vals()) {
+                try {
+                    await* f(elt.0, elt.1);
+                    ignore BTree.delete(queue.unanswered, Blob.compare, elt.0);
+                    thereWasASuccess := true;
+                }
+                catch (_) {
+                    let oldSize = Array.size(newEntries);
+                    newEntries := Array.tabulate<(GUID, T)>(
+                        oldSize+1, func (i: Nat) { if (i == oldSize) { elt } else { newEntries[i] } });
                 };
             };
+            if (not thereWasASuccess) { // We did all what we can.
+                break l;
+            };
+            entries := newEntries;
         };
     };
 }
