@@ -48,7 +48,6 @@ $(DESTDIR)/%.ts: $(DESTDIR)/%.did
 
 %.install: %.wasm FORCE
 	dfx canister create $(*F)
-	mkdir -p $(DFXDIR)/.dfx/local/canisters/$(*F)
 	dfx canister install --network=$(NETWORK) -m install --wasm=$< $(*F)
 
 %.upgrade: %.wasm %.most FORCE
