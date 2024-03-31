@@ -1,7 +1,7 @@
 {
   "canisters": {
     "stresser": {
-      "main": "stress-test/motoko/main.mo",
+      "main": "stress-test/motoko/stresser.mo",
       "type": "motoko"
     }
   },
