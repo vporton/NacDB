@@ -22,6 +22,7 @@ deploy:
 DESTDIR = out
 DFXDIR = .
 NETWORK = local
+IDENTITY = default
 MOFLAGS =
 MOFILES = $(shell find src stress-test/motoko -name "*.mo")
 
@@ -48,13 +49,13 @@ $(DESTDIR)/%.ts: $(DESTDIR)/%.did
 	didc bind -t ts $< > $@
 
 %.install: %.wasm FORCE
-	dfx canister create $(*F)
-	dfx canister install --network=$(NETWORK) -m install --wasm=$< $(*F)
+	dfx canister create --network=$(NETWORK) --identity=$(IDENTITY) $(*F)
+	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m install --wasm=$< $(*F)
 
 %.upgrade: %.wasm %.most FORCE
 	mkdir -p $(DFXDIR)/.dfx/local/canisters/$(*F)
 	cp -f $*.most $(DFXDIR)/.dfx/local/canisters/$(*F)/ # hack!
 	cp -f $*.did $(DFXDIR)/.dfx/local/canisters/$(*F)/constructor.did # hack!
-	dfx canister install --network=$(NETWORK) -m upgrade --wasm=$< $(*F)
+	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m upgrade --wasm=$< $(*F)
 
 -include $(DESTDIR)/.deps
