@@ -49,13 +49,13 @@ $(DESTDIR)/%.ts: $(DESTDIR)/%.did
 	didc bind -t ts $< > $@
 
 %.install: %.wasm FORCE
-	dfx canister create --network=$(NETWORK) --identity=$(IDENTITY) $(*F)
-	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m install --wasm=$< $(*F)
+	dfx canister create --network=$(NETWORK) --identity=$(IDENTITY) $(DFXCREATEFLAGS_$*) $(*F)
+	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m install $(DFXINSTALLFLAGS_$*) --wasm=$< $(*F)
 
 %.upgrade: %.wasm %.most FORCE
 	mkdir -p $(DFXDIR)/.dfx/local/canisters/$(*F)
 	cp -f $*.most $(DFXDIR)/.dfx/local/canisters/$(*F)/ # hack!
 	cp -f $*.did $(DFXDIR)/.dfx/local/canisters/$(*F)/constructor.did # hack!
-	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m upgrade --wasm=$< $(*F)
+	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m upgrade $(DFXINSTALLFLAGS_$*) --wasm=$< $(*F)
 
 -include $(DESTDIR)/.deps
