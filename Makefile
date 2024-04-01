@@ -22,6 +22,7 @@ deploy:
 DESTDIR = out
 DFXDIR = .
 NETWORK = local
+MOFLAGS =
 MOFILES = $(shell find src stress-test/motoko -name "*.mo")
 
 .PHONY: FORCE
