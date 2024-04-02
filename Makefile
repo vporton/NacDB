@@ -24,6 +24,8 @@ DFXDIR = .
 NETWORK = local
 IDENTITY = default
 MOFLAGS =
+DFXCREATEFLAGS =
+DFXINSTALLFLAGS =
 MOFILES = $(shell find src stress-test/motoko -name "*.mo")
 
 .PHONY: FORCE
