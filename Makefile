@@ -53,7 +53,6 @@ $(DESTDIR)/%.ts: $(DESTDIR)/%.did
 	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m install $(DFXINSTALLFLAGS) $(DFXINSTALLFLAGS_$*) --wasm=$< $(*F)
 
 %.upgrade: %.wasm %.most FORCE
-	mkdir -p $(DFXDIR)/.dfx/local/canisters/$(*F)
 	TMPDIR=`mktemp -d` && \
 	  trap 'rm -rf $$TMPDIR' EXIT && \
 	  dfx canister metadata stresser motoko:stable-types > $$TMPDIR/interface.most && \
