@@ -49,8 +49,8 @@ $(DESTDIR)/%.ts: $(DESTDIR)/%.did
 	didc bind -t ts $< > $@
 
 %.install: %.wasm FORCE
-	dfx canister create --network=$(NETWORK) --identity=$(IDENTITY) $(DFXCREATEFLAGS_$*) $(*F)
-	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m install $(DFXINSTALLFLAGS_$*) --wasm=$< $(*F)
+	dfx canister create --network=$(NETWORK) --identity=$(IDENTITY) $(DFXCREATEFLAGS) $(DFXCREATEFLAGS_$*) $(*F)
+	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m install $(DFXINSTALLFLAGS) $(DFXINSTALLFLAGS_$*) --wasm=$< $(*F)
 
 %.upgrade: %.wasm %.most FORCE
 	mkdir -p $(DFXDIR)/.dfx/local/canisters/$(*F)
@@ -62,6 +62,6 @@ $(DESTDIR)/%.ts: $(DESTDIR)/%.did
 	    { echo "\nWARNING!\nStable interface compatibility check failed for canister '$(*F)'.\nUpgrade will either FAIL or LOSE some stable variable data.\n"; \
 		  read -r -p "Do you want to proceed? yes/No " REPLY; test "$$REPLY" = yes; }; \
 	  }
-	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m upgrade -y $(DFXINSTALLFLAGS_$*) --wasm=$< $(*F)
+	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m upgrade -y $(DFXINSTALLFLAGS) $(DFXINSTALLFLAGS_$*) --wasm=$< $(*F)
 
 -include $(DESTDIR)/.deps
