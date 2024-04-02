@@ -59,7 +59,7 @@ $(DESTDIR)/%.ts: $(DESTDIR)/%.did
 	  dfx canister metadata stresser motoko:stable-types > $$TMPDIR/interface.most && \
 	  { echo; \
 	    moc --stable-compatible $$TMPDIR/interface.most $*.most || \
-	    { echo "\nWARNING!\nStable interface compatibility check failed for canister '$*'.\nUpgrade will either FAIL or LOSE some stable variable data.\n"; \
+	    { echo "\nWARNING!\nStable interface compatibility check failed for canister '$(*F)'.\nUpgrade will either FAIL or LOSE some stable variable data.\n"; \
 		  read -r -p "Do you want to proceed? yes/No " REPLY; test "$$REPLY" = yes; }; \
 	  }
 	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m upgrade -y $(DFXINSTALLFLAGS_$*) --wasm=$< $(*F)
