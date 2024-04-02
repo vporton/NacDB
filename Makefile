@@ -59,7 +59,7 @@ $(DESTDIR)/%.ts: $(DESTDIR)/%.did
 	  { echo; \
 	    moc --stable-compatible $$TMPDIR/interface.most $*.most || \
 	    { echo "\nWARNING!\nStable interface compatibility check failed for canister '$(*F)'.\nUpgrade will either FAIL or LOSE some stable variable data.\n"; \
-		  read -r -p "Do you want to proceed? yes/No " REPLY; test "$$REPLY" = yes; }; \
+		  read -r -p "Do you want to proceed? (yes/No) " REPLY; test "$$REPLY" = yes; }; \
 	  }
 	dfx canister install --network=$(NETWORK) --identity=$(IDENTITY) -m upgrade -y $(DFXINSTALLFLAGS) $(DFXINSTALLFLAGS_$*) --wasm=$< $(*F)
 
