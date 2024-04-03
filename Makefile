@@ -2,7 +2,8 @@
 
 stress-test:
 
-include icp.rules
+ICPRULESDIR = icp-make-rules
+include $(ICPRULESDIR)/icp.rules
 
 MOFILES = \
   src/Cycles.mo \
@@ -18,6 +19,9 @@ configure:
 .PHONY: stress-test
 stress-test: deploy
 	time dfx canister call stresser main '()'
+
+.PHONY: build
+build: $(DESTDIR)/stress-test/stresser.wasm
 
 .PHONY: deploy
 deploy: $(DESTDIR)/stress-test/stresser.deploy

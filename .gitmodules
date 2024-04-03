@@ -1,0 +1,3 @@
+[submodule "icp-make-rules"]
+	path = icp-make-rules
+	url = https://github.com/vporton/icp-make-rules
