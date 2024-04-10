@@ -12,6 +12,8 @@ MOFILES = \
   src/NacDB.mo \
   stress-test/stresser.mo
 
+CANISTERS = stress-test/stresser
+
 .PHONY: configure
 configure:
 	mops i
