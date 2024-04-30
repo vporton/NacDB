@@ -2,18 +2,6 @@
 
 stress-test:
 
-ICPRULESDIR = icp-make-rules
-include $(ICPRULESDIR)/icp.rules
-
-MOFILES = \
-  src/Cycles.mo \
-  src/GUID.mo \
-  src/OpsQueue.mo \
-  src/NacDB.mo \
-  stress-test/stresser.mo
-
-CANISTERS = stress-test/stresser
-
 .PHONY: configure
 configure:
 	mops i
