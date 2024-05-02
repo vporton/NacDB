@@ -179,7 +179,7 @@ module {
             : async {innerKey: InnerSubDBKey; outerKey: OuterSubDBKey};
         getInner: query ({outerKey: OuterSubDBKey}) -> async ?{canister: Principal; key: InnerSubDBKey};
         isOverflowed: query () -> async Bool;
-        putLocation({outerKey: OuterSubDBKey; innerCanister: Principal; newInnerSubDBKey: InnerSubDBKey}) : async ();
+        putLocation({outerKey: OuterSubDBKey; innerCanister: Principal; innerKey: InnerSubDBKey}) : async ();
         // In the current version two partition canister are always the same.
         createOuter({part: Principal; outerKey: OuterSubDBKey; innerKey: InnerSubDBKey})
             : async {inner: {canister: Principal; key: InnerSubDBKey}; outer: {canister: Principal; key: OuterSubDBKey}};
@@ -349,7 +349,7 @@ module {
     /// Internal.
     public func putLocation({outerSuperDB: SuperDB; outerKey: OuterSubDBKey; innerCanister: InnerCanister; innerKey: InnerSubDBKey}) {
         ignore BTree.insert(outerSuperDB.locations, Nat.compare, outerKey,
-            {inner = {canister = innerCanister; key = innerKey}; /*var busy: ?OpsQueue.GUID = null*/});
+            { inner = {canister = innerCanister; key = innerKey} });
     };
 
     /// This function makes no sense, because it would return the entire sub-DB from another canister.
@@ -403,7 +403,7 @@ module {
 
                 // There was `isOverflowed`, change the outer.
                 MyCycles.addPart<system>(dbIndex.dbOptions.partitionCycles);
-                await outerCanister.putLocation({outerKey; innerCanister = Principal.fromActor(canister); newInnerSubDBKey});
+                await outerCanister.putLocation({outerKey; innerCanister = Principal.fromActor(canister); innerKey = newInnerSubDBKey});
                 MyCycles.addPart<system>(dbIndex.dbOptions.partitionCycles);
                 await oldInnerCanister.rawDeleteSubDB({innerKey = oldInnerKey});
 

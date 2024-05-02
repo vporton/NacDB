@@ -1,4 +1,3 @@
-import Cycles "mo:base/ExperimentalCycles";
 import Iter "mo:base/Iter";
 import Debug "mo:base/Debug";
 import Array "mo:base/Array";
@@ -12,14 +11,11 @@ import Principal "mo:base/Principal";
 import GUID "../src/GUID";
 import MyCycles "../src/Cycles";
 import Nat "mo:base/Nat";
-import Error "mo:base/Error";
 import Text "mo:base/Text";
 import Blob "mo:base/Blob";
 import Int "mo:base/Int";
 import Buffer "mo:base/Buffer";
 import Float "mo:base/Float";
-import Int64 "mo:base/Int64";
-import BTree "mo:stableheapbtreemap/BTree";
 
 actor StressTest {
     let dbOptions = {
@@ -75,9 +71,9 @@ actor StressTest {
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
-        MyCycles.addPart(dbOptions.partitionCycles);
+        MyCycles.addPart<system>(dbOptions.partitionCycles);
         let index = await Index.Index();
-        MyCycles.addPart(dbOptions.partitionCycles);
+        MyCycles.addPart<system>(dbOptions.partitionCycles);
         await index.init();
 
         let threads : [var ?(async())] = Array.init(nThreads, null);
@@ -112,7 +108,7 @@ actor StressTest {
             ", Elt inserts: " # debug_show(options.eltInserts) #
             ", Elt deletions: " # debug_show(options.eltDeletions));
 
-        let resultingTree = await* readResultingTree({referenceTree = options.referenceTree; outerToGUID = options.outerToGUID; index});
+        let resultingTree = await* readResultingTree({outerToGUID = options.outerToGUID; index});
         Debug.print("Reference tree size: " # debug_show(RBT.size(options.referenceTree)));
         Debug.print("Resulting tree size: " # debug_show(RBT.size(resultingTree)));
         let subtreeEqual = func(t1: RBT.Tree<Text, Nat>, t2: RBT.Tree<Text, Nat>): Bool {
@@ -182,9 +178,9 @@ actor StressTest {
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
                 let {outer = {canister = part; key = outerKey}} = try {
-                    MyCycles.addPart(dbOptions.partitionCycles);
+                    MyCycles.addPart<system>(dbOptions.partitionCycles);
                     await options.index.createSubDB(Blob.toArray(guid), {userData = debug_show(guid); hardCap = null});
-                } catch(e) {
+                } catch(_) {
                     continue R;
                 };
                 v := ?(part, outerKey);
@@ -204,7 +200,7 @@ actor StressTest {
                     let guid = GUID.nextGuid(options.guidGen);
                     label R loop {
                         try {
-                            MyCycles.addPart(dbOptions.partitionCycles);
+                            MyCycles.addPart<system>(dbOptions.partitionCycles);
                             await options.index.deleteSubDB(Blob.toArray(guid), {
                                 outerKey;
                                 outerCanister = Principal.fromActor(part);
@@ -237,7 +233,7 @@ actor StressTest {
             let randomValue = Nat64.toNat(options.rng.next());
             label R loop {
                 let res = try {
-                    MyCycles.addPart(dbOptions.partitionCycles);
+                    MyCycles.addPart<system>(dbOptions.partitionCycles);
                     await options.index.insert(Blob.toArray(guid), {
                         dbOptions;
                         outerCanister = Principal.fromActor(part);
@@ -246,7 +242,7 @@ actor StressTest {
                         value = #int randomValue;
                         hardCap = null;
                     });
-                } catch(e) {
+                } catch(_) {
                     // Debug.print("repeat insert: " # Error.message(e));
                     continue R;
                 };
@@ -286,7 +282,7 @@ actor StressTest {
                 case (?((part, outerKey), sk)) {
                     label R loop {
                         try {
-                            MyCycles.addPart(dbOptions.partitionCycles);
+                            MyCycles.addPart<system>(dbOptions.partitionCycles);
                             await options.index.delete(Blob.toArray(guid), {outerCanister = Principal.fromActor(part); outerKey; sk});
                         } catch(e) {
                             // Debug.print("repeat delete: " # Error.message(e));
@@ -394,7 +390,7 @@ actor StressTest {
         };
     };
 
-    func readResultingTree({referenceTree: ReferenceTree; outerToGUID: OuterToGUID; index: Index.Index}): async* ReferenceTree {
+    func readResultingTree({outerToGUID: OuterToGUID; index: Index.Index}): async* ReferenceTree {
         var result: ReferenceTree = RBT.init();
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
