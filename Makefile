@@ -7,12 +7,10 @@ configure:
 	mops i
 
 .PHONY: stress-test
-stress-test: deploy
+stress-test: deploy-stress-test
 	time dfx canister call stresser main '()'
 
-.PHONY: build
-build: $(DESTDIR)/stress-test/stresser.wasm
-
-.PHONY: deploy
-deploy: $(DESTDIR)/stress-test/stresser.deploy
-	dfx ledger fabricate-cycles --amount 100000000000 --canister stresser
+.PHONY: deploy-stress-test
+deploy-stress-test:
+	dfx deploy stresser
+	dfx ledger fabricate-cycles --amount 1000000000 --canister stresser
