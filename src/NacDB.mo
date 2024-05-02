@@ -209,7 +209,6 @@ module {
         subDBSizeByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, {canister: Principal; key: InnerSubDBKey})];
         getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
-        getOuter: shared GetByOuterPartitionKeyOptions -> async ?AttributeValue;
         getSubDBUserDataOuter: shared GetUserDataOuterOptions -> async ?Text;
         // hasByOuterPartitionKey: shared HasByOuterPartitionKeyOptions -> async Bool;
         subDBSizeOuterImpl : shared SubDBSizeOuterOptions -> async ?Nat;
@@ -488,12 +487,6 @@ module {
     };
 
     public type GetByOuterPartitionKeyOptions = {outer: OuterPair; sk: SK};
-
-    /// Get a sub-DB entry by its keys.
-    public func getOuter(options: GetByOuterPartitionKeyOptions, dbOptions: DBOptions) : async* ?AttributeValue {
-        MyCycles.addPart<system>(dbOptions.partitionCycles);
-        await options.outer.canister.getByOuter({outerKey = options.outer.key; sk = options.sk});
-    };
 
     public type ExistsByInnerOptions = GetByInnerOptions;
 
