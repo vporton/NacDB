@@ -209,9 +209,9 @@ module {
         subDBSizeByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, {canister: Principal; key: InnerSubDBKey})];
         getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
-        getSubDBUserDataOuter: shared GetUserDataOuterOptions -> async ?Text;
+        getSubDBUserDataOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Text;
         // hasByOuterPartitionKey: shared HasByOuterPartitionKeyOptions -> async Bool;
-        subDBSizeOuterImpl : shared SubDBSizeOuterOptions -> async ?Nat;
+        subDBSizeOuterImpl : shared {outerKey: OuterSubDBKey} -> async ?Nat;
     };
 
     /// A canister as identified by an inner key.
@@ -527,12 +527,15 @@ module {
         return true;
     };
 
-    public type GetUserDataOuterOptions = {outer: OuterPair};
+    public type GetUserDataOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
     /// Get a sub-DB "user-data" by its outer key.
-    public func getSubDBUserDataOuter(options: GetUserDataOuterOptions, dbOptions: DBOptions) : async* ?Text {
-        MyCycles.addPart<system>(dbOptions.partitionCycles);
-        await options.outer.canister.getSubDBUserDataOuter(options);
+    public func getSubDBUserDataOuter(options: GetUserDataOuterOptions) : async* ?Text {
+        let ?{canister = part; key = innerKey} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
+            Debug.trap("no sub-DB");
+        };
+        MyCycles.addPart<system>(options.outerSuperDB.dbOptions.partitionCycles);
+        await part.getSubDBUserDataInner({innerKey});
     };
 
     public type GetUserDataInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
@@ -565,12 +568,15 @@ module {
         await part.subDBSizeByInner({innerKey});
     };
 
-    public type SubDBSizeOuterOptions = {outer: OuterPair};
+    public type SubDBSizeOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
 
     /// Internal.
     public func subDBSizeOuterImpl(options: SubDBSizeOuterOptions, dbOptions: DBOptions): async* ?Nat {
+        let ?{canister = part; key = innerKey} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
+            Debug.trap("no sub-DB");
+        };
         MyCycles.addPart<system>(dbOptions.partitionCycles);
-        await options.outer.canister.subDBSizeByOuter({outerKey = options.outer.key});
+        await part.subDBSizeByInner({innerKey});
     };
 
     /// To be called in a partition where `innerSuperDB` resides.
