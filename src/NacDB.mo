@@ -32,7 +32,7 @@ import Nat "mo:base/Nat";
 import Prim "mo:⛔";
 import Debug "mo:base/Debug";
 import OpsQueue "./OpsQueue";
-import MyCycles "./Cycles";
+import MyCycles "mo:cycles-simple";
 import Blob "mo:base/Blob";
 
 module {
@@ -369,13 +369,11 @@ module {
         oldInnerKey: InnerSubDBKey;
     }) : async* InnerPair
     {
-        MyCycles.addPart<system>(dbIndex.dbOptions.partitionCycles);
         let result = switch (await oldInnerCanister.rawGetSubDB({innerKey = oldInnerKey})) {
             case (?subDB) {
                 let (canister, newCanister) = switch (inserting.newInnerCanister) {
                     case (?newCanister) { (newCanister.canister, newCanister) };
                     case (null) {
-                        MyCycles.addPart<system>(dbIndex.dbOptions.partitionCycles);
                         let newCanister0 = await* createPartitionImpl(index, dbIndex);
                         let newCanister: PartitionCanister = actor(Principal.toText(newCanister0));
                         let s = {canister = newCanister; var innerKey: ?InnerSubDBKey = null};
@@ -389,8 +387,7 @@ module {
                         if (BTree.has(dbIndex.moving, compareLocs, {canister = outerCanister; key = outerKey})) {
                             Debug.trap("DB is scaling");
                         };
-                        MyCycles.addPart<system>(dbIndex.dbOptions.partitionCycles);
-                        let {innerKey} = await canister.rawInsertSubDB({
+                                        let {innerKey} = await canister.rawInsertSubDB({
                             map = subDB.map;
                             innerKey = null;
                             userData = subDB.userData;
@@ -402,10 +399,8 @@ module {
                 };
 
                 // There was `isOverflowed`, change the outer.
-                MyCycles.addPart<system>(dbIndex.dbOptions.partitionCycles);
-                await outerCanister.putLocation({outerKey; innerCanister = Principal.fromActor(canister); innerKey = newInnerSubDBKey});
-                MyCycles.addPart<system>(dbIndex.dbOptions.partitionCycles);
-                await oldInnerCanister.rawDeleteSubDB({innerKey = oldInnerKey});
+                        await outerCanister.putLocation({outerKey; innerCanister = Principal.fromActor(canister); innerKey = newInnerSubDBKey});
+                        await oldInnerCanister.rawDeleteSubDB({innerKey = oldInnerKey});
 
                 {canister; key = newInnerSubDBKey};
             };
@@ -1092,7 +1087,6 @@ module {
 
     /// Internal.
     public func createPartitionImpl(index: IndexCanister, dbIndex: DBIndex): async* Principal {
-        MyCycles.addPart<system>(dbIndex.dbOptions.partitionCycles);
         let canister = await index.createPartition();
         let can2: PartitionCanister = actor(Principal.toText(canister));
         StableBuffer.add(dbIndex.canisters, can2);

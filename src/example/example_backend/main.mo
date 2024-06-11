@@ -1,7 +1,7 @@
 import Cycles "mo:base/ExperimentalCycles";
 import Nac "../../../src/NacDB";
 import GUID "../../../src/GUID";
-import MyCycles "../../../src/Cycles";
+import MyCycles "mo:cycles-simple";
 import Index "../index/main";
 import Partition "../partition/main";
 import Debug "mo:base/Debug";
