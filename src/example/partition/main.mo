@@ -3,6 +3,7 @@ import Nac "../../../src/NacDB";
 import Principal "mo:base/Principal";
 import Bool "mo:base/Bool";
 import Nat "mo:base/Nat";
+import Cycles "mo:base/ExperimentalCycles";
 import MyCycles "mo:cycles-simple";
 import Text "mo:base/Text";
 import Iter "mo:base/Iter";
@@ -14,7 +15,7 @@ shared({caller}) actor class Partition() = this {
     // Mandatory methods //
 
     public query func rawGetSubDB({innerKey: Nac.InnerSubDBKey}): async ?{map: [(Nac.SK, Nac.AttributeValue)]; userData: Text} {
-        // Nac.rawGetSubDB(superDB, innerKey);
+        Nac.rawGetSubDB(superDB, innerKey);
     };
 
     public shared func rawInsertSubDB({map: [(Nac.SK, Nac.AttributeValue)]; innerKey: ?Nac.InnerSubDBKey; userData: Text; hardCap: ?Nat})
@@ -42,7 +43,7 @@ shared({caller}) actor class Partition() = this {
     };
 
     public query func isOverflowed() : async Bool {
-        // Nac.isOverflowed({dbOptions = Common.dbOptions; superDB});
+        Nac.isOverflowed({dbOptions = Common.dbOptions; superDB});
     };
 
     // Some data access methods //
@@ -57,7 +58,7 @@ shared({caller}) actor class Partition() = this {
     };
 
     public query func superDBSize() : async Nat {
-        // Nac.superDBSize(superDB);
+        Nac.superDBSize(superDB);
     };
 
     public shared func deleteSubDBInner({innerKey: Nac.InnerSubDBKey}) : async () {
@@ -87,17 +88,17 @@ shared({caller}) actor class Partition() = this {
     public query func scanLimitInner({innerKey: Nac.InnerSubDBKey; lowerBound: Nac.SK; upperBound: Nac.SK; dir: BTree.Direction; limit: Nat})
         : async BTree.ScanLimitResult<Text, Nac.AttributeValue>
     {
-        // Nac.scanLimitInner({innerSuperDB = superDB; innerKey; lowerBound; upperBound; dir; limit});
+        Nac.scanLimitInner({innerSuperDB = superDB; innerKey; lowerBound; upperBound; dir; limit});
     };
 
     public shared func scanLimitOuter({outerKey: Nac.OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: BTree.Direction; limit: Nat})
         : async BTree.ScanLimitResult<Text, Nac.AttributeValue>
     {
-        // await* Nac.scanLimitOuter({outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
+        await* Nac.scanLimitOuter({outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
     };
 
     public query func scanSubDBs(): async [(Nac.OuterSubDBKey, {canister: Principal; key: Nac.InnerSubDBKey})] {
-        // type T1 = (Nac.OuterSubDBKey, Nac.InnerPair);
+        type T1 = (Nac.OuterSubDBKey, Nac.InnerPair);
         type T2 = (Nac.OuterSubDBKey, {canister: Principal; key: Nac.InnerSubDBKey});
         let array: [T1] = Nac.scanSubDBs({superDB});
         let iter = Iter.map(array.vals(), func ((outerKey, v): T1): T2 {
@@ -107,11 +108,11 @@ shared({caller}) actor class Partition() = this {
     };
 
     public query func getByInner({innerKey: Nac.InnerSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
-        // Nac.getByInner({superDB; innerKey; sk});
+        Nac.getByInner({superDB; innerKey; sk});
     };
 
     public query func hasByInner({innerKey: Nac.InnerSubDBKey; sk: Nac.SK}): async Bool {
-        // Nac.hasByInner({superDB; innerKey; sk});
+        Nac.hasByInner({superDB; innerKey; sk});
     };
 
     public shared func getByOuter({outerKey: Nac.OuterSubDBKey; sk: Nac.SK}): async ?Nac.AttributeValue {
@@ -127,7 +128,7 @@ shared({caller}) actor class Partition() = this {
     };
 
     public query func hasSubDBByInner(options: {innerKey: Nac.InnerSubDBKey}): async Bool {
-        // Nac.hasSubDBByInner({innerSuperDB = superDB; innerKey = options.innerKey});
+        Nac.hasSubDBByInner({innerSuperDB = superDB; innerKey = options.innerKey});
     };
 
     public shared func subDBSizeByOuter({outerKey: Nac.OuterSubDBKey}): async ?Nat {
@@ -135,7 +136,7 @@ shared({caller}) actor class Partition() = this {
     };
 
     public query func subDBSizeByInner({innerKey: Nac.InnerSubDBKey}): async ?Nat {
-        // Nac.subDBSizeByInner({superDB; innerKey});
+        Nac.subDBSizeByInner({superDB; innerKey});
     };
 
     public shared func startInsertingImpl({
@@ -180,7 +181,7 @@ shared({caller}) actor class Partition() = this {
         Cycles.available();
     };
 
-    public shared func cycles_simple_topUpCycles: (cycles: Nat) -> /*async*/ () {
-        Cycles.accept(cycles);
+    public shared func cycles_simple_topUpCycles(cycles: Nat): /*async*/ () {
+        ignore Cycles.accept<system>(cycles);
     };
 }

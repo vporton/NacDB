@@ -9,7 +9,7 @@ import Index "../src/example/index/main";
 import Partition "../src/example/partition/main";
 import Principal "mo:base/Principal";
 import GUID "../src/GUID";
-import MyCycles "../src/Cycles";
+import Cycles "mo:base/ExperimentalCycles";
 import Nat "mo:base/Nat";
 import Text "mo:base/Text";
 import Blob "mo:base/Blob";
@@ -71,9 +71,8 @@ actor StressTest {
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
-        MyCycles.addPart<system>(dbOptions.partitionCycles);
+        Cycles.add<system>(100_000_000_000);
         let index = await Index.Index();
-        MyCycles.addPart<system>(dbOptions.partitionCycles);
         await index.init();
 
         let threads : [var ?(async())] = Array.init(nThreads, null);
@@ -178,8 +177,7 @@ actor StressTest {
             let guid = GUID.nextGuid(options.guidGen);
             label R loop {
                 let {outer = {canister = part; key = outerKey}} = try {
-                    MyCycles.addPart<system>(dbOptions.partitionCycles);
-                    await options.index.createSubDB(Blob.toArray(guid), {userData = debug_show(guid); hardCap = null});
+                                await options.index.createSubDB(Blob.toArray(guid), {userData = debug_show(guid); hardCap = null});
                 } catch(_) {
                     continue R;
                 };
@@ -200,8 +198,7 @@ actor StressTest {
                     let guid = GUID.nextGuid(options.guidGen);
                     label R loop {
                         try {
-                            MyCycles.addPart<system>(dbOptions.partitionCycles);
-                            await options.index.deleteSubDB(Blob.toArray(guid), {
+                                                await options.index.deleteSubDB(Blob.toArray(guid), {
                                 outerKey;
                                 outerCanister = Principal.fromActor(part);
                             });
@@ -233,7 +230,6 @@ actor StressTest {
             let randomValue = Nat64.toNat(options.rng.next());
             label R loop {
                 let res = try {
-                    MyCycles.addPart<system>(dbOptions.partitionCycles);
                     await options.index.insert(Blob.toArray(guid), {
                         dbOptions;
                         outerCanister = Principal.fromActor(part);
@@ -282,8 +278,7 @@ actor StressTest {
                 case (?((part, outerKey), sk)) {
                     label R loop {
                         try {
-                            MyCycles.addPart<system>(dbOptions.partitionCycles);
-                            await options.index.delete(Blob.toArray(guid), {outerCanister = Principal.fromActor(part); outerKey; sk});
+                                                await options.index.delete(Blob.toArray(guid), {outerCanister = Principal.fromActor(part); outerKey; sk});
                         } catch(e) {
                             // Debug.print("repeat delete: " # Error.message(e));
                             continue R;

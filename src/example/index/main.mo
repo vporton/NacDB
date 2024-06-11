@@ -6,7 +6,7 @@ import Debug "mo:base/Debug";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Result "mo:base/Result";
-import MyCycles "mo:cycles-simple";
+import Cycles "mo:base/ExperimentalCycles";
 import Common "../common";
 
 shared actor class Index() = this {
@@ -23,11 +23,13 @@ shared actor class Index() = this {
     };
 
     public shared func createPartition(): async Principal {
+        ignore Cycles.accept<system>(100_000_000_000);
+        Cycles.add<system>(100_000_000_000);
         Principal.fromActor(await Partition.Partition());
     };
 
     public query func getCanisters(): async [Principal] {
-        // let iter = Iter.map(Nac.getCanisters(dbIndex).vals(), func (x: Nac.PartitionCanister): Principal {Principal.fromActor(x)});
+        let iter = Iter.map(Nac.getCanisters(dbIndex).vals(), func (x: Nac.PartitionCanister): Principal {Principal.fromActor(x)});
         Iter.toArray(iter);
     };
 
