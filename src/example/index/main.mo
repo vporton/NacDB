@@ -18,6 +18,8 @@ shared actor class Index() = this {
         if (initialized) {
             Debug.trap("already initialized");
         };
+        ignore Cycles.accept<system>(100_000_000_000);
+        Cycles.add<system>(50_000_000_000);
         StableBuffer.add(dbIndex.canisters, await Partition.Partition());
         initialized := true;
     };

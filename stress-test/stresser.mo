@@ -6,7 +6,6 @@ import Prng "mo:prng";
 import Nat64 "mo:base/Nat64";
 import Nac "../src/NacDB";
 import Index "../src/example/index/main";
-import Partition "../src/example/partition/main";
 import Principal "mo:base/Principal";
 import GUID "../src/GUID";
 import Cycles "mo:base/ExperimentalCycles";
@@ -28,13 +27,13 @@ actor StressTest {
     /// The tree considered already debugged for comparison to the being debugged one.
     type ReferenceTree = RBT.Tree<Nac.GUID, RBT.Tree<Text, Nat>>;
 
-    type OuterToGUID = RBT.Tree<(Partition.Partition, Nac.OuterSubDBKey), Nac.GUID>;
+    type OuterToGUID = RBT.Tree<(Nac.PartitionCanister, Nac.OuterSubDBKey), Nac.GUID>;
 
-    func comparePartition(x: Partition.Partition, y: Partition.Partition): {#equal; #greater; #less} {
+    func comparePartition(x: Nac.PartitionCanister, y: Nac.PartitionCanister): {#equal; #greater; #less} {
         Principal.compare(Principal.fromActor(x), Principal.fromActor(y));
     };
 
-    func compareLocs(x: (Partition.Partition, Nac.OuterSubDBKey), y: (Partition.Partition, Nac.OuterSubDBKey)): {#less; #equal; #greater} {
+    func compareLocs(x: (Nac.PartitionCanister, Nac.OuterSubDBKey), y: (Nac.PartitionCanister, Nac.OuterSubDBKey)): {#less; #equal; #greater} {
         let c = comparePartition(x.0, y.0);
         if (c != #equal) {
             c;
@@ -71,6 +70,7 @@ actor StressTest {
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
+        ignore Cycles.accept<system>(100_000_000_000);
         Cycles.add<system>(100_000_000_000);
         let index = await Index.Index();
         await index.init();
@@ -187,9 +187,9 @@ actor StressTest {
             let ?(part0, subDBKey) = v else {
                 Debug.trap("programming error: createSubDB");
             };
-            let part: Partition.Partition = actor(Principal.toText(part0));
+            let part: Nac.PartitionCanister = actor(Principal.toText(part0));
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
-            options.outerToGUID := RBT.put(options.outerToGUID, compareLocs, (part, subDBKey), guid);
+            options.outerToGUID := RBT.put<(Nac.PartitionCanister, Nac.OuterSubDBKey), Nac.GUID>(options.outerToGUID, compareLocs, (part, subDBKey), guid);
             options.recentOuter.add((part, subDBKey));
         } else if (random < Nat64.fromNat(rngBound / variants * (2+1))) {
             options.dbDeletions += 1;
@@ -221,7 +221,7 @@ actor StressTest {
             };
         } else if (random < Nat64.fromNat(rngBound / variants * (3+2))) { // two times greater probability
             options.eltInserts += 1;
-            var v: ?(Partition.Partition, Nat) = null;
+            var v: ?(Nac.PartitionCanister, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             let sk = GUID.nextGuid(options.guidGen);
             let ?(part, outerKey) = randomSubDB(options) else {
@@ -260,7 +260,7 @@ actor StressTest {
             let ?(part3, outerKey3) = v else {
                 Debug.trap("programming error: insert");
             };
-            let ?guid2 = RBT.get(options.outerToGUID, compareLocs, (part3, outerKey3)) else {
+            let ?guid2 = RBT.get<(Nac.PartitionCanister, Nac.OuterSubDBKey), Nac.GUID>(options.outerToGUID, compareLocs, (part3, outerKey3)) else {
                 return; // It was meanwhile deleted by another thread.
             };
             let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else {
@@ -333,7 +333,7 @@ actor StressTest {
         Debug.trap("programming error");
     };
 
-    func randomSubDB(options: ThreadArguments): ?(Partition.Partition, Nac.OuterSubDBKey) {
+    func randomSubDB(options: ThreadArguments): ?(Nac.PartitionCanister, Nac.OuterSubDBKey) {
         // For stress testing, choose either...
         if (options.rng.next() < 2**63) {
             if (options.rng.next() < 2**63) { // a "gather many" sub-DB
@@ -354,13 +354,19 @@ actor StressTest {
             };
         } else {
             // ... or a recently used value.
-            randomBufferElementPreferringNearEnd(options.rng, options.recentOuter);
+            randomBufferElementPreferringNearEnd<(Nac.OuterCanister, Nac.OuterSubDBKey)>(options.rng, options.recentOuter);
+            // switch (res) {
+            //     case (?(part, key)) {
+            //         ?(part, key);
+            //     };
+            //     case null null;
+            // };
         };
     };
 
-    func randomItem(options: ThreadArguments): ?((Partition.Partition, Nac.OuterSubDBKey), Text) {
+    func randomItem(options: ThreadArguments): ?((Nac.PartitionCanister, Nac.OuterSubDBKey), Text) {
         let ?(k, v) = randomSubDB(options) else {
-            return null;
+            Debug.trap("programming error");
         };
         let ?guid = RBT.get(options.outerToGUID, compareLocs, (k, v)) else {
             return null;
