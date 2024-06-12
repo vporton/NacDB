@@ -70,7 +70,6 @@ actor StressTest {
         rng.init(seed);
         let guidGen = GUID.init(Array.tabulate<Nat8>(16, func _ = 0));
 
-        ignore Cycles.accept<system>(100_000_000_000);
         Cycles.add<system>(100_000_000_000);
         let index = await Index.Index();
         await index.init();
