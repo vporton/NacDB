@@ -249,7 +249,6 @@ module {
     /// Options for the DB.
     public type DBOptions = {
         moveCap: MoveCap;
-        partitionCycles: Nat;
         createDBQueueLength: Nat;
         insertQueueLength: Nat;
     };
