@@ -386,7 +386,7 @@ module {
                         if (BTree.has(dbIndex.moving, compareLocs, {canister = outerCanister; key = outerKey})) {
                             Debug.trap("DB is scaling");
                         };
-                                        let {innerKey} = await canister.rawInsertSubDB({
+                        let {innerKey} = await canister.rawInsertSubDB({
                             map = subDB.map;
                             innerKey = null;
                             userData = subDB.userData;
