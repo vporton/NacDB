@@ -32,7 +32,6 @@ import Nat "mo:base/Nat";
 import Prim "mo:⛔";
 import Debug "mo:base/Debug";
 import OpsQueue "./OpsQueue";
-import MyCycles "mo:cycles-simple";
 import Blob "mo:base/Blob";
 
 module {
