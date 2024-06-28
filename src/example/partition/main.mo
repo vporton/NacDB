@@ -97,6 +97,12 @@ shared({caller}) actor class Partition() = this {
         await* Nac.scanLimitOuter({outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
     };
 
+    public composite query func scanLimitOuterComposite({outerKey: Nac.OuterSubDBKey; lowerBound: Text; upperBound: Text; dir: BTree.Direction; limit: Nat})
+        : async BTree.ScanLimitResult<Text, Nac.AttributeValue>
+    {
+        await* Nac.scanLimitOuter({outerSuperDB = superDB; outerKey; lowerBound; upperBound; dir; limit});
+    };
+
     public query func scanSubDBs(): async [(Nac.OuterSubDBKey, {canister: Principal; key: Nac.InnerSubDBKey})] {
         type T1 = (Nac.OuterSubDBKey, Nac.InnerPair);
         type T2 = (Nac.OuterSubDBKey, {canister: Principal; key: Nac.InnerSubDBKey});
