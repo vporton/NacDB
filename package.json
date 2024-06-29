@@ -1,9 +1,0 @@
-{
-  "scripts": {
-    "stress-test": "npm run build:stress-test && cd dist && node main.js",
-    "build:stress-test": "npx ts stress-test/typescript/main.ts && npx ts stress-test/typescript/worker.ts"
-  },
-  "dependencies": {
-    "typescript": "^5.1.6"
-  }
-}

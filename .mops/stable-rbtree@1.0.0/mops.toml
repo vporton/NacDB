@@ -1,0 +1,10 @@
+[dependencies]
+base = "0.10.2"
+
+[package]
+name = "stable-rbtree"
+version = "1.0.0"
+description = "stable-rbtree"
+repository = "https://github.com/canscale/StableRBTree"
+keywords = [ "stable-rbtree" ]
+license = "MIT"
