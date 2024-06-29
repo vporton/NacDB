@@ -14,11 +14,15 @@ shared({caller}) actor class Partition() = this {
     module N {
         type AttributeValue = Nac.AttributeValue;
 
+        type Test = actor {
+            scanLimitInner: query({innerKey: Nac.InnerSubDBKey; lowerBound: Nac.SK; upperBound: Nac.SK; dir: RBT.Direction; limit: Nat})
+                -> async RBT.ScanLimitResult<Text, AttributeValue>;
+
+        };
+
         /// Retrieve sub-DB entries by its outer key.
         public func scanLimitOuter(options: ScanLimitOuterOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
-            let ?{canister = part; key = innerKey} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
-                Debug.trap("no sub-DB");
-            };
+            let part: Test = actor("aaaaa-aa");
             await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
         };
     };
