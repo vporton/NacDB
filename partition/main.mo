@@ -6,12 +6,8 @@ shared({caller}) actor class Partition() = this {
     };
 
     module N {
-        // type AttributeValue = Nac.AttributeValue;
-
         type Test = actor {
-            scanLimitInner: query()
-                -> async ();
-
+            scanLimitInner: query() -> async ();
         };
 
         /// Retrieve sub-DB entries by its outer key.
