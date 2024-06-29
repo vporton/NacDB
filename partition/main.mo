@@ -1,19 +1,17 @@
-shared({caller}) actor class Partition() = this {
-    public composite query func scanLimitOuterComposite()
-        : async ()
+actor Partition {
+    public composite query func scanLimitOuterComposite() : async ()
     {
-        await* N.scanLimitOuter();
+        await* N.outer();
     };
 
     module N {
-        type Test = actor {
-            scanLimitInner: query() -> async ();
+        public type Test = actor {
+            inner: query() -> async ();
         };
 
-        /// Retrieve sub-DB entries by its outer key.
-        public func scanLimitOuter(): async* () {
+        public func outer(): async* () {
             let part: Test = actor("aaaaa-aa");
-            await part.scanLimitInner();
+            await part.inner();
         };
     };
 }
