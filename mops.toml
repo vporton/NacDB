@@ -1,7 +1,7 @@
 [dependencies]
 base = "0.11.0"
 stable-rbtree = "1.0.0"
-stable-buffer = "https://github.com/canscale/StableBuffer#v1.3.0@acdde6bb5b939227997cebdbb8919d2e6da8691c"
+stable-buffer = "1.0.1"
 prng = "0.0.3"
 stableheapbtreemap = "1.5.0"
 sha2 = "0.0.4"
