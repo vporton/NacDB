@@ -162,6 +162,7 @@ module {
     /// This canister with sub-DBs (identified by an inner and an outer key).
     public type PartitionCanister = actor {
         // Mandatory //
+        // Duplicate code
         rawGetSubDB: query ({innerKey: InnerSubDBKey}) -> async ?{map: [(SK, AttributeValue)]; userData: Text};
         rawDeleteSubDB: ({innerKey: InnerSubDBKey}) -> async ();
         rawInsertSubDB({map: [(SK, AttributeValue)]; innerKey: ?InnerSubDBKey; userData: Text; hardCap: ?Nat})
@@ -187,13 +188,43 @@ module {
             sk: SK;
             value: AttributeValue;
         }): async ();
-        deleteSubDBOuter({outerKey: OuterSubDBKey}): async ();
+    };
+
+    public type PartitionCanisterFull = actor {
+        // Mandatory //
+        // Duplicate code
+        rawGetSubDB: query ({innerKey: InnerSubDBKey}) -> async ?{map: [(SK, AttributeValue)]; userData: Text};
+        rawDeleteSubDB: ({innerKey: InnerSubDBKey}) -> async ();
+        rawInsertSubDB({map: [(SK, AttributeValue)]; innerKey: ?InnerSubDBKey; userData: Text; hardCap: ?Nat})
+            : async {innerKey: InnerSubDBKey};
+        rawInsertSubDBAndSetOuter({
+            map: [(SK, AttributeValue)];
+            keys: ?{
+                innerKey: InnerSubDBKey;
+                outerKey: OuterSubDBKey;
+            };
+            userData: Text;
+            hardCap: ?Nat;
+        })
+            : async {innerKey: InnerSubDBKey; outerKey: OuterSubDBKey};
+        getInner: query ({outerKey: OuterSubDBKey}) -> async ?{canister: Principal; key: InnerSubDBKey};
+        isOverflowed: query () -> async Bool;
+        putLocation({outerKey: OuterSubDBKey; innerCanister: Principal; innerKey: InnerSubDBKey}) : async ();
+        // In the current version two partition canister are always the same.
+        createOuter({part: Principal; outerKey: OuterSubDBKey; innerKey: InnerSubDBKey})
+            : async {inner: {canister: Principal; key: InnerSubDBKey}; outer: {canister: Principal; key: OuterSubDBKey}};
+        startInsertingImpl(options: {
+            innerKey: InnerSubDBKey;
+            sk: SK;
+            value: AttributeValue;
+        }): async ();
 
         // Optional //
-
-        superDBSize: query () -> async Nat;
+        deleteSubDBOuter({outerKey: OuterSubDBKey}): async ();
         deleteSubDBInner({innerKey: InnerSubDBKey}) : async ();
         deleteInner({innerKey: InnerSubDBKey; sk: SK}): async ();
+        subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
+        superDBSize: query () -> async Nat;
         scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
             -> async RBT.ScanLimitResult<Text, AttributeValue>;
         scanLimitOuter: shared({outerKey: OuterSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
@@ -204,7 +235,6 @@ module {
         hasByOuter: shared (options: {outerKey: OuterSubDBKey; sk: SK}) -> async Bool;
         hasSubDBByInner: query (options: {innerKey: InnerSubDBKey}) -> async Bool;
         hasSubDBByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async Bool;
-        subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
         subDBSizeByOuter: shared (options: {outerKey: OuterSubDBKey}) -> async ?Nat;
         scanSubDBs: query() -> async [(OuterSubDBKey, {canister: Principal; key: InnerSubDBKey})];
         getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
@@ -218,6 +248,12 @@ module {
 
     /// A canister as identified by an outer key.
     public type OuterCanister = PartitionCanister;
+
+    /// A canister as identified by an inner key.
+    public type InnerCanisterFull = PartitionCanisterFull;
+
+    /// A canister as identified by an outer key.
+    public type OuterCanisterFull = PartitionCanisterFull;
 
     /// Initialize `DBIndex` structure (done once per creation of the entire database).
     public func createDBIndex(dbOptions: DBOptions) : DBIndex {
@@ -475,7 +511,10 @@ module {
         let ?{canister = part; key} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
             Debug.trap("no entry");
         };
-        await part.getByInner({innerKey = key; sk = options.sk});
+        let part2 = actor(Principal.toText(Principal.fromActor(part))) : actor {
+            getByInner: query (options: {innerKey: InnerSubDBKey; sk: SK}) -> async ?AttributeValue;
+        };
+        await part2.getByInner({innerKey = key; sk = options.sk});
     };
 
     public type GetByOuterPartitionKeyOptions = {outer: OuterPair; sk: SK};
@@ -526,7 +565,10 @@ module {
         let ?{canister = part; key = innerKey} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
             Debug.trap("no sub-DB");
         };
-        await part.getSubDBUserDataInner({innerKey});
+        let part2 = actor(Principal.toText(Principal.fromActor(part))) : actor {
+            getSubDBUserDataInner: shared (options: {innerKey: InnerSubDBKey}) -> async ?Text;
+        };
+        await part2.getSubDBUserDataInner({innerKey});
     };
 
     public type GetUserDataInnerOptions = {superDB: SuperDB; subDBKey: InnerSubDBKey};
@@ -555,7 +597,10 @@ module {
         let ?{canister = part; key = innerKey} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
             Debug.trap("no sub-DB");
         };
-        await part.subDBSizeByInner({innerKey});
+        let part2 = actor(Principal.toText(Principal.fromActor(part))) : actor {
+            subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
+        };
+        await part2.subDBSizeByInner({innerKey});
     };
 
     public type SubDBSizeOuterOptions = {outerSuperDB: SuperDB; outerKey: OuterSubDBKey};
@@ -565,7 +610,10 @@ module {
         let ?{canister = part; key = innerKey} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
             Debug.trap("no sub-DB");
         };
-        await part.subDBSizeByInner({innerKey});
+        let part2 = actor(Principal.toText(Principal.fromActor(part))) : actor {
+            subDBSizeByInner: query (options: {innerKey: InnerSubDBKey}) -> async ?Nat;
+        };
+        await part2.subDBSizeByInner({innerKey});
     };
 
     /// To be called in a partition where `innerSuperDB` resides.
@@ -797,8 +845,10 @@ module {
     func deleteFinishByQueue(deleting: DeletingItem) : async* () {
         switch(await deleting.options.outerCanister.getInner({outerKey = deleting.options.outerKey})) {
             case (?{canister = innerCanister; key = innerKey}) {
-                let inner: InnerCanister = actor(Principal.toText(innerCanister));
                 // Can we block here on inner key instead of outer one?
+                let inner = actor(Principal.toText(innerCanister)) : actor {
+                    deleteInner({innerKey: InnerSubDBKey; sk: SK}): async ();
+                };
                 await inner.deleteInner({innerKey; sk = deleting.options.sk});
             };
             case (null) {};
@@ -842,12 +892,17 @@ module {
     func deleteSubDBFinishByQueue(deleting: DeletingSubDB) : async* () {
         switch(await deleting.options.outerCanister.getInner({outerKey = deleting.options.outerKey})) {
             case (?{canister = innerCanister; key = innerKey}) {
-                let inner: InnerCanister = actor(Principal.toText(innerCanister));
+                let inner = actor(Principal.toText(innerCanister)) : actor {
+                    deleteSubDBInner({innerKey: InnerSubDBKey}) : async ();
+                };
                 await inner.deleteSubDBInner({innerKey});
             };
             case (null) {};
         };
-        await deleting.options.outerCanister.deleteSubDBOuter({outerKey = deleting.options.outerKey});
+        let part2 = actor(Principal.toText(Principal.fromActor(deleting.options.outerCanister))) : actor {
+            deleteSubDBOuter({outerKey: OuterSubDBKey}): async ();
+        };
+        await part2.deleteSubDBOuter({outerKey = deleting.options.outerKey});
     };
 
     public func deleteSubDBFinish(guid: GUID, dbIndex: DBIndex) : async* ?() {
@@ -1035,13 +1090,21 @@ module {
         let ?{canister = part; key = innerKey} = getInner({outerKey = options.outerKey; superDB = options.outerSuperDB}) else {
             Debug.trap("no sub-DB");
         };
-        await part.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
+        let part2 = actor(Principal.toText(Principal.fromActor(part))): actor { // slow
+            scanLimitInner: query({innerKey: InnerSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
+                -> async RBT.ScanLimitResult<Text, AttributeValue>;
+        };
+        await part2.scanLimitInner({innerKey; lowerBound = options.lowerBound; upperBound = options.upperBound; dir = options.dir; limit = options.limit});
     };
 
     type ScanLimitOuterPartitionKeyOptions = {outer: OuterPair; lowerBound: Text; upperBound: Text; dir: RBT.Direction; limit: Nat};
     
     public func scanLimitOuterPartitionKey(options: ScanLimitOuterPartitionKeyOptions): async* RBT.ScanLimitResult<Text, AttributeValue> {
-        await options.outer.canister.scanLimitOuter({
+        let a = actor(Principal.toText(Principal.fromActor(options.outer.canister))): actor { // slow
+            scanLimitOuter: shared({outerKey: OuterSubDBKey; lowerBound: SK; upperBound: SK; dir: RBT.Direction; limit: Nat})
+                -> async RBT.ScanLimitResult<Text, AttributeValue>;
+        };
+        await a.scanLimitOuter({
             outerKey = options.outer.key;
             lowerBound = options.lowerBound;
             upperBound = options.upperBound;

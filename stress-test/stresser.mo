@@ -27,13 +27,13 @@ actor StressTest {
     /// The tree considered already debugged for comparison to the being debugged one.
     type ReferenceTree = RBT.Tree<Nac.GUID, RBT.Tree<Text, Nat>>;
 
-    type OuterToGUID = RBT.Tree<(Nac.PartitionCanister, Nac.OuterSubDBKey), Nac.GUID>;
+    type OuterToGUID = RBT.Tree<(Nac.PartitionCanisterFull, Nac.OuterSubDBKey), Nac.GUID>;
 
-    func comparePartition(x: Nac.PartitionCanister, y: Nac.PartitionCanister): {#equal; #greater; #less} {
+    func comparePartition(x: Nac.PartitionCanisterFull, y: Nac.PartitionCanisterFull): {#equal; #greater; #less} {
         Principal.compare(Principal.fromActor(x), Principal.fromActor(y));
     };
 
-    func compareLocs(x: (Nac.PartitionCanister, Nac.OuterSubDBKey), y: (Nac.PartitionCanister, Nac.OuterSubDBKey)): {#less; #equal; #greater} {
+    func compareLocs(x: (Nac.PartitionCanisterFull, Nac.OuterSubDBKey), y: (Nac.PartitionCanisterFull, Nac.OuterSubDBKey)): {#less; #equal; #greater} {
         let c = comparePartition(x.0, y.0);
         if (c != #equal) {
             c;
@@ -51,8 +51,8 @@ actor StressTest {
         var rng: Prng.Seiran128;
         index: Index.Index;
         guidGen: GUID.GUIDGenerator;
-        var recentOuter: Buffer.Buffer<(Nac.OuterCanister, Nac.OuterSubDBKey)>;
-        var recentSKs: Buffer.Buffer<((Nac.OuterCanister, Nac.OuterSubDBKey), Nac.SK)>;
+        var recentOuter: Buffer.Buffer<(Nac.OuterCanisterFull, Nac.OuterSubDBKey)>;
+        var recentSKs: Buffer.Buffer<((Nac.OuterCanisterFull, Nac.OuterSubDBKey), Nac.SK)>;
         var dbInserts: Nat;
         var dbDeletions: Nat;
         var eltInserts: Nat;
@@ -131,16 +131,16 @@ actor StressTest {
         let partitions = await index.getCanisters();
         let nThreads2 = Array.size(partitions);
         let threads2 : [var ?(async())] = Array.init(nThreads2, null);
-        let runThread2 = func(outerPart: Nac.OuterCanister) : async () {
+        let runThread2 = func(outerPart: Nac.OuterCanisterFull) : async () {
             for ((outerKey, {canister = innerCanister; key = innerKey}) in (await outerPart.scanSubDBs()).vals()) {
-                let innerCanister2: Nac.InnerCanister = actor(Principal.toText(innerCanister));
+                let innerCanister2: Nac.InnerCanisterFull = actor(Principal.toText(innerCanister));
                 if (not (await innerCanister2.hasSubDBByInner({innerKey}))) {
                     brokenOuterCount += 1;
                 }
             }
         };
         for (threadNum in threads2.keys()) {
-            let partitions2: Nac.PartitionCanister = actor(Principal.toText(partitions[threadNum]));
+            let partitions2: Nac.PartitionCanisterFull = actor(Principal.toText(partitions[threadNum]));
             threads2[threadNum] := ?runThread2(partitions2);
         };
         for (topt in threads2.vals()) {
@@ -152,7 +152,7 @@ actor StressTest {
         Debug.print("Broken outer links: " # debug_show(brokenOuterCount));
     };
 
-    // func runThread2(outerPart: Nac.OuterCanister) : async () {
+    // func runThread2(outerPart: Nac.OuterCanisterFull) : async () {
     //     for ((outerKey, (innerCanister, innerKey)) in (await outerPart.scanSubDBs()).vals()) {
     //         if (not (await innerCanister.hasSubDBByInner({innerKey}))) {
     //             brokenOuterCount += 1;
@@ -186,9 +186,9 @@ actor StressTest {
             let ?(part0, subDBKey) = v else {
                 Debug.trap("programming error: createSubDB");
             };
-            let part: Nac.PartitionCanister = actor(Principal.toText(part0));
+            let part: Nac.PartitionCanisterFull = actor(Principal.toText(part0));
             options.referenceTree := RBT.put(options.referenceTree, Blob.compare, guid, RBT.init<Text, Nat>());
-            options.outerToGUID := RBT.put<(Nac.PartitionCanister, Nac.OuterSubDBKey), Nac.GUID>(options.outerToGUID, compareLocs, (part, subDBKey), guid);
+            options.outerToGUID := RBT.put<(Nac.PartitionCanisterFull, Nac.OuterSubDBKey), Nac.GUID>(options.outerToGUID, compareLocs, (part, subDBKey), guid);
             options.recentOuter.add((part, subDBKey));
         } else if (random < Nat64.fromNat(rngBound / variants * (2+1))) {
             options.dbDeletions += 1;
@@ -220,7 +220,7 @@ actor StressTest {
             };
         } else if (random < Nat64.fromNat(rngBound / variants * (3+2))) { // two times greater probability
             options.eltInserts += 1;
-            var v: ?(Nac.PartitionCanister, Nat) = null;
+            var v: ?(Nac.PartitionCanisterFull, Nat) = null;
             let guid = GUID.nextGuid(options.guidGen);
             let sk = GUID.nextGuid(options.guidGen);
             let ?(part, outerKey) = randomSubDB(options) else {
@@ -244,7 +244,7 @@ actor StressTest {
                 switch (res) {
                     case (#ok res) {
                         let {outer = {canister = part2; key = outerKey2}} = res;
-                        let part3: Nac.PartitionCanister = actor(Principal.toText(part2));
+                        let part3: Nac.PartitionCanisterFull = actor(Principal.toText(part2));
                         v := ?(part3, outerKey2);
                     };
                     case (#err "missing sub-DB") { // Everything is OK, a not erroneous race condition.
@@ -259,7 +259,7 @@ actor StressTest {
             let ?(part3, outerKey3) = v else {
                 Debug.trap("programming error: insert");
             };
-            let ?guid2 = RBT.get<(Nac.PartitionCanister, Nac.OuterSubDBKey), Nac.GUID>(options.outerToGUID, compareLocs, (part3, outerKey3)) else {
+            let ?guid2 = RBT.get<(Nac.PartitionCanisterFull, Nac.OuterSubDBKey), Nac.GUID>(options.outerToGUID, compareLocs, (part3, outerKey3)) else {
                 return; // It was meanwhile deleted by another thread.
             };
             let ?subtree = RBT.get(options.referenceTree, Blob.compare, guid2) else {
@@ -332,7 +332,7 @@ actor StressTest {
         Debug.trap("programming error");
     };
 
-    func randomSubDB(options: ThreadArguments): ?(Nac.PartitionCanister, Nac.OuterSubDBKey) {
+    func randomSubDB(options: ThreadArguments): ?(Nac.PartitionCanisterFull, Nac.OuterSubDBKey) {
         // For stress testing, choose either...
         if (options.rng.next() < 2**63) {
             if (options.rng.next() < 2**63) { // a "gather many" sub-DB
@@ -353,7 +353,7 @@ actor StressTest {
             };
         } else {
             // ... or a recently used value.
-            randomBufferElementPreferringNearEnd<(Nac.OuterCanister, Nac.OuterSubDBKey)>(options.rng, options.recentOuter);
+            randomBufferElementPreferringNearEnd<(Nac.OuterCanisterFull, Nac.OuterSubDBKey)>(options.rng, options.recentOuter);
             // switch (res) {
             //     case (?(part, key)) {
             //         ?(part, key);
@@ -363,7 +363,7 @@ actor StressTest {
         };
     };
 
-    func randomItem(options: ThreadArguments): ?((Nac.PartitionCanister, Nac.OuterSubDBKey), Text) {
+    func randomItem(options: ThreadArguments): ?((Nac.PartitionCanisterFull, Nac.OuterSubDBKey), Text) {
         let ?(k, v) = randomSubDB(options) else {
             Debug.trap("programming error");
         };
@@ -394,13 +394,13 @@ actor StressTest {
         var result: ReferenceTree = RBT.init();
         let canisters = await index.getCanisters();
         for (part in canisters.vals()) {
-            let part2: Nac.PartitionCanister = actor(Principal.toText(part));
+            let part2: Nac.PartitionCanisterFull = actor(Principal.toText(part));
             label L for ((outerKey, {canister = innerCanister; key = innerKey}) in (await part2.scanSubDBs()).vals()) {
                 let ?guid = RBT.get(outerToGUID, compareLocs, (part2, outerKey)) else {
                     Debug.trap("cannot get GUID for " # debug_show(Principal.fromActor(part2)) # " " # debug_show(outerKey));
                 };
                 var subtree = RBT.init<Text, Nat>();
-                let innerCanister2: Nac.PartitionCanister = actor(Principal.toText(innerCanister));
+                let innerCanister2: Nac.PartitionCanisterFull = actor(Principal.toText(innerCanister));
                 let scanned = await innerCanister2.scanLimitInner({
                     innerKey; lowerBound = ""; upperBound = "\u{ffff}\u{ffff}\u{ffff}\u{ffff}"; dir = #fwd; limit = 1_000_000_000});
                 for ((sk, v) in scanned.results.vals()) {
