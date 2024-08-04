@@ -1,6 +1,6 @@
 import Nac "../../../src/NacDB";
 import Partition "../partition/main";
-import StableBuffer "mo:stable-buffer";
+import StableBuffer "mo:stablebuffer/StableBuffer";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 import Blob "mo:base/Blob";

@@ -26,7 +26,7 @@ import I "mo:base/Iter";
 import Principal "mo:base/Principal";
 import BTree "mo:stableheapbtreemap/BTree";
 import RBT "mo:stable-rbtree/StableRBTree";
-import StableBuffer "mo:stable-buffer";
+import StableBuffer "mo:stablebuffer/StableBuffer";
 import Text "mo:base/Text";
 import Nat "mo:base/Nat";
 import Prim "mo:⛔";
