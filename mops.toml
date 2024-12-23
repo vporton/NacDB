@@ -5,7 +5,7 @@ stable-buffer = "1.0.1"
 prng = "0.0.3"
 stableheapbtreemap = "1.5.0"
 sha2 = "0.0.4"
-cycles-simple = "0.10.0"
+cycles-simple = "0.11.4"
 stablebuffer = "https://github.com/skilesare/StableBuffer#v0.2.0@110660769d11ba93c618dc4712525d20503bdc37"
 
 [dev-dependencies]
@@ -13,7 +13,7 @@ matchers = "https://github.com/kritzcreek/motoko-matchers#v1.3.0@3dac8a071b69e4e
 
 [package]
 name = "nacdb"
-version = "0.14.2"
+version = "0.14.3"
 description = "A distributed (multi-canister) database with seamless enumeration"
 repository = "https://github.com/vporton/NacDB"
 keywords = [ "database", "databases" ]
